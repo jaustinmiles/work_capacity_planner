@@ -1,7 +1,8 @@
-import React, { useState, useRef, useEffect } from 'react'
+import React, { useState, useRef, useEffect, useMemo } from 'react'
 import { WorkBlock, WorkMeeting } from '@shared/work-blocks-types'
 import { isSingleTypeBlock, isComboBlock, isSystemBlock, getTypeColor, getTypeName } from '@shared/user-task-types'
 import { useSortedUserTaskTypes } from '@renderer/store/useUserTaskTypeStore'
+import { useResponsive } from '@renderer/providers/ResponsiveProvider'
 import { getCurrentTime } from '@shared/time-provider'
 import { parseTimeString } from '@shared/time-utils'
 
@@ -24,9 +25,8 @@ interface DragState {
   initialEndTime?: string
 }
 
-const HOUR_HEIGHT = 60 // pixels per hour
-const TIME_LABELS_WIDTH = 60
-const CONTENT_WIDTH = 250
+// Base constants - adjusted responsively inside component
+const BASE_HOUR_HEIGHT = 60 // pixels per hour
 
 export function TimelineVisualizer({
   blocks = [],
@@ -38,9 +38,24 @@ export function TimelineVisualizer({
   height = 600,
 }: TimelineVisualizerProps) {
   const userTypes = useSortedUserTaskTypes()
+  const { isMobile, isCompact } = useResponsive()
   const [dragState, setDragState] = useState<DragState | null>(null)
 
   const containerRef = useRef<HTMLDivElement>(null)
+
+  // Responsive dimensions based on screen size
+  const HOUR_HEIGHT = BASE_HOUR_HEIGHT
+  const TIME_LABELS_WIDTH = useMemo(() => {
+    if (isMobile) return 45
+    if (isCompact) return 50
+    return 60
+  }, [isMobile, isCompact])
+
+  const CONTENT_WIDTH = useMemo(() => {
+    if (isMobile) return 150
+    if (isCompact) return 200
+    return 250
+  }, [isMobile, isCompact])
 
   // Convert time string (HH:mm) to pixels from top
   const timeToPixels = (timeStr: string): number => {

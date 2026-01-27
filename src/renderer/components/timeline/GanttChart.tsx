@@ -22,7 +22,7 @@ import { getCurrentTime, isTimeOverridden } from '@shared/time-provider'
 import { parseTimeOnDate, dateToYYYYMMDD, addDays } from '@shared/time-utils'
 import { useResponsive } from '../../providers/ResponsiveProvider'
 import { useLayoutStore } from '../../store/useLayoutStore'
-import { ULTRA_WIDE_DEFAULTS } from '@shared/constants'
+import { ULTRA_WIDE_DEFAULTS, MOBILE_LAYOUT } from '@shared/constants'
 
 const { Text } = Typography
 
@@ -115,16 +115,21 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
   const { updateTask, updateSequencedTask, workSettings } = useTaskStore()
   const { workPatterns = [], isLoading: workPatternsLoading } = useWorkPatternStore()
   const userTypes = useSortedUserTaskTypes()
-  const { isUltraWide, isSuperUltraWide } = useResponsive()
+  const { isMobile, isCompact, isUltraWide, isSuperUltraWide } = useResponsive()
   const { ganttRowLabelWidth } = useLayoutStore()
 
   // Calculate effective row label width based on user preference or breakpoint
+  // Handles full range from mobile to super ultra-wide screens
   const effectiveRowLabelWidth = useMemo(() => {
     if (ganttRowLabelWidth !== 'auto') return ganttRowLabelWidth
+    // Ultra-wide screens get wider labels
     if (isSuperUltraWide) return ULTRA_WIDE_DEFAULTS.GANTT_ROW_LABEL_WIDTH_SUW
     if (isUltraWide) return ULTRA_WIDE_DEFAULTS.GANTT_ROW_LABEL_WIDTH_UWQHD
+    // Mobile and compact screens get narrower labels
+    if (isMobile) return MOBILE_LAYOUT.GANTT_ROW_LABEL_WIDTH_MOBILE
+    if (isCompact) return MOBILE_LAYOUT.GANTT_ROW_LABEL_WIDTH_TABLET
     return DEFAULT_ROW_LABEL_WIDTH
-  }, [ganttRowLabelWidth, isUltraWide, isSuperUltraWide])
+  }, [ganttRowLabelWidth, isMobile, isCompact, isUltraWide, isSuperUltraWide])
 
   // Calculate default zoom based on breakpoint
   const defaultZoom = useMemo(() => {
@@ -868,8 +873,19 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
               {Math.round((pixelsPerHour / 120) * 100)}%
             </div>
           )}
-          {/* Floating zoom controls - absolute overlay */}
-          <div style={{
+          {/* Zoom controls - responsive: toolbar on mobile, floating overlay on desktop */}
+          <div style={isMobile || isCompact ? {
+            // Mobile/tablet: flow-based toolbar above chart
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            padding: '8px 12px',
+            marginBottom: 8,
+            backgroundColor: '#fafafa',
+            borderRadius: 8,
+            borderBottom: '1px solid #e5e8ef',
+          } : {
+            // Desktop: floating overlay
             position: 'absolute',
             top: 10,
             right: 10,
@@ -879,7 +895,7 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
             borderRadius: 8,
             boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
           }}>
-            <Space>
+            <Space wrap size="small">
               <Button.Group>
                 <Tooltip content="Zoom Out (Ctrl/Cmd + -)">
                   <Button
@@ -911,24 +927,27 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
                   type="primary"
                 />
               </Tooltip>
-              <Dropdown
-                droplist={
-                  <Menu onClickMenuItem={(key) => setPixelsPerHour(Number(key))}>
-                    {ZOOM_PRESETS.map(preset => (
-                      <Menu.Item key={String(preset.value)}>
-                        <Space>
-                          <span>{preset.label}</span>
-                          {pixelsPerHour === preset.value && <span>✓</span>}
-                        </Space>
-                      </Menu.Item>
-                    ))}
-                  </Menu>
-                }
-                trigger="click"
-              >
-                <Button size="small" icon={<IconExpand />} />
-              </Dropdown>
-              <div style={{ width: 1, height: 24, backgroundColor: '#e5e6e8' }} />
+              {/* Hide preset dropdown on mobile to save space */}
+              {!isMobile && (
+                <Dropdown
+                  droplist={
+                    <Menu onClickMenuItem={(key) => setPixelsPerHour(Number(key))}>
+                      {ZOOM_PRESETS.map(preset => (
+                        <Menu.Item key={String(preset.value)}>
+                          <Space>
+                            <span>{preset.label}</span>
+                            {pixelsPerHour === preset.value && <span>✓</span>}
+                          </Space>
+                        </Menu.Item>
+                      ))}
+                    </Menu>
+                  }
+                  trigger="click"
+                >
+                  <Button size="small" icon={<IconExpand />} />
+                </Dropdown>
+              )}
+              {!isMobile && <div style={{ width: 1, height: 24, backgroundColor: '#e5e6e8' }} />}
               <Tooltip content={hasSnapshotToday ? 'Click to unfreeze and allow re-freezing' : 'Freeze current schedule for comparison'}>
                 <Button
                   size="small"
@@ -938,7 +957,7 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
                   loading={isCreatingSnapshot}
                   disabled={(!scheduleResult && !hasSnapshotToday) || isCreatingSnapshot}
                 >
-                  {hasSnapshotToday ? 'Unfreeze' : 'Freeze'}
+                  {!isMobile && (hasSnapshotToday ? 'Unfreeze' : 'Freeze')}
                 </Button>
               </Tooltip>
             </Space>
@@ -1733,44 +1752,42 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
             </div>
           </div>
 
-          {/* Legend */}
+          {/* Legend - responsive wrapping for mobile */}
           <div style={{ marginTop: 20, borderTop: '1px solid #e5e5e5', paddingTop: 16 }}>
-            <Space direction="vertical" size="small">
-              <Space>
+            <Space direction="vertical" size="small" style={{ width: '100%' }}>
+              <Space wrap size="small">
                 <Tag color="red">Critical Priority (64+)</Tag>
                 <Tag color="orange">High Priority (49-63)</Tag>
                 <Tag color="gold">Medium Priority (36-48)</Tag>
                 <Tag color="green">Low Priority (&lt;36)</Tag>
               </Space>
-              <Space>
-                <Text type="secondary">
-                  <span style={{ marginRight: 16 }}>
-                    <span style={{
-                      display: 'inline-block',
-                      width: 20,
-                      height: 2,
-                      backgroundColor: '#999',
-                      verticalAlign: 'middle',
-                      marginRight: 4,
-                    }} />
-                    Dependencies
-                  </span>
-                  <span style={{ marginRight: 16 }}>Dashed = Async waiting</span>
-                  <span style={{ marginRight: 16 }}>Striped = Blocked time</span>
-                  <span style={{ marginRight: 16 }}>
-                    <IconMoon style={{ marginRight: 4 }} />
-                    Sleep blocks
-                  </span>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: isMobile ? 8 : 16 }}>
+                <Text type="secondary" style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
                   <span style={{
-                    backgroundColor: 'rgba(255,255,255,0.2)',
+                    display: 'inline-block',
+                    width: 20,
+                    height: 2,
+                    backgroundColor: '#999',
+                    verticalAlign: 'middle',
+                  }} />
+                  Dependencies
+                </Text>
+                <Text type="secondary">Dashed = Async waiting</Text>
+                <Text type="secondary">Striped = Blocked time</Text>
+                <Text type="secondary" style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                  <IconMoon />
+                  Sleep blocks
+                </Text>
+                <Text type="secondary" style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                  <span style={{
+                    backgroundColor: 'rgba(0,0,0,0.1)',
                     padding: '0 4px',
                     borderRadius: 3,
-                    marginRight: 4,
                     color: '#666',
                   }}>1</span>
                   Step number
                 </Text>
-              </Space>
+              </div>
             </Space>
           </div>
         </Card>
@@ -1779,57 +1796,73 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
       {/* Block Utilization Display - Shows today's blocks only, positioned below the timeline */}
       {!workPatternsLoading && debugInfo?.blockUtilization && debugInfo.blockUtilization.length > 0 && (
         <Card title="Block Utilization (Today)" style={{ marginTop: 16 }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-            <thead>
-              <tr style={{ borderBottom: '2px solid #f0f0f0' }}>
-                <th style={{ padding: '8px', textAlign: 'left' }}>Date</th>
-                <th style={{ padding: '8px', textAlign: 'left' }}>Block ID</th>
-                <th style={{ padding: '8px', textAlign: 'left' }}>Time</th>
-                <th style={{ padding: '8px', textAlign: 'left' }}>Type</th>
-                <th style={{ padding: '8px', textAlign: 'left' }}>Capacity</th>
-                <th style={{ padding: '8px', textAlign: 'left' }}>Used</th>
-                <th style={{ padding: '8px', textAlign: 'left' }}>Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              {debugInfo.blockUtilization.map((block: BlockUtilizationInfo, index: number) => (
-                <tr key={`${block.blockId}-${index}`} style={{ borderBottom: '1px solid #f0f0f0' }}>
-                  <td style={{ padding: '8px' }}>{block.date}</td>
-                  <td style={{ padding: '8px', fontFamily: 'monospace', fontSize: '0.9em' }}>
-                    {block.blockId}
-                  </td>
-                  <td style={{ padding: '8px' }}>
-                    {block.startTime} - {block.endTime}
-                  </td>
-                  <td style={{ padding: '8px' }}>
-                    {(() => {
-                      const display = getBlockTypeDisplay(block.typeConfig, userTypes)
-                      return (
-                        <Tag color={display.color}>
-                          {display.name}
-                        </Tag>
-                      )
-                    })()}
-                  </td>
-                  <td style={{ padding: '8px' }}>
-                    {block.capacity}min
-                  </td>
-                  <td style={{ padding: '8px' }}>
-                    {block.used}/{block.capacity} ({Math.round((block.used / block.capacity) * 100)}%)
-                  </td>
-                  <td style={{ padding: '8px' }}>
-                    {block.utilization === 0 ? (
-                      <Tag color="gray">{block.reasonNotFilled?.[0] || 'Unused'}</Tag>
-                    ) : block.utilization < 1 ? (
-                      <Tag color="orange">Partially Used</Tag>
-                    ) : (
-                      <Tag color="green">Fully Used</Tag>
-                    )}
-                  </td>
+          {/* Scroll indicator for mobile */}
+          {isMobile && (
+            <Text type="secondary" style={{ fontSize: 12, marginBottom: 8, display: 'block' }}>
+              ← Scroll horizontally to see all columns →
+            </Text>
+          )}
+          {/* Horizontal scroll container for responsive table */}
+          <div style={{
+            overflowX: 'auto',
+            WebkitOverflowScrolling: 'touch',
+          }}>
+            <table style={{
+              width: '100%',
+              borderCollapse: 'collapse',
+              minWidth: isMobile ? 600 : 'auto',
+            }}>
+              <thead>
+                <tr style={{ borderBottom: '2px solid #f0f0f0' }}>
+                  <th style={{ padding: isMobile ? '4px 6px' : '8px', textAlign: 'left', whiteSpace: 'nowrap' }}>Date</th>
+                  <th style={{ padding: isMobile ? '4px 6px' : '8px', textAlign: 'left', whiteSpace: 'nowrap' }}>Block ID</th>
+                  <th style={{ padding: isMobile ? '4px 6px' : '8px', textAlign: 'left', whiteSpace: 'nowrap' }}>Time</th>
+                  <th style={{ padding: isMobile ? '4px 6px' : '8px', textAlign: 'left', whiteSpace: 'nowrap' }}>Type</th>
+                  <th style={{ padding: isMobile ? '4px 6px' : '8px', textAlign: 'left', whiteSpace: 'nowrap' }}>Capacity</th>
+                  <th style={{ padding: isMobile ? '4px 6px' : '8px', textAlign: 'left', whiteSpace: 'nowrap' }}>Used</th>
+                  <th style={{ padding: isMobile ? '4px 6px' : '8px', textAlign: 'left', whiteSpace: 'nowrap' }}>Status</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {debugInfo.blockUtilization.map((block: BlockUtilizationInfo, index: number) => (
+                  <tr key={`${block.blockId}-${index}`} style={{ borderBottom: '1px solid #f0f0f0' }}>
+                    <td style={{ padding: isMobile ? '4px 6px' : '8px', whiteSpace: 'nowrap' }}>{block.date}</td>
+                    <td style={{ padding: isMobile ? '4px 6px' : '8px', fontFamily: 'monospace', fontSize: '0.85em', whiteSpace: 'nowrap' }}>
+                      {block.blockId}
+                    </td>
+                    <td style={{ padding: isMobile ? '4px 6px' : '8px', whiteSpace: 'nowrap' }}>
+                      {block.startTime} - {block.endTime}
+                    </td>
+                    <td style={{ padding: isMobile ? '4px 6px' : '8px' }}>
+                      {(() => {
+                        const display = getBlockTypeDisplay(block.typeConfig, userTypes)
+                        return (
+                          <Tag color={display.color} size={isMobile ? 'small' : 'default'}>
+                            {display.name}
+                          </Tag>
+                        )
+                      })()}
+                    </td>
+                    <td style={{ padding: isMobile ? '4px 6px' : '8px', whiteSpace: 'nowrap' }}>
+                      {block.capacity}min
+                    </td>
+                    <td style={{ padding: isMobile ? '4px 6px' : '8px', whiteSpace: 'nowrap' }}>
+                      {block.used}/{block.capacity} ({Math.round((block.used / block.capacity) * 100)}%)
+                    </td>
+                    <td style={{ padding: isMobile ? '4px 6px' : '8px' }}>
+                      {block.utilization === 0 ? (
+                        <Tag color="gray" size={isMobile ? 'small' : 'default'}>{block.reasonNotFilled?.[0] || 'Unused'}</Tag>
+                      ) : block.utilization < 1 ? (
+                        <Tag color="orange" size={isMobile ? 'small' : 'default'}>Partially Used</Tag>
+                      ) : (
+                        <Tag color="green" size={isMobile ? 'small' : 'default'}>Fully Used</Tag>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </Card>
       )}
 

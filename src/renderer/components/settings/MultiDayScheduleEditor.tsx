@@ -47,7 +47,7 @@ interface MultiDayScheduleEditorProps {
 
 export function MultiDayScheduleEditor({ visible, onClose: _onClose, onSave }: MultiDayScheduleEditorProps) {
   const currentTime = getCurrentTime()
-  const { isUltraWide, isSuperUltraWide } = useResponsive()
+  const { isMobile, isCompact, isUltraWide, isSuperUltraWide } = useResponsive()
 
   // Dynamic max-width for ultra-wide screens
   const maxWidth = useMemo(() => {
@@ -56,12 +56,14 @@ export function MultiDayScheduleEditor({ visible, onClose: _onClose, onSave }: M
     return 1200
   }, [isUltraWide, isSuperUltraWide])
 
-  // Dynamic column span for ultra-wide (show more columns)
+  // Dynamic column span based on screen size
   const columnSpan = useMemo(() => {
-    if (isSuperUltraWide) return 6  // 4 columns (6+6+6+6=24)
-    if (isUltraWide) return 6       // 4 columns
-    return 8                         // 3 columns (8+8+8=24)
-  }, [isUltraWide, isSuperUltraWide])
+    if (isMobile) return 24           // 1 column (stacked)
+    if (isCompact) return 12          // 2 columns
+    if (isSuperUltraWide) return 6    // 4 columns (6+6+6+6=24)
+    if (isUltraWide) return 6         // 4 columns
+    return 8                          // 3 columns (8+8+8=24)
+  }, [isMobile, isCompact, isUltraWide, isSuperUltraWide])
   const [dateRange, setDateRange] = useState<[dayjs.Dayjs, dayjs.Dayjs]>([
     dayjs(currentTime),
     dayjs(currentTime).add(6, 'day'),
@@ -592,14 +594,16 @@ export function MultiDayScheduleEditor({ visible, onClose: _onClose, onSave }: M
           />
         )}
 
-        {/* Legend */}
+        {/* Legend - wraps on small screens */}
         <Card size="small">
-          <Space>
-            <Text type="secondary">Schedule Status:</Text>
-            <Tag color="green">Full Day (8+ hours)</Tag>
-            <Tag color="blue">Partial Day (4-8 hours)</Tag>
-            <Tag color="orange">Light Day (&lt;4 hours)</Tag>
-            <Tag color="gray">No Schedule</Tag>
+          <Space direction={isMobile || isCompact ? 'vertical' : 'horizontal'} wrap>
+            <Text type="secondary" style={{ whiteSpace: 'nowrap' }}>Schedule Status:</Text>
+            <Space wrap size="small">
+              <Tag color="green">Full Day (8+ hours)</Tag>
+              <Tag color="blue">Partial Day (4-8 hours)</Tag>
+              <Tag color="orange">Light Day (&lt;4 hours)</Tag>
+              <Tag color="gray">No Schedule</Tag>
+            </Space>
           </Space>
         </Card>
       </Space>

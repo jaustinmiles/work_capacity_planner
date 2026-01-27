@@ -1,6 +1,9 @@
 import { useState, useEffect, useMemo } from 'react'
 import { Layout, Typography, ConfigProvider, Button, Space, Badge, Spin, Alert, Popconfirm, Tabs, Modal } from '@arco-design/web-react'
 import { IconApps, IconCalendar, IconList, IconBranch, IconSchedule, IconDelete, IconUserGroup, IconClockCircle, IconMenuFold, IconMenuUnfold, IconEye, IconSettings, IconMessage } from '@arco-design/web-react/icon'
+import { ActionButtonOverflowMenu, FloatingSidebarButton } from './components/layout'
+import type { ActionButtonConfig } from './components/layout'
+import { MOBILE_LAYOUT } from '@shared/constants'
 import enUS from '@arco-design/web-react/es/locale/en-US'
 import { Message } from './components/common/Message'
 import { ErrorBoundary } from './components/common/ErrorBoundary'
@@ -148,7 +151,7 @@ function AppContent() {
 
   // Responsive breakpoints
   const [screenWidth, setScreenWidth] = useState(window.innerWidth)
-  const { isMobile, isUltraWide, isSuperUltraWide } = useResponsive()
+  const { isMobile, isCompact, isUltraWide, isSuperUltraWide } = useResponsive()
 
   // Dynamic content max-width based on screen size
   const contentMaxWidth = useMemo(() => {
@@ -444,16 +447,28 @@ function AppContent() {
             collapsible
             collapsed={sidebarCollapsed}
             onCollapse={handleSidebarCollapse}
-            width={screenWidth < 768 ? 280 : 320} // Increased width to prevent text wrapping
-            collapsedWidth={screenWidth < 768 ? 60 : 80} // Even narrower when collapsed on mobile
+            width={screenWidth < 768 ? 280 : 320}
+            collapsedWidth={
+              isMobile
+                ? MOBILE_LAYOUT.SIDEBAR_COLLAPSED_WIDTH_MOBILE
+                : isCompact
+                  ? MOBILE_LAYOUT.SIDEBAR_COLLAPSED_WIDTH_TABLET
+                  : MOBILE_LAYOUT.SIDEBAR_COLLAPSED_WIDTH_DESKTOP
+            }
             trigger={null}
             style={{
               background: '#fff',
               boxShadow: '2px 0 8px rgba(0,0,0,0.1)',
               overflow: 'hidden',
+              // Fully hide on mobile when collapsed
+              display: isMobile && sidebarCollapsed ? 'none' : 'block',
               // Responsive sidebar width
-              minWidth: sidebarCollapsed ? (screenWidth < 768 ? 60 : 80) : (screenWidth < 768 ? 280 : 320),
-              maxWidth: sidebarCollapsed ? (screenWidth < 768 ? 60 : 80) : (screenWidth < 768 ? 280 : 320),
+              minWidth: sidebarCollapsed
+                ? (isMobile ? 0 : isCompact ? MOBILE_LAYOUT.SIDEBAR_COLLAPSED_WIDTH_TABLET : MOBILE_LAYOUT.SIDEBAR_COLLAPSED_WIDTH_DESKTOP)
+                : (screenWidth < 768 ? 280 : 320),
+              maxWidth: sidebarCollapsed
+                ? (isMobile ? 0 : isCompact ? MOBILE_LAYOUT.SIDEBAR_COLLAPSED_WIDTH_TABLET : MOBILE_LAYOUT.SIDEBAR_COLLAPSED_WIDTH_DESKTOP)
+                : (screenWidth < 768 ? 280 : 320),
             }}
           >
             <div style={{
@@ -497,6 +512,11 @@ function AppContent() {
             )}
 
           </Sider>
+
+          {/* Floating button to reopen sidebar on mobile when fully collapsed */}
+          {isMobile && sidebarCollapsed && (
+            <FloatingSidebarButton onClick={() => handleSidebarCollapse(false)} />
+          )}
 
           <Layout style={{
             // Add right margin when chat sidebar is open (sidebar is fixed position)
@@ -586,57 +606,53 @@ function AppContent() {
                 />
               </Tabs>
 
-              {/* Action Buttons - collapse to icons on mobile, shrink aggressively to preserve navigation */}
-              <div style={{
-                display: 'flex',
-                gap: 8,
-                flexShrink: 10, // Shrink much faster than navigation tabs
-                flexGrow: 0, // Don't grow - use natural width
-                minWidth: isMobile ? 120 : 180, // Minimum to show icons
-                overflow: 'hidden', // Hide overflow rather than scroll
-                maxWidth: isMobile ? 200 : 400, // Cap width even on desktop
-              }}>
-                <Button
-                  type={sidebarOpen ? 'primary' : 'text'}
-                  icon={<IconMessage />}
-                  onClick={toggleSidebar}
-                  title="AI Chat"
-                >
-                  {!isMobile && 'Chat'}
-                </Button>
-                <Button
-                  type="primary"
-                  icon={<IconClockCircle />}
-                  onClick={() => setShowWorkLoggerDual(true)}
-                  title="Log Work"
-                >
-                  {!isMobile && 'Log Work'}
-                </Button>
-                <Button
-                  type="text"
-                  icon={<IconEye />}
-                  onClick={() => setShowTaskSlideshow(true)}
-                  title="Tournament"
-                >
-                  {!isMobile && 'Tournament'}
-                </Button>
-                <Button
-                  type="text"
-                  icon={<IconSettings />}
-                  onClick={() => setShowTaskTypeManager(true)}
-                  title="Settings"
-                >
-                  {!isMobile && 'Settings'}
-                </Button>
-                <Button
-                  type="text"
-                  icon={<IconUserGroup />}
-                  onClick={() => setShowSessionManager(true)}
-                  title="Sessions"
-                >
-                  {!isMobile && 'Sessions'}
-                </Button>
-              </div>
+              {/* Action Buttons - responsive overflow menu ensures all buttons accessible */}
+              <ActionButtonOverflowMenu
+                buttons={[
+                  {
+                    key: 'chat',
+                    icon: <IconMessage />,
+                    label: 'Chat',
+                    onClick: toggleSidebar,
+                    priority: 1,
+                    isActive: sidebarOpen,
+                    title: 'AI Chat',
+                  },
+                  {
+                    key: 'logwork',
+                    icon: <IconClockCircle />,
+                    label: 'Log Work',
+                    onClick: () => setShowWorkLoggerDual(true),
+                    priority: 1,
+                    buttonType: 'primary',
+                    title: 'Log Work',
+                  },
+                  {
+                    key: 'tournament',
+                    icon: <IconEye />,
+                    label: 'Tournament',
+                    onClick: () => setShowTaskSlideshow(true),
+                    priority: 2,
+                    title: 'Task Tournament',
+                  },
+                  {
+                    key: 'settings',
+                    icon: <IconSettings />,
+                    label: 'Settings',
+                    onClick: () => setShowTaskTypeManager(true),
+                    priority: 3,
+                    title: 'Settings',
+                  },
+                  {
+                    key: 'sessions',
+                    icon: <IconUserGroup />,
+                    label: 'Sessions',
+                    onClick: () => setShowSessionManager(true),
+                    priority: 3,
+                    title: 'Session Manager',
+                  },
+                ] satisfies ActionButtonConfig[]
+              }/>
             </Header>
 
             <Content style={{
