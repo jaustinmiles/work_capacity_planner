@@ -28,6 +28,19 @@ const updateSessionInput = z.object({
   description: z.string().optional(),
 })
 
+/**
+ * Input schema for updating scheduling preferences
+ */
+const updateSchedulingPreferencesInput = z.object({
+  sessionId: z.string(),
+  allowWeekendWork: z.boolean().optional(),
+  weekendPenalty: z.number().min(0).max(1).optional(),
+  contextSwitchPenalty: z.number().int().min(0).optional(),
+  asyncParallelizationBonus: z.number().int().min(0).optional(),
+  bedtimeHour: z.number().int().min(0).max(23).optional(),
+  wakeHour: z.number().int().min(0).max(23).optional(),
+})
+
 export const sessionRouter = router({
   /**
    * Get all sessions
@@ -131,6 +144,44 @@ export const sessionRouter = router({
       // based on the schema's onDelete: Cascade settings
       return ctx.prisma.session.delete({
         where: { id: input.id },
+      })
+    }),
+
+  /**
+   * Get scheduling preferences for a session
+   */
+  getSchedulingPreferences: protectedProcedure
+    .input(z.object({ sessionId: z.string() }))
+    .query(async ({ ctx, input }) => {
+      return ctx.prisma.schedulingPreferences.findUnique({
+        where: { sessionId: input.sessionId },
+      })
+    }),
+
+  /**
+   * Update scheduling preferences for a session (upsert)
+   */
+  updateSchedulingPreferences: protectedProcedure
+    .input(updateSchedulingPreferencesInput)
+    .mutation(async ({ ctx, input }) => {
+      const { sessionId, wakeHour, ...rest } = input
+
+      // Map wakeHour to wakeTimeHour (schema field name)
+      const data = {
+        ...rest,
+        ...(wakeHour !== undefined ? { wakeTimeHour: wakeHour } : {}),
+        updatedAt: new Date(),
+      }
+
+      // Upsert: create if doesn't exist, update if it does
+      return ctx.prisma.schedulingPreferences.upsert({
+        where: { sessionId },
+        create: {
+          id: `pref_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`,
+          sessionId,
+          ...data,
+        },
+        update: data,
       })
     }),
 })

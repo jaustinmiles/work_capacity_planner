@@ -213,28 +213,52 @@ export class TrpcDatabaseService {
 
   /**
    * Update scheduling preferences for a session
-   * Note: This creates/updates the SchedulingPreferences relation on the session
-   * TODO: Add dedicated server router endpoint for scheduling preferences
+   * Creates preferences if they don't exist, updates if they do (upsert)
    */
   async updateSchedulingPreferences(
     sessionId: string,
-    _updates: {
-      defaultWorkStart?: string
-      defaultWorkEnd?: string
-      defaultBreakDuration?: number
-      preferredTaskDuration?: number
+    updates: {
+      allowWeekendWork?: boolean
+      weekendPenalty?: number
+      contextSwitchPenalty?: number
+      asyncParallelizationBonus?: number
       bedtimeHour?: number
       wakeHour?: number
     },
   ): Promise<Session> {
-    // The server needs to handle this - for now, we update the session directly
-    // In a full implementation, you'd add a dedicated router endpoint
-    const session = await this.client.session.update.mutate({
-      id: sessionId,
-      // SchedulingPreferences would be a nested update
-      // This is a simplified version that just returns the session
+    await this.client.session.updateSchedulingPreferences.mutate({
+      sessionId,
+      ...updates,
     })
-    return nullToUndefined(session) as Session
+    // Return the session after updating preferences
+    const session = await this.client.session.getById.query({ id: sessionId })
+    if (!session) {
+      throw new Error(`Session ${sessionId} not found`)
+    }
+    return nullToUndefined(session as unknown as Record<string, unknown>) as unknown as Session
+  }
+
+  /**
+   * Get scheduling preferences for a session
+   */
+  async getSchedulingPreferences(sessionId: string): Promise<{
+    allowWeekendWork: boolean
+    weekendPenalty: number
+    contextSwitchPenalty: number
+    asyncParallelizationBonus: number
+    bedtimeHour: number
+    wakeHour: number
+  } | null> {
+    const prefs = await this.client.session.getSchedulingPreferences.query({ sessionId })
+    if (!prefs) return null
+    return {
+      allowWeekendWork: prefs.allowWeekendWork,
+      weekendPenalty: prefs.weekendPenalty,
+      contextSwitchPenalty: prefs.contextSwitchPenalty,
+      asyncParallelizationBonus: prefs.asyncParallelizationBonus,
+      bedtimeHour: prefs.bedtimeHour,
+      wakeHour: prefs.wakeTimeHour,
+    }
   }
 
   // ============================================================================

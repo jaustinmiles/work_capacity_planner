@@ -183,11 +183,13 @@ export function WorkLoggerDual({ visible, onClose }: WorkLoggerDualProps) {
   const loadPreferences = async () => {
     try {
       const db = getDatabase()
-      // Get the current session preferences
-      const session = await db.getCurrentSession() as { SchedulingPreferences?: { bedtimeHour?: number; wakeTimeHour?: number } } | null
-      if (session && session.SchedulingPreferences) {
-        setBedtimeHour(session.SchedulingPreferences.bedtimeHour || 22)
-        setWakeTimeHour(session.SchedulingPreferences.wakeTimeHour || 6)
+      const session = await db.getCurrentSession()
+      if (session) {
+        const prefs = await db.getSchedulingPreferences(session.id)
+        if (prefs) {
+          setBedtimeHour(prefs.bedtimeHour)
+          setWakeTimeHour(prefs.wakeHour)
+        }
       }
     } catch (error) {
       logger.ui.error('Failed to load preferences', {
