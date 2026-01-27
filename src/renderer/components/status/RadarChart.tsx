@@ -352,6 +352,7 @@ export function RadarChart({
             fill={point.color}
             stroke="#fff"
             strokeWidth={2}
+            style={{ transition: 'cx 0.3s ease-out, cy 0.3s ease-out' }}
           />
           <title>
             {point.emoji} {point.label}: {formatMinutesDisplay(point.rawValue)}
@@ -397,13 +398,14 @@ export function RadarChart({
           />
         )}
 
-        {/* Data polygon */}
+        {/* Data polygon - with transition for smooth animation */}
         <polygon
           points={polygonPoints}
           fill={fillColor}
           fillOpacity={fillOpacity}
           stroke={fillColor}
           strokeWidth={2}
+          style={{ transition: 'all 0.3s ease-out' }}
         />
 
         {/* Vertex dots */}

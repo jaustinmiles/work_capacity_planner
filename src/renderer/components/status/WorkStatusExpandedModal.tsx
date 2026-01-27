@@ -6,13 +6,16 @@
  * in the radar chart visualization.
  */
 
-import React, { useMemo, useState, useEffect } from 'react'
+import React, { useMemo, useState, useEffect, useCallback } from 'react'
 import { Modal, Space, Typography, Progress, Statistic, Divider, Grid, Checkbox, Button, Spin } from '@arco-design/web-react'
 import { DatePicker } from '@arco-design/web-react'
 import { IconClose, IconLeft, IconRight } from '@arco-design/web-react/icon'
 import { useResponsive } from '../../providers/ResponsiveProvider'
 import dayjs from 'dayjs'
 import { RadarChart, prepareRadarChartData, RadarChartDataPoint, createRadarDataPointFromSink } from './RadarChart'
+import { RadarPlaybackControls } from './RadarPlaybackControls'
+import { useRadarAnimation } from '../../hooks/useRadarAnimation'
+import { AnimationPlayState } from '@shared/enums'
 import { UserTaskType, getBlockTypeConfigName } from '@shared/user-task-types'
 import { TimeSink } from '@shared/time-sink-types'
 import { WorkBlock, getTotalCapacityByType, DateString, HistoricalWorkData, Meeting } from '@shared/work-blocks-types'
@@ -186,8 +189,20 @@ export function WorkStatusExpandedModal({
   // State for which time sinks are shown in the radar chart
   const [enabledSinkIds, setEnabledSinkIds] = useState<Set<string>>(new Set())
 
+  // Animation state - stores preloaded data for each day in the range
+  const [animationFrames, setAnimationFrames] = useState<HistoricalWorkData[]>([])
+  const [isPreloadingAnimation, setIsPreloadingAnimation] = useState(false)
+
+  // Animation hook for controlling playback
+  const animation = useRadarAnimation({
+    frameCount: animationFrames.length,
+    baseIntervalMs: 1000,
+  })
+
   // Reset state when modal closes
   const handleClose = (): void => {
+    animation.stop()
+    setAnimationFrames([])
     setSelectedDate(initialDate)
     setIsRangeMode(false)
     setHistoricalData(null)
@@ -196,6 +211,8 @@ export function WorkStatusExpandedModal({
 
   // Toggle between single day and range mode
   const toggleRangeMode = (): void => {
+    animation.stop()
+    setAnimationFrames([])
     setIsRangeMode(!isRangeMode)
     setHistoricalData(null) // Reset data when switching modes
   }
@@ -284,6 +301,53 @@ export function WorkStatusExpandedModal({
     fetchData()
   }, [isRangeMode, selectedDate, rangeStartDate, rangeEndDate, initialDate, workPatterns])
 
+  // Preload animation frames when in range mode
+  const preloadAnimationFrames = useCallback(async (): Promise<void> => {
+    if (!isRangeMode) {
+      setAnimationFrames([])
+      return
+    }
+
+    setIsPreloadingAnimation(true)
+    try {
+      const start = dayjs(rangeStartDate)
+      const end = dayjs(rangeEndDate)
+      const dayCount = end.diff(start, 'day') + 1
+      const frames: HistoricalWorkData[] = []
+
+      for (let i = 0; i < dayCount; i++) {
+        const date = start.add(i, 'day').format('YYYY-MM-DD') as DateString
+        const dayData = await fetchSingleDayData(date)
+        frames.push(dayData)
+      }
+
+      setAnimationFrames(frames)
+    } catch (error) {
+      logger.ui.error('Failed to preload animation frames', { error, rangeStartDate, rangeEndDate })
+      setAnimationFrames([])
+    } finally {
+      setIsPreloadingAnimation(false)
+    }
+  }, [isRangeMode, rangeStartDate, rangeEndDate, fetchSingleDayData])
+
+  // Trigger animation preload when range changes
+  useEffect(() => {
+    // Stop any running animation when range changes
+    animation.stop()
+    void preloadAnimationFrames()
+  }, [isRangeMode, rangeStartDate, rangeEndDate]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Compute the date for the current animation frame
+  const currentAnimationDate = useMemo((): DateString => {
+    if (!isRangeMode || animationFrames.length === 0) {
+      return selectedDate
+    }
+    return dayjs(rangeStartDate).add(animation.currentFrame, 'day').format('YYYY-MM-DD') as DateString
+  }, [isRangeMode, rangeStartDate, animation.currentFrame, animationFrames.length, selectedDate])
+
+  // Determine if we're currently animating (playing or paused with frames loaded)
+  const isAnimating = isRangeMode && animation.playState !== AnimationPlayState.Stopped && animationFrames.length > 0
+
   // Use historical data if loaded, otherwise use props
   const displayData = historicalData ?? {
     accumulatedByType,
@@ -320,17 +384,24 @@ export function WorkStatusExpandedModal({
   }
 
   // Prepare radar chart data (task types + enabled time sinks)
+  // Uses animation frame data when animating, otherwise uses aggregate/selected data
   const radarData: RadarChartDataPoint[] = useMemo(() => {
+    // Determine which data source to use
+    const animationFrame = animationFrames[animation.currentFrame]
+    const sourceData = isAnimating && animationFrame !== undefined
+      ? animationFrame
+      : displayData
+
     // Start with task type data
     const taskTypeData = prepareRadarChartData({
-      accumulatedByType: displayData.accumulatedByType,
+      accumulatedByType: sourceData.accumulatedByType,
       userTaskTypes,
     })
 
     // Add enabled time sink data using factory function
     const sinkData: RadarChartDataPoint[] = timeSinks
       .filter(sink => enabledSinkIds.has(sink.id))
-      .map(sink => createRadarDataPointFromSink(sink, displayData.accumulatedBySink[sink.id] ?? 0))
+      .map(sink => createRadarDataPointFromSink(sink, sourceData.accumulatedBySink[sink.id] ?? 0))
 
     // Combine and normalize
     const allData = [...taskTypeData, ...sinkData]
@@ -341,7 +412,7 @@ export function WorkStatusExpandedModal({
       ...d,
       value: d.rawValue / maxValue,
     }))
-  }, [displayData.accumulatedByType, displayData.accumulatedBySink, userTaskTypes, timeSinks, enabledSinkIds])
+  }, [displayData, isAnimating, animationFrames, animation.currentFrame, userTaskTypes, timeSinks, enabledSinkIds])
 
   // Calculate overall progress
   const overallProgress = useMemo(() => {
@@ -367,7 +438,9 @@ export function WorkStatusExpandedModal({
             <span>📊</span>
             <span style={{ fontSize: isMobile ? 14 : 16 }}>
               {isRangeMode
-                ? formatDateRangeTitle(rangeStartDate, rangeEndDate)
+                ? isAnimating
+                  ? `${formatDateRangeTitle(rangeStartDate, rangeEndDate)} — ${dayjs(currentAnimationDate).format('MMM D')}`
+                  : formatDateRangeTitle(rangeStartDate, rangeEndDate)
                 : formatDateTitle(selectedDate, initialDate)}
             </span>
           </Space>
@@ -507,6 +580,33 @@ export function WorkStatusExpandedModal({
                     </Checkbox>
                   ))}
                 </div>
+              </div>
+            )}
+
+            {/* Animation Playback Controls - only visible in range mode with multiple days */}
+            {isRangeMode && animationFrames.length > 1 && (
+              <RadarPlaybackControls
+                frameCount={animationFrames.length}
+                currentFrame={animation.currentFrame}
+                currentDate={currentAnimationDate}
+                playState={animation.playState}
+                speed={animation.speed}
+                onPlay={animation.play}
+                onPause={animation.pause}
+                onStop={animation.stop}
+                onSpeedChange={animation.setSpeed}
+                onSeek={animation.seekToFrame}
+                disabled={isPreloadingAnimation}
+              />
+            )}
+
+            {/* Preloading indicator */}
+            {isRangeMode && isPreloadingAnimation && (
+              <div style={{ marginTop: 16, textAlign: 'center' }}>
+                <Spin size={20} />
+                <Text type="secondary" style={{ marginLeft: 8, fontSize: 12 }}>
+                  Loading animation data...
+                </Text>
               </div>
             )}
           </div>

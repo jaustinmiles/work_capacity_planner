@@ -247,6 +247,28 @@ export enum ScrollBehavior {
   Auto = 'auto',
 }
 
+// Animation playback state for radar chart time-lapse
+export enum AnimationPlayState {
+  Stopped = 'stopped',
+  Playing = 'playing',
+  Paused = 'paused',
+}
+
+// Animation direction for bounce (ping-pong) mode
+export enum AnimationDirection {
+  Forward = 'forward',
+  Backward = 'backward',
+}
+
+// Animation speed presets (frames per second multiplier)
+// Base interval is 1000ms, so Normal = 1 frame/second
+export enum AnimationSpeed {
+  Slow = 0.5,      // 2 seconds per frame
+  Normal = 1,      // 1 second per frame
+  Fast = 2,        // 0.5 seconds per frame
+  VeryFast = 4,    // 0.25 seconds per frame
+}
+
 // Re-export enum utility functions from enum-utils.ts for backwards compatibility
 // These functions are now defined in enum-utils.ts to keep enums.ts focused on definitions
 export { assertNever, isValidEnumValue, parseEnum } from './enum-utils'
