@@ -139,6 +139,42 @@ export function formatMinutesDisplay(minutes: number): string {
   return mins > 0 ? `${hours}h ${mins}m` : `${hours}h`
 }
 
+/**
+ * Calculate the area of a radar chart polygon as a percentage of maximum possible area.
+ * Uses the Shoelace formula adapted for radar charts.
+ *
+ * For n vertices with normalized values v₁...vₙ (0-1), the area is:
+ * Area = (1/2) * sin(2π/n) * Σᵢ(vᵢ * vᵢ₊₁)
+ *
+ * Maximum area (all values = 1) = (n/2) * sin(2π/n)
+ *
+ * @param values - Array of normalized values (0-1) for each vertex
+ * @returns Area as percentage (0-100) of maximum possible area
+ */
+export function calculateRadarAreaPercent(values: number[]): number {
+  const n = values.length
+  if (n < 3) return 0
+
+  const angleStep = (2 * Math.PI) / n
+  const sinAngle = Math.sin(angleStep)
+
+  // Calculate actual area using cross-product sum
+  let crossProductSum = 0
+  for (let i = 0; i < n; i++) {
+    const nextIndex = (i + 1) % n
+    const currentValue = values[i] ?? 0
+    const nextValue = values[nextIndex] ?? 0
+    crossProductSum += currentValue * nextValue
+  }
+  const actualArea = 0.5 * sinAngle * crossProductSum
+
+  // Maximum area when all values are 1
+  const maxArea = 0.5 * sinAngle * n // When all v[i] * v[i+1] = 1, sum = n
+
+  // Return as percentage
+  return maxArea > 0 ? Math.round((actualArea / maxArea) * 100) : 0
+}
+
 // ============================================================================
 // Sub-Components
 // ============================================================================
@@ -352,6 +388,7 @@ export function RadarChart({
             fill={point.color}
             stroke="#fff"
             strokeWidth={2}
+            style={{ transition: 'cx 0.3s ease-out, cy 0.3s ease-out' }}
           />
           <title>
             {point.emoji} {point.label}: {formatMinutesDisplay(point.rawValue)}
@@ -397,13 +434,14 @@ export function RadarChart({
           />
         )}
 
-        {/* Data polygon */}
+        {/* Data polygon - with transition for smooth animation */}
         <polygon
           points={polygonPoints}
           fill={fillColor}
           fillOpacity={fillOpacity}
           stroke={fillColor}
           strokeWidth={2}
+          style={{ transition: 'all 0.3s ease-out' }}
         />
 
         {/* Vertex dots */}
