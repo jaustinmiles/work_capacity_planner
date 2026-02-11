@@ -130,6 +130,7 @@ model Session {
   TimeSink              TimeSink[]
   ScheduleSnapshot      ScheduleSnapshot[]
   Conversation          Conversation[]
+  Endeavor              Endeavor[]
 }
 
 // Schedule Snapshot - Captures schedule state at a point in time
@@ -234,6 +235,7 @@ model Task {
   Session              Session?        @relation(fields: [sessionId], references: [id], onDelete: NoAction, onUpdate: NoAction)
   WorkSession          WorkSession[]
   TaskStep             TaskStep[]      @relation("TaskSteps")
+  EndeavorItem         EndeavorItem[]  // Endeavors this task belongs to
 }
 
 model TaskStep {
@@ -453,4 +455,48 @@ model ChatMessage {
 
   @@index([conversationId])
   @@index([createdAt])
+}
+
+// =============================================================================
+// Endeavor Models - Higher-level grouping for workflows and tasks
+// =============================================================================
+
+// Endeavor - A higher-level construct to group related workflows and tasks
+// Represents a significant goal or project that may span multiple workflows
+// Enables cross-workflow dependency tracking and progress visualization
+model Endeavor {
+  id           String         @id
+  name         String
+  description  String?
+  notes        String?
+  status       String         @default("active") // active | completed | paused | archived
+  importance   Int            @default(5)        // 1-10 priority scale
+  urgency      Int            @default(5)        // 1-10 urgency scale
+  deadline     DateTime?
+  deadlineType String?                           // 'hard' | 'soft'
+  color        String?                           // Hex color for UI
+  sessionId    String
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @default(now())
+  Session      Session        @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  EndeavorItem EndeavorItem[]
+
+  @@index([sessionId])
+  @@index([status])
+}
+
+// EndeavorItem - Links tasks/workflows to endeavors with ordering
+// Allows the same task to belong to multiple endeavors if needed
+model EndeavorItem {
+  id         String   @id
+  endeavorId String
+  taskId     String
+  sortOrder  Int      @default(0)
+  addedAt    DateTime @default(now())
+  Endeavor   Endeavor @relation(fields: [endeavorId], references: [id], onDelete: Cascade)
+  Task       Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  @@unique([endeavorId, taskId])
+  @@index([endeavorId])
+  @@index([taskId])
 }

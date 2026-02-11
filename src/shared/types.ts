@@ -1,4 +1,4 @@
-import { TaskStatus, StepStatus, DeadlineType, ChatMessageRole } from './enums'
+import { TaskStatus, StepStatus, DeadlineType, ChatMessageRole, EndeavorStatus } from './enums'
 
 /**
  * Interface for entities that support time logging
@@ -177,4 +177,59 @@ export interface AICallOptions {
   messages: Array<{ role: ChatMessageRole.User | ChatMessageRole.Assistant; content: string }>
   model?: string
   maxTokens?: number
+}
+
+// =============================================================================
+// Endeavor Types - Higher-level grouping for workflows and tasks
+// =============================================================================
+
+/**
+ * Endeavor - A higher-level construct to group related workflows and tasks
+ * Represents a significant goal or project that may span multiple workflows
+ */
+export interface Endeavor {
+  id: string
+  name: string
+  description?: string
+  notes?: string
+  status: EndeavorStatus
+  importance: number // 1-10 priority scale
+  urgency: number // 1-10 urgency scale
+  deadline?: Date
+  deadlineType?: DeadlineType
+  color?: string // Hex color for UI
+  sessionId: string
+  createdAt: Date
+  updatedAt: Date
+}
+
+/**
+ * EndeavorItem - Links tasks/workflows to endeavors with ordering
+ */
+export interface EndeavorItem {
+  id: string
+  endeavorId: string
+  taskId: string
+  sortOrder: number
+  addedAt: Date
+}
+
+/**
+ * EndeavorWithTasks - Endeavor with populated task relationships
+ * Used for displaying endeavor details with full task info
+ */
+export interface EndeavorWithTasks extends Endeavor {
+  items: Array<EndeavorItem & { task: Task }>
+}
+
+/**
+ * EndeavorProgress - Calculated progress for an endeavor
+ */
+export interface EndeavorProgress {
+  totalTasks: number
+  completedTasks: number
+  inProgressTasks: number
+  totalDuration: number // in minutes
+  completedDuration: number // in minutes
+  percentComplete: number // 0-100
 }

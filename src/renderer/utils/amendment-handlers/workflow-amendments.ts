@@ -11,6 +11,12 @@ import type {
 import { EntityType, TaskStatus } from '@shared/amendment-types'
 import { StepStatus } from '@shared/enums'
 import { generateUniqueId, validateWorkflowDependencies } from '@shared/step-id-utils'
+import {
+  resolveDependencies,
+  getResolvedIds,
+  formatResolutionReport,
+  type AvailableStep,
+} from '@shared/dependency-resolver'
 import type { HandlerContext } from './types'
 import { Message } from '../../components/common/Message'
 import { logger } from '@/logger'
@@ -67,40 +73,50 @@ export async function handleWorkflowCreation(
 ): Promise<void> {
   const totalDuration = amendment.steps.reduce((sum, step) => sum + step.duration, 0)
 
-  // STEP 1: Generate unique IDs for all steps first (name → ID map)
-  const stepNameToId = new Map<string, string>()
-  amendment.steps.forEach((step) => {
+  // STEP 1: Generate unique IDs for all steps first
+  const stepIdMap = new Map<string, string>()
+  const availableSteps: AvailableStep[] = amendment.steps.map((step, index) => {
     const stepId = generateUniqueId('step')
-    stepNameToId.set(step.name.toLowerCase(), stepId)
+    stepIdMap.set(step.name, stepId)
+    return {
+      id: stepId,
+      name: step.name,
+      index,
+    }
   })
 
-  // STEP 2: Build steps with proper ID-based dependencies
-  // Track unresolved dependencies to surface warnings to user
-  const unresolvedDepsPerStep: Array<{ stepName: string; unresolvedDeps: string[] }> = []
+  // STEP 2: Build steps with proper ID-based dependencies using fuzzy resolver
+  // Track resolution issues to surface to user
+  const allResolutionIssues: Array<{ stepName: string; report: string }> = []
 
   const steps = amendment.steps.map((step, index) => {
-    const stepId = stepNameToId.get(step.name.toLowerCase())
+    const stepId = stepIdMap.get(step.name)
     if (!stepId) {
       throw new Error(`Step ID not found for "${step.name}" - this should not happen`)
     }
-    const unresolvedDeps: string[] = []
 
-    // Convert dependency names to IDs
-    const dependencyIds = (step.dependsOn || []).map(depName => {
-      const depId = stepNameToId.get(depName.toLowerCase())
-      if (!depId) {
-        unresolvedDeps.push(depName)
-        logger.ui.warn(`Dependency "${depName}" not found in workflow "${amendment.name}"`, {
-          stepName: step.name,
-          availableSteps: Array.from(stepNameToId.keys()),
+    // Use the new fuzzy dependency resolver
+    let dependencyIds: string[] = []
+    if (step.dependsOn && step.dependsOn.length > 0) {
+      const report = resolveDependencies(step.dependsOn, availableSteps)
+      dependencyIds = getResolvedIds(report)
+
+      // Track any resolution issues for this step
+      if (report.needsConfirmation) {
+        const formattedReport = formatResolutionReport(report)
+        if (formattedReport) {
+          allResolutionIssues.push({ stepName: step.name, report: formattedReport })
+        }
+
+        // Log detailed resolution info
+        logger.ui.info(`Dependency resolution for "${step.name}"`, {
+          requested: step.dependsOn,
+          resolved: report.resolved,
+          failed: report.failed,
+          ambiguous: report.ambiguous,
+          successRate: report.successRate,
         }, 'dependency-resolution')
       }
-      return depId
-    }).filter((id): id is string => id !== undefined)
-
-    // Collect unresolved deps for this step
-    if (unresolvedDeps.length > 0) {
-      unresolvedDepsPerStep.push({ stepName: step.name, unresolvedDeps })
     }
 
     return {
@@ -109,7 +125,7 @@ export async function handleWorkflowCreation(
       name: step.name,
       duration: step.duration,
       type: resolveTaskType(step.type),
-      dependsOn: dependencyIds, // NOW USING IDs, NOT NAMES
+      dependsOn: dependencyIds,
       asyncWaitTime: step.asyncWaitTime || 0,
       status: StepStatus.Pending,
       stepIndex: index,
@@ -117,12 +133,12 @@ export async function handleWorkflowCreation(
     }
   })
 
-  // Surface user-visible warning if any dependencies couldn't be resolved
-  if (unresolvedDepsPerStep.length > 0) {
-    const warningMessages = unresolvedDepsPerStep.map(
-      ({ stepName, unresolvedDeps }) => `"${stepName}": ${unresolvedDeps.join(', ')}`,
+  // Surface user-visible warning if any dependencies had issues
+  if (allResolutionIssues.length > 0) {
+    const warningMessages = allResolutionIssues.map(
+      ({ stepName, report }) => `"${stepName}": ${report.split('\n')[0]}`,
     )
-    Message.warning(`Some step dependencies couldn't be linked: ${warningMessages.join('; ')}`)
+    Message.warning(`Some step dependencies need attention: ${warningMessages.join('; ')}`)
   }
 
   // STEP 3: Validate dependencies (orphans + cycles)

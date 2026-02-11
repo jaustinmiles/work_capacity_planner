@@ -433,12 +433,16 @@ ${contextInfo}
 Create a detailed workflow with these requirements:
 1. Break the task into logical, sequential steps
 2. Each step should be 15-120 minutes (be realistic about time)
-3. Identify dependencies between steps
+3. Identify dependencies between steps using EXACT step names
 4. Consider async wait times (time waiting for external processes, reviews, etc.)
 5. Classify each step as "focused" (deep work) or "admin" (coordination, communication)
 6. Suggest a clear workflow name
 
-Step dependency format: Use "step-X" where X is the 0-indexed step number (e.g., "step-0", "step-1")
+IMPORTANT - Step dependency format:
+- Use the EXACT step name as it appears in the "name" field
+- Example: If step is named "Design API schema", use "Design API schema" in dependsOn
+- Do NOT use indices like "step-0" or "step-1"
+- The system uses fuzzy matching, so small variations are OK, but exact names work best
 
 Return your response as a JSON object:
 {
@@ -447,12 +451,18 @@ Return your response as a JSON object:
   "totalDuration": 240,
   "steps": [
     {
-      "name": "Step name",
+      "name": "Design API schema",
       "duration": 60,
       "type": "focused",
       "dependsOn": [],
-      "asyncWaitTime": 0,
-      "conditionalBranches": null
+      "asyncWaitTime": 0
+    },
+    {
+      "name": "Implement endpoints",
+      "duration": 90,
+      "type": "focused",
+      "dependsOn": ["Design API schema"],
+      "asyncWaitTime": 0
     }
   ]
 }

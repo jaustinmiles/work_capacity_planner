@@ -8,9 +8,9 @@
  */
 
 import { createDynamicClient, type ApiClient } from '@shared/trpc-client'
-import type { Task, Session, AICallOptions } from '@shared/types'
+import type { Task, Session, AICallOptions, Endeavor, EndeavorWithTasks, EndeavorProgress } from '@shared/types'
 import type { SequencedTask } from '@shared/sequencing-types'
-import { ChatMessageRole } from '@shared/enums'
+import { ChatMessageRole, EndeavorStatus, DeadlineType } from '@shared/enums'
 import type { UserTaskType, CreateUserTaskTypeInput, UpdateUserTaskTypeInput, AccumulatedTimeResult } from '@shared/user-task-types'
 import type { TimeSink, TimeSinkSession, CreateTimeSinkInput, UpdateTimeSinkInput, TimeSinkAccumulatedResult } from '@shared/time-sink-types'
 import type { ScheduleSnapshot, ScheduleSnapshotData } from '@shared/schedule-snapshot-types'
@@ -1239,6 +1239,115 @@ export class TrpcDatabaseService {
 
   async extractJargonTerms(contextText: string): Promise<string> {
     return this.client.ai.extractJargonTerms.mutate({ contextText })
+  }
+
+  // ============================================================================
+  // Endeavor Operations
+  // ============================================================================
+
+  async getEndeavors(options?: {
+    status?: EndeavorStatus
+    includeArchived?: boolean
+  }): Promise<EndeavorWithTasks[]> {
+    const endeavors = await this.client.endeavor.getAll.query(options)
+    return endeavors.map((e: any) => ({
+      ...nullToUndefined(e),
+      items: e.items.map((item: any) => ({
+        ...item,
+        task: {
+          ...nullToUndefined(item.task),
+          steps: item.task.steps?.map((s: any) => nullToUndefined(s)),
+        },
+      })),
+    })) as EndeavorWithTasks[]
+  }
+
+  async getEndeavorById(id: string): Promise<EndeavorWithTasks | null> {
+    const endeavor = await this.client.endeavor.getById.query({ id })
+    if (!endeavor) return null
+    return {
+      ...nullToUndefined(endeavor),
+      items: endeavor.items.map((item: any) => ({
+        ...item,
+        task: {
+          ...nullToUndefined(item.task),
+          steps: item.task.steps?.map((s: any) => nullToUndefined(s)),
+        },
+      })),
+    } as EndeavorWithTasks
+  }
+
+  async createEndeavor(data: {
+    name: string
+    description?: string
+    notes?: string
+    importance?: number
+    urgency?: number
+    deadline?: Date
+    deadlineType?: DeadlineType
+    color?: string
+  }): Promise<Endeavor> {
+    const endeavor = await this.client.endeavor.create.mutate(data)
+    return nullToUndefined(endeavor) as Endeavor
+  }
+
+  async updateEndeavor(
+    id: string,
+    data: {
+      name?: string
+      description?: string | null
+      notes?: string | null
+      status?: EndeavorStatus
+      importance?: number
+      urgency?: number
+      deadline?: Date | null
+      deadlineType?: DeadlineType | null
+      color?: string | null
+    },
+  ): Promise<Endeavor> {
+    const endeavor = await this.client.endeavor.update.mutate({ id, ...data })
+    return nullToUndefined(endeavor) as Endeavor
+  }
+
+  async deleteEndeavor(id: string): Promise<void> {
+    await this.client.endeavor.delete.mutate({ id })
+  }
+
+  async addEndeavorItem(endeavorId: string, taskId: string, sortOrder?: number): Promise<void> {
+    await this.client.endeavor.addItem.mutate({ endeavorId, taskId, sortOrder })
+  }
+
+  async removeEndeavorItem(endeavorId: string, taskId: string): Promise<void> {
+    await this.client.endeavor.removeItem.mutate({ endeavorId, taskId })
+  }
+
+  async reorderEndeavorItems(endeavorId: string, orderedTaskIds: string[]): Promise<void> {
+    await this.client.endeavor.reorderItems.mutate({ endeavorId, orderedTaskIds })
+  }
+
+  async getEndeavorProgress(id: string): Promise<EndeavorProgress | null> {
+    return this.client.endeavor.getProgress.query({ id })
+  }
+
+  async getCrossEndeavorDependencies(endeavorId: string): Promise<{
+    dependencies: Array<{
+      taskId: string
+      taskName: string
+      dependencies: Array<{
+        dependencyId: string
+        dependencyName: string
+        endeavorId: string
+        endeavorName: string
+        isCompleted: boolean
+      }>
+    }>
+    blockingEndeavors: Array<{
+      endeavorId: string
+      endeavorName: string
+      blockingTaskCount: number
+    }>
+  }> {
+    return this.client.endeavor.getCrossEndeavorDependencies.query({ endeavorId })
   }
 
   // ============================================================================

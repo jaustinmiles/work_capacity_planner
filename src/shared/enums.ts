@@ -217,6 +217,14 @@ export enum SprintFilterMode {
   BacklogOnly = 'backlog', // Show only inActiveSprint=false
 }
 
+// Endeavor status - tracks lifecycle of higher-level goals
+export enum EndeavorStatus {
+  Active = 'active',       // Currently being worked on
+  Completed = 'completed', // All tasks/workflows complete
+  Paused = 'paused',       // Temporarily on hold
+  Archived = 'archived',   // No longer active, kept for history
+}
+
 // AI Processing modes for brainstorming
 export enum AIProcessingMode {
   Tasks = 'tasks',
