@@ -11,12 +11,6 @@ import type {
 import { EntityType, TaskStatus } from '@shared/amendment-types'
 import { StepStatus } from '@shared/enums'
 import { generateUniqueId, validateWorkflowDependencies } from '@shared/step-id-utils'
-import {
-  resolveDependencies,
-  getResolvedIds,
-  formatResolutionReport,
-  type AvailableStep,
-} from '@shared/dependency-resolver'
 import type { HandlerContext } from './types'
 import { Message } from '../../components/common/Message'
 import { logger } from '@/logger'
@@ -74,48 +68,47 @@ export async function handleWorkflowCreation(
   const totalDuration = amendment.steps.reduce((sum, step) => sum + step.duration, 0)
 
   // STEP 1: Generate unique IDs for all steps first
-  const stepIdMap = new Map<string, string>()
-  const availableSteps: AvailableStep[] = amendment.steps.map((step, index) => {
-    const stepId = generateUniqueId('step')
-    stepIdMap.set(step.name, stepId)
-    return {
-      id: stepId,
-      name: step.name,
-      index,
+  const stepIds: string[] = amendment.steps.map(() => generateUniqueId('step'))
+  const stepNameToId = new Map<string, string>()
+  amendment.steps.forEach((step, index) => {
+    const stepId = stepIds[index]
+    if (stepId) {
+      stepNameToId.set(step.name.toLowerCase(), stepId)
     }
   })
 
-  // STEP 2: Build steps with proper ID-based dependencies using fuzzy resolver
-  // Track resolution issues to surface to user
-  const allResolutionIssues: Array<{ stepName: string; report: string }> = []
+  // STEP 2: Build steps with strict index+name dependency resolution
+  // No fuzzy matching — indices are unambiguous, names must match exactly
+  const droppedDeps: Array<{ stepName: string; dep: string; reason: string }> = []
 
   const steps = amendment.steps.map((step, index) => {
-    const stepId = stepIdMap.get(step.name)
+    const stepId = stepIds[index]
     if (!stepId) {
-      throw new Error(`Step ID not found for "${step.name}" - this should not happen`)
+      throw new Error(`Step ID not found for index ${index} - this should not happen`)
     }
 
-    // Use the new fuzzy dependency resolver
-    let dependencyIds: string[] = []
+    const dependencyIds: string[] = []
     if (step.dependsOn && step.dependsOn.length > 0) {
-      const report = resolveDependencies(step.dependsOn, availableSteps)
-      dependencyIds = getResolvedIds(report)
-
-      // Track any resolution issues for this step
-      if (report.needsConfirmation) {
-        const formattedReport = formatResolutionReport(report)
-        if (formattedReport) {
-          allResolutionIssues.push({ stepName: step.name, report: formattedReport })
+      for (const dep of step.dependsOn) {
+        if (typeof dep === 'number') {
+          // Numeric index — map directly to step ID
+          const targetId = stepIds[dep]
+          if (targetId && dep >= 0 && dep < stepIds.length) {
+            dependencyIds.push(targetId)
+          } else {
+            droppedDeps.push({ stepName: step.name, dep: String(dep), reason: `index ${dep} out of range (0-${stepIds.length - 1})` })
+          }
+        } else if (typeof dep === 'string') {
+          // String — try exact case-insensitive name match
+          const targetId = stepNameToId.get(dep.toLowerCase())
+          if (targetId) {
+            dependencyIds.push(targetId)
+          } else {
+            droppedDeps.push({ stepName: step.name, dep, reason: 'no exact name match found' })
+          }
+        } else {
+          droppedDeps.push({ stepName: step.name, dep: String(dep), reason: 'unsupported dependency type' })
         }
-
-        // Log detailed resolution info
-        logger.ui.info(`Dependency resolution for "${step.name}"`, {
-          requested: step.dependsOn,
-          resolved: report.resolved,
-          failed: report.failed,
-          ambiguous: report.ambiguous,
-          successRate: report.successRate,
-        }, 'dependency-resolution')
       }
     }
 
@@ -133,12 +126,16 @@ export async function handleWorkflowCreation(
     }
   })
 
-  // Surface user-visible warning if any dependencies had issues
-  if (allResolutionIssues.length > 0) {
-    const warningMessages = allResolutionIssues.map(
-      ({ stepName, report }) => `"${stepName}": ${report.split('\n')[0]}`,
+  // Surface clear error if any dependencies were dropped
+  if (droppedDeps.length > 0) {
+    const details = droppedDeps.map(
+      ({ stepName, dep, reason }) => `"${stepName}" → "${dep}" (${reason})`,
     )
-    Message.warning(`Some step dependencies need attention: ${warningMessages.join('; ')}`)
+    Message.error(`Dropped ${droppedDeps.length} unresolvable dependencies: ${details.join('; ')}`)
+    logger.ui.warn('Dropped unresolvable dependencies during workflow creation', {
+      droppedDeps,
+      workflowName: amendment.name,
+    }, 'dependency-resolution-dropped')
   }
 
   // STEP 3: Validate dependencies (orphans + cycles)

@@ -8,7 +8,10 @@
  * BLOCKED OPERATIONS (will always be rejected):
  * - prisma migrate reset
  * - prisma db push --force-reset
+ * - prisma db push (causes migration drift!)
  * - Raw SQL DROP/DELETE statements
+ *
+ * Supports both SQLite and PostgreSQL databases.
  */
 
 import { Server } from '@modelcontextprotocol/sdk/server/index.js'
@@ -25,13 +28,45 @@ import * as path from 'path'
 // Paths relative to project root
 // When compiled, __dirname is scripts/mcp/dist, so we need ../../.. to reach project root
 const PROJECT_ROOT = path.join(__dirname, '../../..')
-const DB_PATH = path.join(PROJECT_ROOT, 'prisma', 'dev.db')
+const SCHEMA_PATH = path.join(PROJECT_ROOT, 'prisma', 'schema.prisma')
+const DB_PATH = path.join(PROJECT_ROOT, 'prisma', 'dev.db') // SQLite only
 const BACKUP_DIR = path.join(PROJECT_ROOT, 'backups')
+
+/**
+ * Detect database provider from schema.prisma
+ */
+function detectDatabaseProvider(): 'postgresql' | 'sqlite' {
+  try {
+    const schemaContent = fs.readFileSync(SCHEMA_PATH, 'utf-8')
+    if (schemaContent.includes('provider = "postgresql"')) {
+      return 'postgresql'
+    }
+  } catch {
+    // Fall back to sqlite if we can't read the schema
+  }
+  return 'sqlite'
+}
+
+/**
+ * Parse DATABASE_URL from .env file
+ */
+function getDatabaseUrl(): string | undefined {
+  const envPath = path.join(PROJECT_ROOT, '.env')
+  try {
+    const envContent = fs.readFileSync(envPath, 'utf-8')
+    const match = envContent.match(/DATABASE_URL="?([^"\n]+)"?/)
+    return match?.[1]
+  } catch {
+    return process.env.DATABASE_URL
+  }
+}
 
 class DatabaseWrapper {
   private server: Server
+  private dbProvider: 'postgresql' | 'sqlite'
 
   constructor() {
+    this.dbProvider = detectDatabaseProvider()
     this.server = new Server(
       {
         name: 'database-wrapper',
@@ -194,11 +229,6 @@ class DatabaseWrapper {
       fs.mkdirSync(BACKUP_DIR, { recursive: true })
     }
 
-    // Check if database exists
-    if (!fs.existsSync(DB_PATH)) {
-      return `❌ Database file not found at: ${DB_PATH}`
-    }
-
     // Create timestamp for backup name
     const timestamp = new Date()
       .toISOString()
@@ -206,6 +236,52 @@ class DatabaseWrapper {
       .split('T')
       .join('_')
       .slice(0, -5)
+
+    if (this.dbProvider === 'postgresql') {
+      return this.backupPostgres(timestamp, reason)
+    } else {
+      return this.backupSqlite(timestamp, reason)
+    }
+  }
+
+  private async backupPostgres(timestamp: string, reason?: string): Promise<string> {
+    const dbUrl = getDatabaseUrl()
+    if (!dbUrl) {
+      return '❌ DATABASE_URL not found in .env file or environment'
+    }
+
+    const backupName = `backup_${timestamp}.sql`
+    const backupPath = path.join(BACKUP_DIR, backupName)
+
+    try {
+      // Use pg_dump to create a SQL dump
+      await this.runCommand('pg_dump', [dbUrl, '-f', backupPath])
+
+      const stats = fs.statSync(backupPath)
+      const sizeMB = (stats.size / 1024 / 1024).toFixed(2)
+
+      let output = '✅ **PostgreSQL Backup Created**\n\n'
+      output += `📁 **Location:** ${backupPath}\n`
+      output += `📊 **Size:** ${sizeMB} MB\n`
+      output += `🕐 **Timestamp:** ${timestamp}\n`
+      output += '🐘 **Provider:** PostgreSQL (pg_dump)\n'
+      if (reason) {
+        output += `📝 **Reason:** ${reason}\n`
+      }
+
+      return output
+    } catch (error) {
+      const errorMsg = error instanceof Error ? error.message : String(error)
+      return `❌ PostgreSQL backup failed:\n\`\`\`\n${errorMsg}\n\`\`\`\n\n💡 Make sure pg_dump is installed and DATABASE_URL is correct.`
+    }
+  }
+
+  private async backupSqlite(timestamp: string, reason?: string): Promise<string> {
+    // Check if database exists
+    if (!fs.existsSync(DB_PATH)) {
+      return `❌ SQLite database file not found at: ${DB_PATH}\n\n💡 If using PostgreSQL, the backup should use pg_dump instead.`
+    }
+
     const backupName = `backup_${timestamp}.db`
     const backupPath = path.join(BACKUP_DIR, backupName)
 
@@ -227,7 +303,7 @@ class DatabaseWrapper {
     const stats = fs.statSync(backupPath)
     const sizeMB = (stats.size / 1024 / 1024).toFixed(2)
 
-    let output = '✅ **Database Backup Created**\n\n'
+    let output = '✅ **SQLite Backup Created**\n\n'
     output += `📁 **Location:** ${backupPath}\n`
     output += `📊 **Size:** ${sizeMB} MB\n`
     output += `🕐 **Timestamp:** ${timestamp}\n`
@@ -243,9 +319,10 @@ class DatabaseWrapper {
       return '📁 No backups directory found. No backups have been created yet.'
     }
 
+    // List both .db (SQLite) and .sql (PostgreSQL) backups
     const backups = fs
       .readdirSync(BACKUP_DIR)
-      .filter((f) => f.startsWith('backup_') && f.endsWith('.db'))
+      .filter((f) => f.startsWith('backup_') && (f.endsWith('.db') || f.endsWith('.sql')))
       .sort()
       .reverse()
       .slice(0, limit)
@@ -262,8 +339,9 @@ class DatabaseWrapper {
       const sizeMB = (stats.size / 1024 / 1024).toFixed(2)
       const date = stats.mtime.toISOString().split('T')[0]
       const time = stats.mtime.toISOString().split('T')[1].slice(0, 8)
+      const dbType = backup.endsWith('.sql') ? '🐘 PG' : '📦 SQLite'
 
-      output += `- **${backup}** (${sizeMB} MB) - ${date} ${time}\n`
+      output += `- ${dbType} **${backup}** (${sizeMB} MB) - ${date} ${time}\n`
     }
 
     output += '\n💡 Use `restore_database` with backup name to restore.'
@@ -286,6 +364,46 @@ class DatabaseWrapper {
     // Create pre-restore backup first
     const preRestoreBackup = await this.backupDatabase('pre-restore safety backup')
 
+    // Determine restore method based on file extension
+    if (backupName.endsWith('.sql')) {
+      return this.restorePostgres(backupName, backupPath, preRestoreBackup)
+    } else {
+      return this.restoreSqlite(backupName, backupPath, preRestoreBackup)
+    }
+  }
+
+  private async restorePostgres(
+    backupName: string,
+    backupPath: string,
+    preRestoreBackup: string,
+  ): Promise<string> {
+    const dbUrl = getDatabaseUrl()
+    if (!dbUrl) {
+      return '❌ DATABASE_URL not found in .env file or environment'
+    }
+
+    try {
+      // Use psql to restore the SQL dump
+      await this.runCommand('psql', [dbUrl, '-f', backupPath])
+
+      let output = '✅ **PostgreSQL Database Restored Successfully**\n\n'
+      output += `📦 **Restored from:** ${backupName}\n`
+      output += '🐘 **Provider:** PostgreSQL (psql)\n'
+      output += '🔒 **Pre-restore backup created** (in case you need to undo)\n\n'
+      output += preRestoreBackup
+
+      return output
+    } catch (error) {
+      const errorMsg = error instanceof Error ? error.message : String(error)
+      return `❌ PostgreSQL restore failed:\n\`\`\`\n${errorMsg}\n\`\`\`\n\n💡 Pre-restore backup was created. Make sure psql is installed.`
+    }
+  }
+
+  private async restoreSqlite(
+    backupName: string,
+    backupPath: string,
+    preRestoreBackup: string,
+  ): Promise<string> {
     // Restore the database
     fs.copyFileSync(backupPath, DB_PATH)
 
@@ -307,7 +425,7 @@ class DatabaseWrapper {
       fs.unlinkSync(shmPath) // Remove stale SHM
     }
 
-    let output = '✅ **Database Restored Successfully**\n\n'
+    let output = '✅ **SQLite Database Restored Successfully**\n\n'
     output += `📦 **Restored from:** ${backupName}\n`
     output += '🔒 **Pre-restore backup created** (in case you need to undo)\n\n'
     output += preRestoreBackup

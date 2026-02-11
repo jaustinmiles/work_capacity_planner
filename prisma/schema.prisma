@@ -465,21 +465,22 @@ model ChatMessage {
 // Represents a significant goal or project that may span multiple workflows
 // Enables cross-workflow dependency tracking and progress visualization
 model Endeavor {
-  id           String         @id
-  name         String
-  description  String?
-  notes        String?
-  status       String         @default("active") // active | completed | paused | archived
-  importance   Int            @default(5)        // 1-10 priority scale
-  urgency      Int            @default(5)        // 1-10 urgency scale
-  deadline     DateTime?
-  deadlineType String?                           // 'hard' | 'soft'
-  color        String?                           // Hex color for UI
-  sessionId    String
-  createdAt    DateTime       @default(now())
-  updatedAt    DateTime       @default(now())
-  Session      Session        @relation(fields: [sessionId], references: [id], onDelete: Cascade)
-  EndeavorItem EndeavorItem[]
+  id                 String               @id
+  name               String
+  description        String?
+  notes              String?
+  status             String               @default("active") // active | completed | paused | archived
+  importance         Int                  @default(5)        // 1-10 priority scale
+  urgency            Int                  @default(5)        // 1-10 urgency scale
+  deadline           DateTime?
+  deadlineType       String?                                 // 'hard' | 'soft'
+  color              String?                                 // Hex color for UI
+  sessionId          String
+  createdAt          DateTime             @default(now())
+  updatedAt          DateTime             @default(now())
+  Session            Session              @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  EndeavorItem       EndeavorItem[]
+  EndeavorDependency EndeavorDependency[]
 
   @@index([sessionId])
   @@index([status])
@@ -499,4 +500,33 @@ model EndeavorItem {
   @@unique([endeavorId, taskId])
   @@index([endeavorId])
   @@index([taskId])
+}
+
+// EndeavorDependency - Cross-workflow step dependencies
+// Allows blocking a workflow/step until a specific step from another workflow completes
+// Key feature: Dependencies can cross endeavor boundaries
+model EndeavorDependency {
+  id              String   @id
+  endeavorId      String   // Which endeavor defines this dependency
+
+  // WHAT is being blocked (one of these will be set, not both)
+  blockedTaskId   String?  // A workflow being blocked
+  blockedStepId   String?  // OR a specific step being blocked
+
+  // WHAT is doing the blocking (always a step)
+  blockingStepId  String   // The step that must complete first
+  blockingTaskId  String   // Parent workflow of blocking step (for display/queries)
+
+  // Metadata
+  isHardBlock     Boolean  @default(true)  // true = blocks scheduler, false = warning only
+  notes           String?
+  createdAt       DateTime @default(now())
+
+  Endeavor        Endeavor @relation(fields: [endeavorId], references: [id], onDelete: Cascade)
+
+  @@unique([endeavorId, blockedTaskId, blockedStepId, blockingStepId])
+  @@index([endeavorId])
+  @@index([blockedTaskId])
+  @@index([blockedStepId])
+  @@index([blockingStepId])
 }

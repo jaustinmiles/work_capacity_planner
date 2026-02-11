@@ -208,6 +208,7 @@ export enum ViewType {
   Timeline = 'timeline',
   Schedule = 'schedule',
   Sprint = 'sprint',
+  Endeavors = 'endeavors',
 }
 
 // Sprint filter modes for task list views

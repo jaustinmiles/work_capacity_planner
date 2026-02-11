@@ -6,6 +6,7 @@
  * - List of associated tasks with drag-to-reorder
  * - Add/remove task functionality
  * - Cross-endeavor dependency visualization
+ * - Step-level dependencies with status indicators
  */
 
 import { useState, useMemo, useEffect } from 'react'
@@ -23,6 +24,9 @@ import {
   Select,
   Divider,
   Alert,
+  Popconfirm,
+  Collapse,
+  Tooltip,
 } from '@arco-design/web-react'
 import {
   IconArrowLeft,
@@ -30,14 +34,19 @@ import {
   IconDelete,
   IconLink,
   IconDragDotVertical,
+  IconLock,
+  IconExclamationCircle,
+  IconCheck,
+  IconClockCircle,
 } from '@arco-design/web-react/icon'
 import { getDatabase } from '../../services/database'
 import { Message } from '../common/Message'
-import { EndeavorStatus, TaskStatus } from '@shared/enums'
+import { EndeavorStatus, TaskStatus, StepStatus } from '@shared/enums'
 import { calculateEndeavorProgress } from '@shared/endeavor-utils'
-import type { EndeavorWithTasks, Task, EndeavorItem } from '@shared/types'
+import type { EndeavorWithTasks, Task, EndeavorItem, EndeavorDependencyWithNames } from '@shared/types'
 import { useEndeavorStore } from '../../store/useEndeavorStore'
 import { useTaskStore } from '../../store/useTaskStore'
+import { AddDependencyModal } from './AddDependencyModal'
 
 const { Title, Text } = Typography
 
@@ -73,15 +82,23 @@ interface BlockingEndeavor {
 
 export function EndeavorDetail({ endeavorId, onBack }: EndeavorDetailProps) {
   const [addTaskModalVisible, setAddTaskModalVisible] = useState(false)
+  const [addDepModalVisible, setAddDepModalVisible] = useState(false)
+  const [addDepForTaskId, setAddDepForTaskId] = useState<string | undefined>()
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null)
   const [endeavor, setEndeavor] = useState<EndeavorWithTasks | null>(null)
   const [crossDeps, setCrossDeps] = useState<{
     dependencies: CrossEndeavorDependency[]
     blockingEndeavors: BlockingEndeavor[]
   } | null>(null)
+  const [stepDeps, setStepDeps] = useState<EndeavorDependencyWithNames[]>([])
   const [isLoading, setIsLoading] = useState(true)
 
-  const { addTaskToEndeavor, removeTaskFromEndeavor } = useEndeavorStore()
+  const {
+    addTaskToEndeavor,
+    removeTaskFromEndeavor,
+    loadDependencies,
+    removeDependency,
+  } = useEndeavorStore()
   const { tasks } = useTaskStore()
 
   // Load endeavor details
@@ -90,12 +107,14 @@ export function EndeavorDetail({ endeavorId, onBack }: EndeavorDetailProps) {
       setIsLoading(true)
       try {
         const db = getDatabase()
-        const [endeavorData, depsData] = await Promise.all([
+        const [endeavorData, depsData, stepDepsData] = await Promise.all([
           db.getEndeavorById(endeavorId),
           db.getCrossEndeavorDependencies(endeavorId),
+          loadDependencies(endeavorId),
         ])
         setEndeavor(endeavorData)
         setCrossDeps(depsData)
+        setStepDeps(stepDepsData)
       } catch (err) {
         Message.error(`Failed to load endeavor: ${err instanceof Error ? err.message : 'Unknown error'}`)
       } finally {
@@ -103,7 +122,7 @@ export function EndeavorDetail({ endeavorId, onBack }: EndeavorDetailProps) {
       }
     }
     loadData()
-  }, [endeavorId])
+  }, [endeavorId, loadDependencies])
 
   // Filter tasks not already in endeavor
   const availableTasks = useMemo(() => {
@@ -139,6 +158,37 @@ export function EndeavorDetail({ endeavorId, onBack }: EndeavorDetailProps) {
     } catch (err) {
       Message.error(`Failed to remove task: ${err instanceof Error ? err.message : 'Unknown error'}`)
     }
+  }
+
+  const handleRemoveDependency = async (depId: string) => {
+    try {
+      await removeDependency(depId, endeavorId)
+      const updated = await loadDependencies(endeavorId)
+      setStepDeps(updated)
+      Message.success('Dependency removed')
+    } catch (err) {
+      Message.error(`Failed to remove dependency: ${err instanceof Error ? err.message : 'Unknown error'}`)
+    }
+  }
+
+  const handleAddDependencyForTask = (taskId: string) => {
+    setAddDepForTaskId(taskId)
+    setAddDepModalVisible(true)
+  }
+
+  const handleDependencyModalClose = async () => {
+    setAddDepModalVisible(false)
+    setAddDepForTaskId(undefined)
+    // Reload dependencies
+    const updated = await loadDependencies(endeavorId)
+    setStepDeps(updated)
+  }
+
+  // Get dependencies for a specific task
+  const getDepsForTask = (taskId: string) => {
+    return stepDeps.filter(
+      (d) => d.blockedTaskId === taskId || (d.blockedStepId && tasks.find((t) => t.id === taskId)?.steps?.some((s) => s.id === d.blockedStepId)),
+    )
   }
 
   if (isLoading) {
@@ -259,19 +309,113 @@ export function EndeavorDetail({ endeavorId, onBack }: EndeavorDetailProps) {
 
         <Divider style={{ margin: '8px 0' }} />
 
+        {/* Step-level Dependencies Section */}
+        {stepDeps.length > 0 && (
+          <>
+            <Divider style={{ margin: '8px 0' }} />
+            <Collapse defaultActiveKey={['deps']} bordered={false}>
+              <Collapse.Item
+                header={
+                  <Space>
+                    <Text bold>Step Dependencies</Text>
+                    <Tag size="small" color={stepDeps.some((d) => d.isHardBlock && d.blockingStepStatus !== StepStatus.Completed) ? 'red' : 'green'}>
+                      {stepDeps.length} defined
+                    </Tag>
+                  </Space>
+                }
+                name="deps"
+              >
+                <List
+                  dataSource={stepDeps}
+                  render={(dep: EndeavorDependencyWithNames) => {
+                    const isBlocking = dep.blockingStepStatus !== StepStatus.Completed
+                    const blockedName = dep.blockedTaskName || dep.blockedStepName || 'Unknown'
+                    const blockedType = dep.blockedTaskId ? 'Workflow' : 'Step'
+
+                    return (
+                      <List.Item
+                        key={dep.id}
+                        actions={[
+                          <Popconfirm
+                            key="remove"
+                            title="Remove this dependency?"
+                            onOk={() => handleRemoveDependency(dep.id)}
+                          >
+                            <Button type="text" status="danger" size="small" icon={<IconDelete />} />
+                          </Popconfirm>,
+                        ]}
+                      >
+                        <Space direction="vertical" size="mini" style={{ width: '100%' }}>
+                          <Space>
+                            {dep.isHardBlock ? (
+                              <Tooltip content="Hard block - prevents scheduling">
+                                <IconLock style={{ color: isBlocking ? 'var(--color-danger-6)' : 'var(--color-success-6)' }} />
+                              </Tooltip>
+                            ) : (
+                              <Tooltip content="Soft block - warning only">
+                                <IconExclamationCircle style={{ color: 'var(--color-warning-6)' }} />
+                              </Tooltip>
+                            )}
+                            <Text>
+                              <Text bold>{blockedName}</Text>
+                              <Text type="secondary"> ({blockedType})</Text>
+                            </Text>
+                          </Space>
+                          <Space style={{ marginLeft: 20 }}>
+                            <Text type="secondary">waits for</Text>
+                            <Tag
+                              size="small"
+                              color={isBlocking ? 'orange' : 'green'}
+                              icon={isBlocking ? <IconClockCircle /> : <IconCheck />}
+                            >
+                              {dep.blockingStepName}
+                            </Tag>
+                            <Text type="secondary">
+                              from &ldquo;{dep.blockingTaskName}&rdquo;
+                              {dep.blockingEndeavorName && ` (${dep.blockingEndeavorName})`}
+                            </Text>
+                          </Space>
+                          {dep.notes && (
+                            <Text type="secondary" style={{ fontSize: 12, marginLeft: 20 }}>
+                              Note: {dep.notes}
+                            </Text>
+                          )}
+                        </Space>
+                      </List.Item>
+                    )
+                  }}
+                  bordered={false}
+                  style={{ background: 'var(--color-fill-1)', borderRadius: 4, padding: 8 }}
+                />
+              </Collapse.Item>
+            </Collapse>
+          </>
+        )}
+
+        <Divider style={{ margin: '8px 0' }} />
+
         {/* Tasks */}
         <Space style={{ justifyContent: 'space-between', width: '100%' }}>
           <Title heading={6} style={{ margin: 0 }}>
             Tasks & Workflows
           </Title>
-          <Button
-            type="primary"
-            icon={<IconPlus />}
-            size="small"
-            onClick={() => setAddTaskModalVisible(true)}
-          >
-            Add Task
-          </Button>
+          <Space>
+            <Button
+              icon={<IconLink />}
+              size="small"
+              onClick={() => setAddDepModalVisible(true)}
+            >
+              Add Dependency
+            </Button>
+            <Button
+              type="primary"
+              icon={<IconPlus />}
+              size="small"
+              onClick={() => setAddTaskModalVisible(true)}
+            >
+              Add Task
+            </Button>
+          </Space>
         </Space>
 
         {endeavor.items.length === 0 ? (
@@ -284,11 +428,25 @@ export function EndeavorDetail({ endeavorId, onBack }: EndeavorDetailProps) {
               const hasCrossDeps = crossDeps?.dependencies.some(
                 (d) => d.taskId === task.id,
               )
+              const taskStepDeps = getDepsForTask(task.id)
+              const hasBlockingDeps = taskStepDeps.some(
+                (d) => d.isHardBlock && d.blockingStepStatus !== StepStatus.Completed,
+              )
 
               return (
                 <List.Item
                   key={item.id}
                   actions={[
+                    task.hasSteps && (
+                      <Tooltip key="add-dep" content="Add dependency">
+                        <Button
+                          type="text"
+                          size="small"
+                          icon={<IconLink />}
+                          onClick={() => handleAddDependencyForTask(task.id)}
+                        />
+                      </Tooltip>
+                    ),
                     <Button
                       key="remove"
                       type="text"
@@ -297,7 +455,7 @@ export function EndeavorDetail({ endeavorId, onBack }: EndeavorDetailProps) {
                       icon={<IconDelete />}
                       onClick={() => handleRemoveTask(task.id)}
                     />,
-                  ]}
+                  ].filter(Boolean)}
                 >
                   <List.Item.Meta
                     avatar={
@@ -319,6 +477,16 @@ export function EndeavorDetail({ endeavorId, onBack }: EndeavorDetailProps) {
                         {hasCrossDeps && (
                           <Tag icon={<IconLink />} size="small" color="orange">
                             Cross-endeavor deps
+                          </Tag>
+                        )}
+                        {hasBlockingDeps && (
+                          <Tag icon={<IconLock />} size="small" color="red">
+                            Blocked
+                          </Tag>
+                        )}
+                        {taskStepDeps.length > 0 && !hasBlockingDeps && (
+                          <Tag icon={<IconCheck />} size="small" color="green">
+                            {taskStepDeps.length} dep{taskStepDeps.length > 1 ? 's' : ''} satisfied
                           </Tag>
                         )}
                       </Space>
@@ -377,6 +545,14 @@ export function EndeavorDetail({ endeavorId, onBack }: EndeavorDetailProps) {
           </Text>
         )}
       </Modal>
+
+      {/* Add Dependency Modal */}
+      <AddDependencyModal
+        visible={addDepModalVisible}
+        onClose={handleDependencyModalClose}
+        endeavorId={endeavorId}
+        preselectedBlockedTaskId={addDepForTaskId}
+      />
     </Card>
   )
 }

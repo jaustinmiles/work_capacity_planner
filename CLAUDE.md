@@ -5,7 +5,21 @@
 **NEVER run these commands directly via Bash:**
 - `npx prisma migrate reset` - **DESTROYS ALL DATA**
 - `npx prisma db push --force-reset` - **DESTROYS ALL DATA**
+- `npx prisma db push` - **CAUSES MIGRATION DRIFT** (see below)
 - Any raw SQL `DROP DATABASE` / `DELETE FROM` statements
+
+### Why `prisma db push` is Dangerous
+
+`prisma db push` modifies the database schema **without** creating migration files:
+- Tables/columns exist in the database but have no migration history
+- Future migrations will fail with "drift detected" errors
+- There's no easy way to sync migration history after the fact
+- It was designed for rapid prototyping, NOT production development
+
+**If you see "Drift detected" errors:**
+1. DO NOT run `prisma migrate reset` - this destroys all data
+2. Create a retroactive migration file with the SQL that matches the current state
+3. Use `npx prisma migrate resolve --applied <migration_name>` to mark it applied
 
 **ALWAYS use MCP database tools instead:**
 ```bash

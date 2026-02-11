@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react'
 import { Layout, Typography, ConfigProvider, Button, Space, Badge, Spin, Alert, Popconfirm, Tabs, Modal } from '@arco-design/web-react'
-import { IconApps, IconCalendar, IconList, IconBranch, IconSchedule, IconDelete, IconUserGroup, IconClockCircle, IconMenuFold, IconMenuUnfold, IconEye, IconSettings, IconMessage } from '@arco-design/web-react/icon'
+import { IconApps, IconCalendar, IconList, IconBranch, IconSchedule, IconDelete, IconUserGroup, IconClockCircle, IconMenuFold, IconMenuUnfold, IconEye, IconSettings, IconMessage, IconStar } from '@arco-design/web-react/icon'
 import { ActionButtonOverflowMenu, FloatingSidebarButton } from './components/layout'
 import type { ActionButtonConfig } from './components/layout'
 import { MOBILE_LAYOUT } from '@shared/constants'
@@ -27,6 +27,8 @@ import { TaskTypeManager } from './components/settings/TaskTypeManager'
 import { WorkLoggerDual } from './components/work-logger/WorkLoggerDual'
 import { TaskSlideshow } from './components/slideshow/TaskSlideshow'
 import { SprintBoard } from './components/sprint/SprintBoard'
+import { EndeavorList } from './components/endeavors/EndeavorList'
+import { EndeavorDetail } from './components/endeavors/EndeavorDetail'
 import { DevTools } from './components/dev/DevTools'
 import { TimeSinkManager } from './components/time-sinks/TimeSinkManager'
 import { TimeSinkLogger } from './components/time-sinks/TimeSinkLogger'
@@ -148,6 +150,7 @@ function AppContent() {
   const [showTaskSlideshow, setShowTaskSlideshow] = useState(false)
   const [showDevTools, setShowDevTools] = useState(false)
   const [showTaskTypeManager, setShowTaskTypeManager] = useState(false)
+  const [selectedEndeavorId, setSelectedEndeavorId] = useState<string | null>(null)
 
   // Responsive breakpoints
   const [screenWidth, setScreenWidth] = useState(window.innerWidth)
@@ -587,6 +590,15 @@ function AppContent() {
                   }
                 />
                 <Tabs.TabPane
+                  key={ViewType.Endeavors}
+                  title={
+                    <Space>
+                      <IconStar />
+                      {!isMobile && <span>Endeavors</span>}
+                    </Space>
+                  }
+                />
+                <Tabs.TabPane
                   key={ViewType.Calendar}
                   title={
                     <Space>
@@ -698,6 +710,21 @@ function AppContent() {
                     {activeView === ViewType.Sprint && (
                       <ErrorBoundary>
                         <SprintBoard />
+                      </ErrorBoundary>
+                    )}
+
+                    {activeView === ViewType.Endeavors && (
+                      <ErrorBoundary>
+                        {selectedEndeavorId ? (
+                          <EndeavorDetail
+                            endeavorId={selectedEndeavorId}
+                            onBack={() => setSelectedEndeavorId(null)}
+                          />
+                        ) : (
+                          <EndeavorList
+                            onSelectEndeavor={(id) => setSelectedEndeavorId(id)}
+                          />
+                        )}
                       </ErrorBoundary>
                     )}
 

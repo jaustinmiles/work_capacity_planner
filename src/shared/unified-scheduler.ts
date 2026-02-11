@@ -415,16 +415,10 @@ export class UnifiedScheduler {
       })
     }
 
-    if (dependencyResult.conflicts.length > 0) {
-      // Only pass warnings array once - generateDebugInfo will extract messages internally
-      return {
-        scheduled: [],
-        unscheduled: unifiedItems,
-        conflicts: dependencyResult.conflicts,
-        warnings: dependencyResult.warnings,
-        debugInfo: this.generateDebugInfo([], unifiedItems, context, []),
-      }
-    }
+    // Note: conflicts are passed through to the result for UI display,
+    // but we no longer return early with an empty schedule.
+    // Auto-healing in resolveDependencies() strips broken deps so
+    // dependencyResult.resolved still contains items to schedule.
 
     // Ensure config has startDate from context if not provided
     // Pass currentTime so tasks are scheduled from "now" forward, not from block start
@@ -1985,9 +1979,12 @@ export class UnifiedScheduler {
     const validation = this.validateDependencies(items, completedItemIds)
 
     if (!validation.isValid) {
+      // AUTO-HEAL: Strip broken dependencies instead of failing entirely
+      const healedItems = this.stripInvalidDependencies(items, completedItemIds)
+      const resolved = topologicalSort(healedItems)
       return {
-        resolved: [],
-        conflicts: validation.errors,
+        resolved,
+        conflicts: validation.errors,    // Still report what was wrong
         warnings: validation.warnings,
       }
     }
@@ -2000,6 +1997,37 @@ export class UnifiedScheduler {
       conflicts: [],
       warnings: validation.warnings,
     }
+  }
+
+  /**
+   * Strip invalid dependencies from items so scheduling can proceed.
+   * Removes any dependency ID not found in the item set or completed set.
+   */
+  private stripInvalidDependencies(
+    items: UnifiedScheduleItem[],
+    completedItemIds: Set<string> = new Set(),
+  ): UnifiedScheduleItem[] {
+    const itemIds = new Set(items.map(item => item.id))
+
+    return items.map(item => {
+      const deps = item.dependencies || []
+      const validDeps = deps.filter(depId => {
+        const isValid = itemIds.has(depId) || completedItemIds.has(depId)
+        if (!isValid) {
+          logger.system.warn(`Auto-healed: removed invalid dependency "${depId}" from "${item.name}"`, {
+            itemId: item.id,
+            itemName: item.name,
+            invalidDepId: depId,
+          }, 'scheduler-auto-heal')
+        }
+        return isValid
+      })
+
+      if (validDeps.length !== deps.length) {
+        return { ...item, dependencies: validDeps }
+      }
+      return item
+    })
   }
 
   // ============================================================================

@@ -8,7 +8,7 @@
 import { create } from 'zustand'
 import { getDatabase } from '../services/database'
 import { logger } from '@/logger'
-import type { Endeavor, EndeavorWithTasks, EndeavorProgress } from '@shared/types'
+import type { Endeavor, EndeavorWithTasks, EndeavorProgress, EndeavorDependencyWithNames, CreateEndeavorDependencyInput } from '@shared/types'
 import { EndeavorStatus, DeadlineType } from '@shared/enums'
 import { calculateEndeavorProgress, sortEndeavorsByPriority } from '@shared/endeavor-utils'
 
@@ -25,14 +25,17 @@ interface EndeavorStore {
   selectedEndeavorId: string | null
   status: EndeavorLoadStatus
   error: string | null
+  dependencies: Map<string, EndeavorDependencyWithNames[]> // endeavorId -> dependencies
 
   // Computed (derived from endeavors)
   getSelectedEndeavor: () => EndeavorWithTasks | null
   getEndeavorProgress: (endeavorId: string) => EndeavorProgress | null
+  getDependenciesForEndeavor: (endeavorId: string) => EndeavorDependencyWithNames[]
 
   // Data loading
   loadEndeavors: (options?: { status?: EndeavorStatus; includeArchived?: boolean }) => Promise<void>
   refreshEndeavors: () => Promise<void>
+  loadDependencies: (endeavorId: string) => Promise<EndeavorDependencyWithNames[]>
 
   // Selection
   selectEndeavor: (id: string | null) => void
@@ -46,6 +49,11 @@ interface EndeavorStore {
   addTaskToEndeavor: (endeavorId: string, taskId: string) => Promise<void>
   removeTaskFromEndeavor: (endeavorId: string, taskId: string) => Promise<void>
   reorderEndeavorItems: (endeavorId: string, orderedTaskIds: string[]) => Promise<void>
+
+  // Dependency management
+  addDependency: (input: CreateEndeavorDependencyInput) => Promise<void>
+  removeDependency: (id: string, endeavorId: string) => Promise<void>
+  updateDependency: (id: string, endeavorId: string, updates: { isHardBlock?: boolean; notes?: string | null }) => Promise<void>
 }
 
 export interface CreateEndeavorInput {
@@ -77,6 +85,7 @@ export const useEndeavorStore = create<EndeavorStore>((set, get) => ({
   selectedEndeavorId: null,
   status: EndeavorLoadStatus.Idle,
   error: null,
+  dependencies: new Map(),
 
   // Computed
   getSelectedEndeavor: () => {
@@ -90,6 +99,11 @@ export const useEndeavorStore = create<EndeavorStore>((set, get) => ({
     const endeavor = endeavors.find((e) => e.id === endeavorId)
     if (!endeavor) return null
     return calculateEndeavorProgress(endeavor)
+  },
+
+  getDependenciesForEndeavor: (endeavorId: string) => {
+    const { dependencies } = get()
+    return dependencies.get(endeavorId) || []
   },
 
   // Data loading
@@ -111,6 +125,41 @@ export const useEndeavorStore = create<EndeavorStore>((set, get) => ({
   refreshEndeavors: async () => {
     // Refresh with same options as last load
     await get().loadEndeavors()
+  },
+
+  loadDependencies: async (endeavorId: string) => {
+    try {
+      const db = getDatabase()
+      const deps = await db.getEndeavorDependencies(endeavorId)
+      // Transform to proper types
+      const transformed: EndeavorDependencyWithNames[] = deps.map((d) => ({
+        id: d.id,
+        endeavorId: d.endeavorId,
+        blockedTaskId: d.blockedTaskId || undefined,
+        blockedStepId: d.blockedStepId || undefined,
+        blockingStepId: d.blockingStepId,
+        blockingTaskId: d.blockingTaskId,
+        isHardBlock: d.isHardBlock,
+        notes: d.notes || undefined,
+        createdAt: new Date(d.createdAt),
+        blockedTaskName: d.blockedTaskName,
+        blockedStepName: d.blockedStepName,
+        blockingStepName: d.blockingStepName,
+        blockingTaskName: d.blockingTaskName,
+        blockingStepStatus: d.blockingStepStatus,
+        blockingEndeavorId: d.blockingEndeavorId,
+        blockingEndeavorName: d.blockingEndeavorName,
+      }))
+      set((state) => {
+        const newDeps = new Map(state.dependencies)
+        newDeps.set(endeavorId, transformed)
+        return { dependencies: newDeps }
+      })
+      return transformed
+    } catch (error) {
+      logger.ui.error('Failed to load dependencies', { endeavorId, error }, 'dependency-load-error')
+      return []
+    }
   },
 
   // Selection
@@ -169,5 +218,27 @@ export const useEndeavorStore = create<EndeavorStore>((set, get) => ({
     await db.reorderEndeavorItems(endeavorId, orderedTaskIds)
     await get().refreshEndeavors()
     logger.ui.info('Endeavor items reordered', { endeavorId, count: orderedTaskIds.length }, 'endeavor-reorder')
+  },
+
+  // Dependency management
+  addDependency: async (input) => {
+    const db = getDatabase()
+    await db.addEndeavorDependency(input)
+    await get().loadDependencies(input.endeavorId)
+    logger.ui.info('Dependency added', { endeavorId: input.endeavorId }, 'dependency-add')
+  },
+
+  removeDependency: async (id, endeavorId) => {
+    const db = getDatabase()
+    await db.removeEndeavorDependency(id)
+    await get().loadDependencies(endeavorId)
+    logger.ui.info('Dependency removed', { id, endeavorId }, 'dependency-remove')
+  },
+
+  updateDependency: async (id, endeavorId, updates) => {
+    const db = getDatabase()
+    await db.updateEndeavorDependency(id, updates)
+    await get().loadDependencies(endeavorId)
+    logger.ui.info('Dependency updated', { id, endeavorId }, 'dependency-update')
   },
 }))

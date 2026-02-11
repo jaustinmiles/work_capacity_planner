@@ -233,3 +233,55 @@ export interface EndeavorProgress {
   completedDuration: number // in minutes
   percentComplete: number // 0-100
 }
+
+// =============================================================================
+// Cross-Workflow Step Dependencies
+// =============================================================================
+
+/**
+ * EndeavorDependency - Cross-workflow step dependency
+ * Allows blocking a workflow/step until a specific step from another workflow completes
+ * Dependencies can cross endeavor boundaries
+ */
+export interface EndeavorDependency {
+  id: string
+  endeavorId: string
+
+  // What is being blocked (one of these will be set)
+  blockedTaskId?: string  // A workflow being blocked
+  blockedStepId?: string  // OR a specific step being blocked
+
+  // What is doing the blocking (always a step)
+  blockingStepId: string  // The step that must complete first
+  blockingTaskId: string  // Parent workflow of blocking step
+
+  // Metadata
+  isHardBlock: boolean    // true = blocks scheduler, false = warning only
+  notes?: string
+  createdAt: Date
+}
+
+/**
+ * EndeavorDependency with resolved names for display
+ */
+export interface EndeavorDependencyWithNames extends EndeavorDependency {
+  blockedTaskName?: string
+  blockedStepName?: string
+  blockingStepName: string
+  blockingTaskName: string
+  blockingStepStatus: string  // Current status of the blocking step
+  blockingEndeavorId?: string // Endeavor the blocking task belongs to
+  blockingEndeavorName?: string
+}
+
+/**
+ * Input for creating an endeavor dependency
+ */
+export interface CreateEndeavorDependencyInput {
+  endeavorId: string
+  blockedTaskId?: string
+  blockedStepId?: string
+  blockingStepId: string
+  isHardBlock?: boolean
+  notes?: string
+}

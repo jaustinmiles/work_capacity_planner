@@ -1351,6 +1351,75 @@ export class TrpcDatabaseService {
   }
 
   // ============================================================================
+  // Endeavor Dependencies (Cross-Workflow Step Dependencies)
+  // ============================================================================
+
+  async addEndeavorDependency(data: {
+    endeavorId: string
+    blockedTaskId?: string
+    blockedStepId?: string
+    blockingStepId: string
+    isHardBlock?: boolean
+    notes?: string
+  }): Promise<unknown> {
+    return this.client.endeavor.addDependency.mutate(data)
+  }
+
+  async removeEndeavorDependency(id: string): Promise<void> {
+    await this.client.endeavor.removeDependency.mutate({ id })
+  }
+
+  async getEndeavorDependencies(endeavorId: string): Promise<Array<{
+    id: string
+    endeavorId: string
+    blockedTaskId: string | null
+    blockedStepId: string | null
+    blockingStepId: string
+    blockingTaskId: string
+    isHardBlock: boolean
+    notes: string | null
+    createdAt: Date
+    blockedTaskName?: string
+    blockedStepName?: string
+    blockingStepName: string
+    blockingTaskName: string
+    blockingStepStatus: string
+    blockingEndeavorId?: string
+    blockingEndeavorName?: string
+  }>> {
+    return this.client.endeavor.getDependencies.query({ endeavorId })
+  }
+
+  async getBlockersFor(options: {
+    taskId?: string
+    stepId?: string
+  }): Promise<Array<{
+    id: string
+    endeavorId: string
+    endeavorName?: string
+    blockedTaskId: string | null
+    blockedStepId: string | null
+    blockingStepId: string
+    blockingTaskId: string
+    blockingStepName: string
+    blockingTaskName: string
+    blockingStepStatus: string
+    blockingEndeavorId?: string
+    blockingEndeavorName?: string
+    isHardBlock: boolean
+    notes: string | null
+  }>> {
+    return this.client.endeavor.getBlockersFor.query(options)
+  }
+
+  async updateEndeavorDependency(
+    id: string,
+    updates: { isHardBlock?: boolean; notes?: string | null },
+  ): Promise<unknown> {
+    return this.client.endeavor.updateDependency.mutate({ id, ...updates })
+  }
+
+  // ============================================================================
   // Speech Operations (via tRPC since server has the OpenAI API key)
   // ============================================================================
 

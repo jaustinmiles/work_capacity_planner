@@ -180,8 +180,9 @@ describe('UnifiedScheduler - Completed Dependencies', () => {
 
       const result = scheduler.scheduleForDisplay([workflow], context, config)
 
-      // Should have conflicts because step-1 is missing
-      expect(result.scheduled.length).toBe(0)
+      // Should auto-heal: strip the broken dependency and still schedule items
+      // Conflicts are still reported so the UI can warn the user
+      expect(result.scheduled.length).toBeGreaterThan(0)
       expect(result.conflicts.length).toBeGreaterThan(0)
       expect(result.conflicts[0].description).toContain('missing item "step-1"')
     })
