@@ -208,6 +208,7 @@ export enum ViewType {
   Timeline = 'timeline',
   Schedule = 'schedule',
   Sprint = 'sprint',
+  Endeavors = 'endeavors',
 }
 
 // Sprint filter modes for task list views
@@ -215,6 +216,14 @@ export enum SprintFilterMode {
   All = 'all', // Show all tasks (default)
   SprintOnly = 'sprint', // Show only inActiveSprint=true
   BacklogOnly = 'backlog', // Show only inActiveSprint=false
+}
+
+// Endeavor status - tracks lifecycle of higher-level goals
+export enum EndeavorStatus {
+  Active = 'active',       // Currently being worked on
+  Completed = 'completed', // All tasks/workflows complete
+  Paused = 'paused',       // Temporarily on hold
+  Archived = 'archived',   // No longer active, kept for history
 }
 
 // AI Processing modes for brainstorming

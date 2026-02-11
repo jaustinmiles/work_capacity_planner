@@ -20,6 +20,7 @@ import { snapshotRouter } from './snapshot'
 import { logRouter } from './log'
 import { speechRouter } from './speech'
 import { aiRouter } from './ai'
+import { endeavorRouter } from './endeavor'
 
 /**
  * Main application router
@@ -39,6 +40,7 @@ import { aiRouter } from './ai'
  * - log: Application logging
  * - speech: Speech-to-text transcription
  * - ai: AI operations (Claude for chat, brainstorm, workflows)
+ * - endeavor: Higher-level goal grouping for workflows/tasks
  */
 export const appRouter = router({
   session: sessionRouter,
@@ -55,6 +57,7 @@ export const appRouter = router({
   log: logRouter,
   speech: speechRouter,
   ai: aiRouter,
+  endeavor: endeavorRouter,
 })
 
 /**

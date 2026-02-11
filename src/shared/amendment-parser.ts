@@ -251,7 +251,7 @@ Return ONLY a JSON object with this exact structure:
 Amendment types and their required fields:
 - dependency_change: type, target, addDependencies (array of IDs to add), removeDependencies (array of IDs to remove), stepName (optional for workflow steps)
 - task_creation: type, name, duration (in minutes), description (optional), importance (1-10), urgency (1-10), taskType ("focused"/"admin")
-- workflow_creation: type, name, steps (array of step objects), importance, urgency
+- workflow_creation: type, name, steps (array of step objects with name, duration, type, dependsOn), importance, urgency
 - status_update: type, target, newStatus ("in_progress", "completed", "waiting", "not_started"), stepName (optional)
 - time_log: type, target, duration (in minutes), stepName (optional)
 - note_addition: type, target, note, append (boolean, default true), stepName (optional)
@@ -264,8 +264,14 @@ Amendment types and their required fields:
 
 CRITICAL: For step_addition, use "stepType" NOT "type" for the task type. The "type" field must always be "step_addition".
 
+STEP DEPENDENCY FORMAT (for workflow_creation and step_addition):
+- Use EXACT step names in the dependsOn array, NOT indices like "step-0" or "step-1"
+- Example: dependsOn: ["Design API schema", "Write unit tests"]
+- The system uses fuzzy matching, so small variations are tolerated, but exact names work best
+- When creating workflows, each step's dependsOn should reference other steps by their exact name field
+
 Examples:
-- "Deploy is blocked by Safety Certification" → dependency_change with target: Deploy, addDependencies: ["actual-workflow-id"] 
+- "Deploy is blocked by Safety Certification" → dependency_change with target: Deploy, addDependencies: ["actual-workflow-id"]
 - "I need to fix timestamps before running the workflow" → task_creation (fix timestamps task) + dependency_change with actual task IDs
 - "Deploy no longer depends on testing" → dependency_change with removeDependencies: ["actual-task-id"]
 - "I can't do X until Y is done" → dependency_change to add Y as dependency of X using actual IDs
@@ -276,8 +282,8 @@ Examples:
 - "kick off the deployment workflow" → status_update to mark workflow in_progress
 - "the database migration step took 3 hours" → time_log with duration: 180 and stepName: "database migration"
 - "add a code review step after implementation" → step_addition with stepType: "focused", afterStep: "implementation"
-- "add a final step that depends on all other steps" → step_addition with dependencies: ["step1", "step2", "step3"] (list ALL existing step names)
-- "add bedtime complete step which depends on all other steps" → step_addition with dependencies populated from workflow context
+- "add a final step that depends on all other steps" → step_addition with dependencies: ["Design schema", "Implement API", "Write tests"] (use EXACT step names)
+- "add bedtime complete step which depends on all other steps" → step_addition with dependencies populated from workflow context using exact step names
 - "the testing step will take longer, maybe 2 hours" → duration_change with stepName: "testing", newDuration: 120
 - "finished the API design step" → status_update with stepName: "API design", newStatus: "completed"
 - "set the bedtime routine deadline to 11pm tonight" → deadline_change with newDeadline: "${dateStr}T23:00:00", deadlineType: "soft"
@@ -287,7 +293,7 @@ Examples:
 - "change this to a personal task" → type_change with newType: "personal"
 - "the review step should be admin work" → type_change with stepName: "review", newType: "admin"
 
-IMPORTANT: 
+IMPORTANT:
 - For workflow modifications, always include the stepName field when referring to specific steps
 - When adding steps, break them down into granular tasks (15-60 minutes each)
 - Always return at least one amendment if you can understand the intent

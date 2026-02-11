@@ -67,40 +67,49 @@ export async function handleWorkflowCreation(
 ): Promise<void> {
   const totalDuration = amendment.steps.reduce((sum, step) => sum + step.duration, 0)
 
-  // STEP 1: Generate unique IDs for all steps first (name → ID map)
+  // STEP 1: Generate unique IDs for all steps first
+  const stepIds: string[] = amendment.steps.map(() => generateUniqueId('step'))
   const stepNameToId = new Map<string, string>()
-  amendment.steps.forEach((step) => {
-    const stepId = generateUniqueId('step')
-    stepNameToId.set(step.name.toLowerCase(), stepId)
+  amendment.steps.forEach((step, index) => {
+    const stepId = stepIds[index]
+    if (stepId) {
+      stepNameToId.set(step.name.toLowerCase(), stepId)
+    }
   })
 
-  // STEP 2: Build steps with proper ID-based dependencies
-  // Track unresolved dependencies to surface warnings to user
-  const unresolvedDepsPerStep: Array<{ stepName: string; unresolvedDeps: string[] }> = []
+  // STEP 2: Build steps with strict index+name dependency resolution
+  // No fuzzy matching — indices are unambiguous, names must match exactly
+  const droppedDeps: Array<{ stepName: string; dep: string; reason: string }> = []
 
   const steps = amendment.steps.map((step, index) => {
-    const stepId = stepNameToId.get(step.name.toLowerCase())
+    const stepId = stepIds[index]
     if (!stepId) {
-      throw new Error(`Step ID not found for "${step.name}" - this should not happen`)
+      throw new Error(`Step ID not found for index ${index} - this should not happen`)
     }
-    const unresolvedDeps: string[] = []
 
-    // Convert dependency names to IDs
-    const dependencyIds = (step.dependsOn || []).map(depName => {
-      const depId = stepNameToId.get(depName.toLowerCase())
-      if (!depId) {
-        unresolvedDeps.push(depName)
-        logger.ui.warn(`Dependency "${depName}" not found in workflow "${amendment.name}"`, {
-          stepName: step.name,
-          availableSteps: Array.from(stepNameToId.keys()),
-        }, 'dependency-resolution')
+    const dependencyIds: string[] = []
+    if (step.dependsOn && step.dependsOn.length > 0) {
+      for (const dep of step.dependsOn) {
+        if (typeof dep === 'number') {
+          // Numeric index — map directly to step ID
+          const targetId = stepIds[dep]
+          if (targetId && dep >= 0 && dep < stepIds.length) {
+            dependencyIds.push(targetId)
+          } else {
+            droppedDeps.push({ stepName: step.name, dep: String(dep), reason: `index ${dep} out of range (0-${stepIds.length - 1})` })
+          }
+        } else if (typeof dep === 'string') {
+          // String — try exact case-insensitive name match
+          const targetId = stepNameToId.get(dep.toLowerCase())
+          if (targetId) {
+            dependencyIds.push(targetId)
+          } else {
+            droppedDeps.push({ stepName: step.name, dep, reason: 'no exact name match found' })
+          }
+        } else {
+          droppedDeps.push({ stepName: step.name, dep: String(dep), reason: 'unsupported dependency type' })
+        }
       }
-      return depId
-    }).filter((id): id is string => id !== undefined)
-
-    // Collect unresolved deps for this step
-    if (unresolvedDeps.length > 0) {
-      unresolvedDepsPerStep.push({ stepName: step.name, unresolvedDeps })
     }
 
     return {
@@ -109,7 +118,7 @@ export async function handleWorkflowCreation(
       name: step.name,
       duration: step.duration,
       type: resolveTaskType(step.type),
-      dependsOn: dependencyIds, // NOW USING IDs, NOT NAMES
+      dependsOn: dependencyIds,
       asyncWaitTime: step.asyncWaitTime || 0,
       status: StepStatus.Pending,
       stepIndex: index,
@@ -117,12 +126,16 @@ export async function handleWorkflowCreation(
     }
   })
 
-  // Surface user-visible warning if any dependencies couldn't be resolved
-  if (unresolvedDepsPerStep.length > 0) {
-    const warningMessages = unresolvedDepsPerStep.map(
-      ({ stepName, unresolvedDeps }) => `"${stepName}": ${unresolvedDeps.join(', ')}`,
+  // Surface clear error if any dependencies were dropped
+  if (droppedDeps.length > 0) {
+    const details = droppedDeps.map(
+      ({ stepName, dep, reason }) => `"${stepName}" → "${dep}" (${reason})`,
     )
-    Message.warning(`Some step dependencies couldn't be linked: ${warningMessages.join('; ')}`)
+    Message.error(`Dropped ${droppedDeps.length} unresolvable dependencies: ${details.join('; ')}`)
+    logger.ui.warn('Dropped unresolvable dependencies during workflow creation', {
+      droppedDeps,
+      workflowName: amendment.name,
+    }, 'dependency-resolution-dropped')
   }
 
   // STEP 3: Validate dependencies (orphans + cycles)

@@ -171,7 +171,7 @@ Look for workflow patterns like:
 For each workflow you identify:
 1. Break into logical steps with realistic durations (15-120 min each)
 2. Identify async wait times (time waiting for external processes)
-3. Model dependencies between steps using EXACT step names (not "step 1" or "workflow step 1" - use the actual step name like "Write unit tests")
+3. Use 0-based step indices for dependsOn (e.g., 0 for the first step, 1 for the second). Do NOT use step name strings — indices are unambiguous.
 4. Calculate timeline including async waits
 5. Consider conditional branches and retry scenarios
 6. Estimate importance (1-10) and urgency (1-10) for prioritization
@@ -212,7 +212,7 @@ Return your response as a JSON object:
           "name": "Submit API request",
           "duration": 15,
           "type": "focused",
-          "dependsOn": ["Prepare API request"],
+          "dependsOn": [0],
           "asyncWaitTime": 240,
           "conditionalBranches": null
         },
@@ -220,7 +220,7 @@ Return your response as a JSON object:
           "name": "Process API response",
           "duration": 45,
           "type": "focused",
-          "dependsOn": ["Submit API request"],
+          "dependsOn": [1],
           "asyncWaitTime": 0,
           "conditionalBranches": null
         }
@@ -433,12 +433,10 @@ ${contextInfo}
 Create a detailed workflow with these requirements:
 1. Break the task into logical, sequential steps
 2. Each step should be 15-120 minutes (be realistic about time)
-3. Identify dependencies between steps
+3. Use 0-based step indices for dependsOn (e.g., 0 for the first step, 1 for the second). Do NOT use step name strings — indices are unambiguous.
 4. Consider async wait times (time waiting for external processes, reviews, etc.)
 5. Classify each step as "focused" (deep work) or "admin" (coordination, communication)
 6. Suggest a clear workflow name
-
-Step dependency format: Use "step-X" where X is the 0-indexed step number (e.g., "step-0", "step-1")
 
 Return your response as a JSON object:
 {
@@ -447,12 +445,18 @@ Return your response as a JSON object:
   "totalDuration": 240,
   "steps": [
     {
-      "name": "Step name",
+      "name": "Design API schema",
       "duration": 60,
       "type": "focused",
       "dependsOn": [],
-      "asyncWaitTime": 0,
-      "conditionalBranches": null
+      "asyncWaitTime": 0
+    },
+    {
+      "name": "Implement endpoints",
+      "duration": 90,
+      "type": "focused",
+      "dependsOn": [0],
+      "asyncWaitTime": 0
     }
   ]
 }

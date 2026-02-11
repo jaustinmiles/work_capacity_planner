@@ -1,4 +1,4 @@
-import { TaskStatus, StepStatus, DeadlineType, ChatMessageRole } from './enums'
+import { TaskStatus, StepStatus, DeadlineType, ChatMessageRole, EndeavorStatus } from './enums'
 
 /**
  * Interface for entities that support time logging
@@ -177,4 +177,111 @@ export interface AICallOptions {
   messages: Array<{ role: ChatMessageRole.User | ChatMessageRole.Assistant; content: string }>
   model?: string
   maxTokens?: number
+}
+
+// =============================================================================
+// Endeavor Types - Higher-level grouping for workflows and tasks
+// =============================================================================
+
+/**
+ * Endeavor - A higher-level construct to group related workflows and tasks
+ * Represents a significant goal or project that may span multiple workflows
+ */
+export interface Endeavor {
+  id: string
+  name: string
+  description?: string
+  notes?: string
+  status: EndeavorStatus
+  importance: number // 1-10 priority scale
+  urgency: number // 1-10 urgency scale
+  deadline?: Date
+  deadlineType?: DeadlineType
+  color?: string // Hex color for UI
+  sessionId: string
+  createdAt: Date
+  updatedAt: Date
+}
+
+/**
+ * EndeavorItem - Links tasks/workflows to endeavors with ordering
+ */
+export interface EndeavorItem {
+  id: string
+  endeavorId: string
+  taskId: string
+  sortOrder: number
+  addedAt: Date
+}
+
+/**
+ * EndeavorWithTasks - Endeavor with populated task relationships
+ * Used for displaying endeavor details with full task info
+ */
+export interface EndeavorWithTasks extends Endeavor {
+  items: Array<EndeavorItem & { task: Task }>
+}
+
+/**
+ * EndeavorProgress - Calculated progress for an endeavor
+ */
+export interface EndeavorProgress {
+  totalTasks: number
+  completedTasks: number
+  inProgressTasks: number
+  totalDuration: number // in minutes
+  completedDuration: number // in minutes
+  percentComplete: number // 0-100
+}
+
+// =============================================================================
+// Cross-Workflow Step Dependencies
+// =============================================================================
+
+/**
+ * EndeavorDependency - Cross-workflow step dependency
+ * Allows blocking a workflow/step until a specific step from another workflow completes
+ * Dependencies can cross endeavor boundaries
+ */
+export interface EndeavorDependency {
+  id: string
+  endeavorId: string
+
+  // What is being blocked (one of these will be set)
+  blockedTaskId?: string  // A workflow being blocked
+  blockedStepId?: string  // OR a specific step being blocked
+
+  // What is doing the blocking (always a step)
+  blockingStepId: string  // The step that must complete first
+  blockingTaskId: string  // Parent workflow of blocking step
+
+  // Metadata
+  isHardBlock: boolean    // true = blocks scheduler, false = warning only
+  notes?: string
+  createdAt: Date
+}
+
+/**
+ * EndeavorDependency with resolved names for display
+ */
+export interface EndeavorDependencyWithNames extends EndeavorDependency {
+  blockedTaskName?: string
+  blockedStepName?: string
+  blockingStepName: string
+  blockingTaskName: string
+  blockingStepStatus: string  // Current status of the blocking step
+  blockingEndeavorId?: string // Endeavor the blocking task belongs to
+  blockingEndeavorName?: string
+}
+
+/**
+ * Input for creating an endeavor dependency
+ */
+export interface CreateEndeavorDependencyInput {
+  endeavorId: string
+  blockedTaskId?: string
+  blockedStepId?: string
+  blockingStepId: string
+  isHardBlock?: boolean
+  notes?: string
 }

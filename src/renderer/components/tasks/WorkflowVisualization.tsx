@@ -1,11 +1,11 @@
 import React, { useState } from 'react'
-import { Modal, Space, Button, Switch } from '@arco-design/web-react'
-import { IconMindMapping, IconEdit } from '@arco-design/web-react/icon'
+import { Modal, Space, Button, Switch, Popconfirm } from '@arco-design/web-react'
+import { IconMindMapping, IconEdit, IconDelete } from '@arco-design/web-react/icon'
 import { SequencedTask } from '@shared/sequencing-types'
 import { InteractiveWorkflowGraph } from './InteractiveWorkflowGraph'
 import { useTaskStore } from '../../store/useTaskStore'
+import { Message } from '../common/Message'
 import { logger } from '@/logger'
-// LOGGER_REMOVED: import { logger } from '@/shared/logger'
 
 
 // Typography components
@@ -31,6 +31,20 @@ export function WorkflowVisualization({ task, visible, onClose }: WorkflowVisual
 
   // Use the latest task data from store
   const currentTask = sequencedTasks.find(t => t.id === task.id) || task
+
+  const handleClearAllDependencies = async () => {
+    try {
+      const updatedSteps = currentTask.steps.map(step => ({ ...step, dependsOn: [] }))
+      await updateSequencedTask(currentTask.id, { steps: updatedSteps })
+      Message.success(`Cleared all dependencies from ${currentTask.steps.length} steps`)
+    } catch (error) {
+      logger.ui.error('Failed to clear all dependencies', {
+        error: error instanceof Error ? error.message : String(error),
+        taskId: currentTask.id,
+      }, 'clear-dependencies-error')
+      Message.error('Failed to clear dependencies')
+    }
+  }
 
   const handleUpdateDependencies = async (stepId: string, dependencies: string[]) => {
     try {
@@ -73,7 +87,23 @@ export function WorkflowVisualization({ task, visible, onClose }: WorkflowVisual
       maskClosable
     >
       <div style={{ height: '70vh', display: 'flex', flexDirection: 'column' }}>
-        <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'flex-end' }}>
+        <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <Popconfirm
+            title="Clear all step dependencies?"
+            content="This will remove all dependency links between steps. This cannot be undone."
+            onOk={handleClearAllDependencies}
+            okText="Clear All"
+            okButtonProps={{ status: 'warning' }}
+          >
+            <Button
+              type="outline"
+              status="warning"
+              size="small"
+              icon={<IconDelete />}
+            >
+              Clear All Dependencies
+            </Button>
+          </Popconfirm>
           <Space>
             <span>Edit Mode</span>
             <Switch

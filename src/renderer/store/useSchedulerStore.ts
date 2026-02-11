@@ -17,6 +17,7 @@ import { getCurrentTime, getLocalDateString } from '@/shared/time-provider'
 import { logger } from '@/logger'
 import { UnifiedScheduleItemType, NextScheduledItemType } from '@/shared/enums'
 import { useUserTaskTypeStore } from './useUserTaskTypeStore'
+import { Message } from '../components/common/Message'
 
 export interface NextScheduledItem {
   type: NextScheduledItemType
@@ -65,6 +66,9 @@ const scheduler = new UnifiedScheduler()
 // Defensive debouncing: Track last recomputation time to detect rapid-fire calls
 const recomputeTracker = { lastTime: 0 }
 const RECOMPUTE_DEBOUNCE_MS = 50 // If recomputations happen within 50ms, log a warning
+
+// Dedup conflict warnings to avoid spamming user on rapid recomputations
+const conflictTracker = { lastWarning: '' }
 
 // Helper to check if item has required startTime
 function hasStartTime(item: UnifiedScheduleItem): item is UnifiedScheduleItem & { startTime: Date } {
@@ -198,6 +202,17 @@ const computeSchedule = (
       unscheduledNames: result.unscheduled.map(u => u.name),
       startDate: startDateString,
     }, 'scheduler-recompute')
+
+    // Surface dependency conflicts as user-visible warnings (deduplicated)
+    if (result.conflicts && result.conflicts.length > 0) {
+      const warningMsg = result.conflicts.map(c => c.description).join('; ')
+      if (warningMsg !== conflictTracker.lastWarning) {
+        conflictTracker.lastWarning = warningMsg
+        Message.warning(`Scheduling issues auto-resolved: ${warningMsg}`)
+      }
+    } else {
+      conflictTracker.lastWarning = ''
+    }
 
     return result
   } catch (error) {
