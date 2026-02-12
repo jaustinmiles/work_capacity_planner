@@ -29,6 +29,7 @@ import { TaskSlideshow } from './components/slideshow/TaskSlideshow'
 import { SprintBoard } from './components/sprint/SprintBoard'
 import { EndeavorList } from './components/endeavors/EndeavorList'
 import { EndeavorDetail } from './components/endeavors/EndeavorDetail'
+import { EndeavorGraphView } from './components/endeavors/graph/EndeavorGraphView'
 import { DevTools } from './components/dev/DevTools'
 import { TimeSinkManager } from './components/time-sinks/TimeSinkManager'
 import { TimeSinkLogger } from './components/time-sinks/TimeSinkLogger'
@@ -151,6 +152,7 @@ function AppContent() {
   const [showDevTools, setShowDevTools] = useState(false)
   const [showTaskTypeManager, setShowTaskTypeManager] = useState(false)
   const [selectedEndeavorId, setSelectedEndeavorId] = useState<string | null>(null)
+  const [endeavorViewMode, setEndeavorViewMode] = useState<'list' | 'graph'>('list')
 
   // Responsive breakpoints
   const [screenWidth, setScreenWidth] = useState(window.innerWidth)
@@ -720,9 +722,15 @@ function AppContent() {
                             endeavorId={selectedEndeavorId}
                             onBack={() => setSelectedEndeavorId(null)}
                           />
+                        ) : endeavorViewMode === 'graph' ? (
+                          <EndeavorGraphView
+                            onBackToList={() => setEndeavorViewMode('list')}
+                            onSelectEndeavor={(id) => setSelectedEndeavorId(id)}
+                          />
                         ) : (
                           <EndeavorList
                             onSelectEndeavor={(id) => setSelectedEndeavorId(id)}
+                            onToggleGraph={() => setEndeavorViewMode('graph')}
                           />
                         )}
                       </ErrorBoundary>
