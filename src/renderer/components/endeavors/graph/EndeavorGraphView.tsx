@@ -5,7 +5,7 @@
  * as child nodes. Supports pan/zoom, minimap, and a toolbar to return to list view.
  */
 
-import { useMemo, useEffect, useCallback } from 'react'
+import { useState, useMemo, useEffect, useCallback } from 'react'
 import ReactFlow, {
   Controls,
   Background,
@@ -13,12 +13,15 @@ import ReactFlow, {
   useNodesState,
   useEdgesState,
 } from 'reactflow'
-import { Button, Space, Typography, Empty } from '@arco-design/web-react'
+import type { Connection, Edge } from 'reactflow'
+import { Button, Space, Typography, Empty, Switch, Tag } from '@arco-design/web-react'
 import { IconList } from '@arco-design/web-react/icon'
 import { useEndeavorStore } from '../../../store/useEndeavorStore'
 import { useSortedUserTaskTypes } from '../../../store/useUserTaskTypeStore'
 import { EndeavorRegionNode } from './EndeavorRegionNode'
 import { TaskStepGraphNode } from './TaskStepGraphNode'
+import { DependencyEdge } from './DependencyEdge'
+import { useGraphDependencies } from './useGraphDependencies'
 import { computeGraphLayout, hexToRgba } from './graph-layout-utils'
 
 import 'reactflow/dist/style.css'
@@ -30,12 +33,17 @@ const nodeTypes = {
   taskStep: TaskStepGraphNode,
 }
 
+const edgeTypes = {
+  dependency: DependencyEdge,
+}
+
 interface EndeavorGraphViewProps {
   onBackToList: () => void
   onSelectEndeavor?: (endeavorId: string) => void
 }
 
 export function EndeavorGraphView({ onBackToList, onSelectEndeavor }: EndeavorGraphViewProps) {
+  const [isEditMode, setIsEditMode] = useState(false)
   const { endeavors, loadEndeavors, status } = useEndeavorStore()
   const userTypes = useSortedUserTaskTypes()
 
@@ -45,9 +53,26 @@ export function EndeavorGraphView({ onBackToList, onSelectEndeavor }: EndeavorGr
     }
   }, [endeavors.length, loadEndeavors])
 
-  const { nodes: initialNodes, edges: initialEdges } = useMemo(
+  const { nodes: layoutNodes, edges: layoutEdges } = useMemo(
     () => computeGraphLayout(endeavors, userTypes),
     [endeavors, userTypes],
+  )
+
+  // Inject isEditable into node data based on edit mode
+  const initialNodes = useMemo(
+    () => layoutNodes.map(node =>
+      node.type === 'taskStep'
+        ? { ...node, data: { ...node.data, isEditable: isEditMode } }
+        : node,
+    ),
+    [layoutNodes, isEditMode],
+  )
+
+  // Merge layout edges with cross-endeavor dependency edges
+  const { dependencyEdges, onConnect: handleConnect, onDeleteDependency } = useGraphDependencies(endeavors, isEditMode)
+  const initialEdges = useMemo(
+    () => [...layoutEdges, ...dependencyEdges],
+    [layoutEdges, dependencyEdges],
   )
 
   const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes)
@@ -61,6 +86,23 @@ export function EndeavorGraphView({ onBackToList, onSelectEndeavor }: EndeavorGr
   useEffect(() => {
     setEdges(initialEdges)
   }, [initialEdges, setEdges])
+
+  // Handle new connections
+  const onConnect = useCallback(
+    (connection: Connection) => { handleConnect(connection) },
+    [handleConnect],
+  )
+
+  // Handle edge double-click to delete dependency edges
+  const onEdgeDoubleClick = useCallback(
+    (_: React.MouseEvent, edge: Edge) => {
+      if (!isEditMode) return
+      if (edge.id.startsWith('dep-') && edge.data?.dependencyId) {
+        onDeleteDependency(edge.data.dependencyId)
+      }
+    },
+    [isEditMode, onDeleteDependency],
+  )
 
   // Double-click on region node to navigate to detail
   const onNodeDoubleClick = useCallback(
@@ -118,9 +160,24 @@ export function EndeavorGraphView({ onBackToList, onSelectEndeavor }: EndeavorGr
           >
             Back to List
           </Button>
+          <Space size={4}>
+            <Text type="secondary" style={{ fontSize: 12 }}>Edit Mode</Text>
+            <Switch
+              checked={isEditMode}
+              onChange={setIsEditMode}
+              size="small"
+            />
+          </Space>
+          {isEditMode && (
+            <Tag color="orange" size="small">
+              Drag handles to connect steps
+            </Tag>
+          )}
         </Space>
         <Text type="secondary" style={{ fontSize: 12 }}>
-          Double-click an endeavor to view details. Scroll to zoom. Drag to pan.
+          {isEditMode
+            ? 'Drag from right handle → left handle to add dependency. Double-click edge to delete.'
+            : 'Double-click an endeavor to view details. Scroll to zoom. Drag to pan.'}
         </Text>
       </div>
 
@@ -131,8 +188,11 @@ export function EndeavorGraphView({ onBackToList, onSelectEndeavor }: EndeavorGr
           edges={edges}
           onNodesChange={onNodesChange}
           onEdgesChange={onEdgesChange}
+          onConnect={onConnect}
+          onEdgeDoubleClick={onEdgeDoubleClick}
           onNodeDoubleClick={onNodeDoubleClick}
           nodeTypes={nodeTypes}
+          edgeTypes={edgeTypes}
           fitView
           fitViewOptions={{
             padding: 0.3,
@@ -143,7 +203,7 @@ export function EndeavorGraphView({ onBackToList, onSelectEndeavor }: EndeavorGr
           minZoom={0.05}
           maxZoom={2}
           nodesDraggable={true}
-          nodesConnectable={false}
+          nodesConnectable={isEditMode}
           elementsSelectable={true}
           proOptions={{ hideAttribution: true }}
         >

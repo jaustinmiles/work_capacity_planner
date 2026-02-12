@@ -8,7 +8,7 @@
 
 import type { Node, Edge } from 'reactflow'
 import { MarkerType } from 'reactflow'
-import type { EndeavorWithTasks, TaskStep } from '@shared/types'
+import type { EndeavorWithTasks, TaskStep, EndeavorDependencyWithNames } from '@shared/types'
 import type { UserTaskType } from '@shared/user-task-types'
 import { calculateEndeavorProgress } from '@shared/endeavor-utils'
 
@@ -316,4 +316,51 @@ export function computeGraphLayout(
   }
 
   return { nodes: allNodes, edges: allEdges }
+}
+
+/**
+ * Convert EndeavorDependency[] into ReactFlow Edge objects
+ * for cross-endeavor/cross-workflow dependencies.
+ *
+ * These are rendered with the custom DependencyEdge component.
+ */
+export function computeCrossEndeavorEdges(
+  dependencies: Map<string, EndeavorDependencyWithNames[]>,
+  isEditable: boolean,
+): Edge[] {
+  const edges: Edge[] = []
+
+  for (const [endeavorId, deps] of dependencies) {
+    for (const dep of deps) {
+      const sourceNodeId = `step-${dep.blockingStepId}`
+      const targetNodeId = dep.blockedStepId
+        ? `step-${dep.blockedStepId}`
+        : dep.blockedTaskId
+          ? `task-${dep.blockedTaskId}`
+          : null
+
+      if (!targetNodeId) continue
+
+      edges.push({
+        id: `dep-${dep.id}`,
+        source: sourceNodeId,
+        target: targetNodeId,
+        type: 'dependency',
+        animated: true,
+        markerEnd: {
+          type: MarkerType.ArrowClosed,
+          color: dep.isHardBlock ? '#F77234' : '#F7BA1E',
+        },
+        data: {
+          isHardBlock: dep.isHardBlock,
+          notes: dep.notes,
+          dependencyId: dep.id,
+          isEditable,
+          endeavorId,
+        },
+      })
+    }
+  }
+
+  return edges
 }
