@@ -28,6 +28,7 @@ interface TaskStepData {
   userTypes: UserTaskType[]
   isEditable?: boolean
   isOnCriticalPath?: boolean
+  isActiveWork?: boolean
 }
 
 function formatDuration(minutes: number): string {
@@ -48,8 +49,15 @@ export const TaskStepGraphNode = React.memo(({ data }: NodeProps<TaskStepData>) 
 
   const isCompleted = data.status === 'completed' || data.status === 'skipped'
   const isCritical = data.isOnCriticalPath && !isCompleted
+  const isActive = data.isActiveWork
   const bgColor = isCompleted ? '#F5F5F5' : hexToRgba(typeColor, 0.1)
-  const borderColor = isCompleted ? '#BFBFBF' : isCritical ? '#FAAD14' : typeColor
+  const borderColor = isCompleted ? '#BFBFBF' : isActive ? '#00B42A' : isCritical ? '#FAAD14' : typeColor
+
+  const boxShadow = isActive
+    ? '0 0 0 3px rgba(0, 180, 42, 0.3), 0 0 16px rgba(0, 180, 42, 0.25)'
+    : isCritical
+      ? '0 0 10px rgba(250, 173, 20, 0.5)'
+      : 'none'
 
   return (
     <div
@@ -61,8 +69,9 @@ export const TaskStepGraphNode = React.memo(({ data }: NodeProps<TaskStepData>) 
         padding: '10px 14px',
         minWidth: 180,
         maxWidth: 220,
-        boxShadow: isCritical ? '0 0 10px rgba(250, 173, 20, 0.5)' : 'none',
+        boxShadow,
         transition: 'box-shadow 0.3s, border-color 0.3s',
+        animation: isActive ? 'pulse-glow 2s ease-in-out infinite' : 'none',
       }}
     >
       <Handle

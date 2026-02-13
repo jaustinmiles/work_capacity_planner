@@ -23,6 +23,7 @@ import { TaskStepGraphNode } from './TaskStepGraphNode'
 import { GoalNode } from './GoalNode'
 import { DependencyEdge } from './DependencyEdge'
 import { TimeTypeBreakdown } from './TimeTypeBreakdown'
+import { CreateScheduleBlockButton } from './CreateScheduleBlockButton'
 import { useGraphDependencies } from './useGraphDependencies'
 import { computeGraphLayout, hexToRgba } from './graph-layout-utils'
 import { computeEndeavorCriticalPath } from '@shared/endeavor-graph-utils'
@@ -50,6 +51,7 @@ export function EndeavorGraphView({ onBackToList, onSelectEndeavor }: EndeavorGr
   const [isEditMode, setIsEditMode] = useState(false)
   const [showCriticalPath, setShowCriticalPath] = useState(false)
   const [showTimeBreakdown, setShowTimeBreakdown] = useState(true)
+  const [activeStepNodeId, setActiveStepNodeId] = useState<string | null>(null)
   const { endeavors, loadEndeavors, status, dependencies } = useEndeavorStore()
   const userTypes = useSortedUserTaskTypes()
 
@@ -81,7 +83,7 @@ export function EndeavorGraphView({ onBackToList, onSelectEndeavor }: EndeavorGr
     return { nodeIds: allNodeIds, edgeIds: allEdgeIds }
   }, [showCriticalPath, endeavors, dependencies])
 
-  // Inject isEditable and critical path data into node data
+  // Inject isEditable, critical path, and active work data into node data
   const initialNodes = useMemo(
     () => layoutNodes.map(node => {
       if (node.type === 'taskStep') {
@@ -91,6 +93,7 @@ export function EndeavorGraphView({ onBackToList, onSelectEndeavor }: EndeavorGr
             ...node.data,
             isEditable: isEditMode,
             isOnCriticalPath: criticalPathData.nodeIds.has(node.id),
+            isActiveWork: node.id === activeStepNodeId,
           },
         }
       }
@@ -105,7 +108,7 @@ export function EndeavorGraphView({ onBackToList, onSelectEndeavor }: EndeavorGr
       }
       return node
     }),
-    [layoutNodes, isEditMode, criticalPathData, showCriticalPath],
+    [layoutNodes, isEditMode, criticalPathData, showCriticalPath, activeStepNodeId],
   )
 
   // Merge layout edges with cross-endeavor dependency edges, apply critical path styling
@@ -287,6 +290,12 @@ export function EndeavorGraphView({ onBackToList, onSelectEndeavor }: EndeavorGr
         {showTimeBreakdown && (
           <TimeTypeBreakdown endeavors={endeavors} userTypes={userTypes} />
         )}
+        <CreateScheduleBlockButton
+          endeavors={endeavors}
+          dependencies={dependencies}
+          activeStepNodeId={activeStepNodeId}
+          onStepStarted={setActiveStepNodeId}
+        />
       </div>
     </div>
   )
