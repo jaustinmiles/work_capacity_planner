@@ -20,9 +20,12 @@ import { useEndeavorStore } from '../../../store/useEndeavorStore'
 import { useSortedUserTaskTypes } from '../../../store/useUserTaskTypeStore'
 import { EndeavorRegionNode } from './EndeavorRegionNode'
 import { TaskStepGraphNode } from './TaskStepGraphNode'
+import { GoalNode } from './GoalNode'
 import { DependencyEdge } from './DependencyEdge'
+import { TimeTypeBreakdown } from './TimeTypeBreakdown'
 import { useGraphDependencies } from './useGraphDependencies'
 import { computeGraphLayout, hexToRgba } from './graph-layout-utils'
+import { computeEndeavorCriticalPath } from '@shared/endeavor-graph-utils'
 
 import 'reactflow/dist/style.css'
 
@@ -31,6 +34,7 @@ const { Text } = Typography
 const nodeTypes = {
   endeavorRegion: EndeavorRegionNode,
   taskStep: TaskStepGraphNode,
+  goal: GoalNode,
 }
 
 const edgeTypes = {
@@ -44,7 +48,9 @@ interface EndeavorGraphViewProps {
 
 export function EndeavorGraphView({ onBackToList, onSelectEndeavor }: EndeavorGraphViewProps) {
   const [isEditMode, setIsEditMode] = useState(false)
-  const { endeavors, loadEndeavors, status } = useEndeavorStore()
+  const [showCriticalPath, setShowCriticalPath] = useState(false)
+  const [showTimeBreakdown, setShowTimeBreakdown] = useState(true)
+  const { endeavors, loadEndeavors, status, dependencies } = useEndeavorStore()
   const userTypes = useSortedUserTaskTypes()
 
   useEffect(() => {
@@ -58,21 +64,68 @@ export function EndeavorGraphView({ onBackToList, onSelectEndeavor }: EndeavorGr
     [endeavors, userTypes],
   )
 
-  // Inject isEditable into node data based on edit mode
+  // Compute critical path across all endeavors
+  const criticalPathData = useMemo(() => {
+    if (!showCriticalPath) return { nodeIds: new Set<string>(), edgeIds: new Set<string>() }
+
+    const allNodeIds = new Set<string>()
+    const allEdgeIds = new Set<string>()
+
+    for (const endeavor of endeavors) {
+      const crossDeps = dependencies.get(endeavor.id) ?? []
+      const result = computeEndeavorCriticalPath(endeavor, crossDeps)
+      result.nodeIds.forEach(id => allNodeIds.add(id))
+      result.edgeIds.forEach(id => allEdgeIds.add(id))
+    }
+
+    return { nodeIds: allNodeIds, edgeIds: allEdgeIds }
+  }, [showCriticalPath, endeavors, dependencies])
+
+  // Inject isEditable and critical path data into node data
   const initialNodes = useMemo(
-    () => layoutNodes.map(node =>
-      node.type === 'taskStep'
-        ? { ...node, data: { ...node.data, isEditable: isEditMode } }
-        : node,
-    ),
-    [layoutNodes, isEditMode],
+    () => layoutNodes.map(node => {
+      if (node.type === 'taskStep') {
+        return {
+          ...node,
+          data: {
+            ...node.data,
+            isEditable: isEditMode,
+            isOnCriticalPath: criticalPathData.nodeIds.has(node.id),
+          },
+        }
+      }
+      if (node.type === 'goal') {
+        return {
+          ...node,
+          data: {
+            ...node.data,
+            isOnCriticalPath: showCriticalPath,
+          },
+        }
+      }
+      return node
+    }),
+    [layoutNodes, isEditMode, criticalPathData, showCriticalPath],
   )
 
-  // Merge layout edges with cross-endeavor dependency edges
+  // Merge layout edges with cross-endeavor dependency edges, apply critical path styling
   const { dependencyEdges, onConnect: handleConnect, onDeleteDependency } = useGraphDependencies(endeavors, isEditMode)
   const initialEdges = useMemo(
-    () => [...layoutEdges, ...dependencyEdges],
-    [layoutEdges, dependencyEdges],
+    () => [...layoutEdges, ...dependencyEdges].map(edge => {
+      if (criticalPathData.edgeIds.has(edge.id)) {
+        return {
+          ...edge,
+          style: {
+            ...edge.style,
+            stroke: '#FAAD14',
+            strokeWidth: 3,
+          },
+          animated: true,
+        }
+      }
+      return edge
+    }),
+    [layoutEdges, dependencyEdges, criticalPathData],
   )
 
   const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes)
@@ -173,6 +226,22 @@ export function EndeavorGraphView({ onBackToList, onSelectEndeavor }: EndeavorGr
               Drag handles to connect steps
             </Tag>
           )}
+          <Space size={4}>
+            <Text type="secondary" style={{ fontSize: 12 }}>Critical Path</Text>
+            <Switch
+              checked={showCriticalPath}
+              onChange={setShowCriticalPath}
+              size="small"
+            />
+          </Space>
+          <Space size={4}>
+            <Text type="secondary" style={{ fontSize: 12 }}>Time Breakdown</Text>
+            <Switch
+              checked={showTimeBreakdown}
+              onChange={setShowTimeBreakdown}
+              size="small"
+            />
+          </Space>
         </Space>
         <Text type="secondary" style={{ fontSize: 12 }}>
           {isEditMode
@@ -182,7 +251,7 @@ export function EndeavorGraphView({ onBackToList, onSelectEndeavor }: EndeavorGr
       </div>
 
       {/* ReactFlow Canvas */}
-      <div style={{ flex: 1, minHeight: 0 }}>
+      <div style={{ flex: 1, minHeight: 0, position: 'relative' }}>
         <ReactFlow
           nodes={nodes}
           edges={edges}
@@ -215,6 +284,9 @@ export function EndeavorGraphView({ onBackToList, onSelectEndeavor }: EndeavorGr
           />
           <Controls />
         </ReactFlow>
+        {showTimeBreakdown && (
+          <TimeTypeBreakdown endeavors={endeavors} userTypes={userTypes} />
+        )}
       </div>
     </div>
   )

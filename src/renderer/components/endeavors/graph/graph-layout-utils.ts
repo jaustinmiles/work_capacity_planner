@@ -22,6 +22,8 @@ const REGION_HEADER_HEIGHT = 50
 const REGION_GAP = 80
 const GRID_COLUMNS = 2
 
+const GOAL_NODE_OFFSET = 80
+
 interface LayoutResult {
   nodes: Node[]
   edges: Edge[]
@@ -260,11 +262,80 @@ export function computeGraphLayout(
       }
     }
 
+    // Add goal node: positioned to the right of all content
+    const goalNodeId = `goal-${endeavor.id}`
+    const goalX = REGION_PADDING + maxContentWidth + GOAL_NODE_OFFSET
+    const goalY = REGION_HEADER_HEIGHT + Math.max((currentY - REGION_HEADER_HEIGHT) / 2 - 26, 0)
+
+    innerNodes.push({
+      id: goalNodeId,
+      type: 'goal',
+      parentNode: `endeavor-${endeavor.id}`,
+      extent: 'parent',
+      position: { x: goalX, y: goalY },
+      data: {
+        label: 'Goal',
+        color: endeavor.color ?? '#165DFF',
+        endeavorId: endeavor.id,
+      },
+      draggable: false,
+    })
+
+    // Find terminal steps (no other step in this endeavor depends on them)
+    const allStepIds = new Set<string>()
+    const dependedOnIds = new Set<string>()
+    for (const item of endeavor.items) {
+      const task = item.task
+      if (task.hasSteps && task.steps) {
+        for (const step of task.steps) {
+          allStepIds.add(step.id)
+          for (const depId of step.dependsOn) {
+            dependedOnIds.add(depId)
+          }
+        }
+      } else {
+        allStepIds.add(task.id)
+        for (const depId of task.dependencies) {
+          dependedOnIds.add(depId)
+        }
+      }
+    }
+
+    // Terminal: in allStepIds but not in dependedOnIds
+    for (const item of endeavor.items) {
+      const task = item.task
+      if (task.hasSteps && task.steps) {
+        for (const step of task.steps) {
+          if (!dependedOnIds.has(step.id)) {
+            innerEdges.push({
+              id: `edge-${step.id}-goal-${endeavor.id}`,
+              source: `step-${step.id}`,
+              target: goalNodeId,
+              type: 'smoothstep',
+              animated: false,
+              markerEnd: { type: MarkerType.ArrowClosed },
+              style: { stroke: '#C9CDD4', strokeWidth: 1.5, strokeDasharray: '4 3' },
+            })
+          }
+        }
+      } else if (!dependedOnIds.has(task.id)) {
+        innerEdges.push({
+          id: `edge-${task.id}-goal-${endeavor.id}`,
+          source: `task-${task.id}`,
+          target: goalNodeId,
+          type: 'smoothstep',
+          animated: false,
+          markerEnd: { type: MarkerType.ArrowClosed },
+          style: { stroke: '#C9CDD4', strokeWidth: 1.5, strokeDasharray: '4 3' },
+        })
+      }
+    }
+
     regionLayouts.push({
       endeavor,
       innerNodes,
       innerEdges,
-      contentWidth: maxContentWidth + REGION_PADDING * 2,
+      contentWidth: maxContentWidth + REGION_PADDING * 2 + GOAL_NODE_OFFSET + 60,
       contentHeight: currentY + REGION_PADDING,
     })
   }

@@ -8,6 +8,8 @@
 export { EndeavorGraphView } from './EndeavorGraphView'
 export { EndeavorRegionNode } from './EndeavorRegionNode'
 export { TaskStepGraphNode } from './TaskStepGraphNode'
+export { GoalNode } from './GoalNode'
 export { DependencyEdge } from './DependencyEdge'
+export { TimeTypeBreakdown } from './TimeTypeBreakdown'
 export { useGraphDependencies } from './useGraphDependencies'
 export { computeGraphLayout, computeCrossEndeavorEdges, hexToRgba } from './graph-layout-utils'
