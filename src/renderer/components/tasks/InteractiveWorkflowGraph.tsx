@@ -19,6 +19,7 @@ import { SequencedTask, TaskStep } from '@shared/sequencing-types'
 import { logger } from '@/logger'
 import { useSortedUserTaskTypes } from '../../store/useUserTaskTypeStore'
 import { UserTaskType, getTypeColor } from '@shared/user-task-types'
+import { hexToRgba, calculateStepLevels } from '../endeavors/graph/graph-layout-utils'
 
 
 import 'reactflow/dist/style.css'
@@ -48,14 +49,6 @@ const WorkflowNode = React.memo(({ data }: { data: any }) => {
   const typeColor = userType?.color || getTypeColor(userTypes, data.type) || '#165DFF'
   const typeName = userType?.name || data.type || 'Task'
   const typeEmoji = userType?.emoji || ''
-
-  // Generate lighter background from the type color
-  const hexToRgba = (hex: string, alpha: number) => {
-    const r = parseInt(hex.slice(1, 3), 16)
-    const g = parseInt(hex.slice(3, 5), 16)
-    const b = parseInt(hex.slice(5, 7), 16)
-    return `rgba(${r}, ${g}, ${b}, ${alpha})`
-  }
 
   // Completed steps have a more muted appearance
   const isCompleted = data.status === 'completed'
@@ -154,57 +147,8 @@ export function InteractiveWorkflowGraph({
       ? task.steps.filter(step => step.status !== 'completed')
       : task.steps
 
-    // Perform topological sort with level calculation
-    const levelMap = new Map<string, number>()
-    const visited = new Set<string>()
-    const visiting = new Set<string>()
-
-    // Build adjacency map for easier traversal
-    const stepMap = new Map<string, TaskStep>()
-    visibleSteps.forEach(step => stepMap.set(step.id, step))
-
-    // DFS to calculate levels
-    const calculateLevel = (stepId: string): number => {
-      if (levelMap.has(stepId)) {
-        return levelMap.get(stepId)!
-      }
-
-      if (visiting.has(stepId)) {
-        // Circular dependency detected, break it
-        return 0
-      }
-
-      visiting.add(stepId)
-
-      const step = stepMap.get(stepId)
-      if (!step) {
-        visiting.delete(stepId)
-        return 0
-      }
-
-      let maxDepLevel = -1
-      step.dependsOn.forEach(depId => {
-        const depStep = stepMap.get(depId)
-        if (depStep) {
-          const depLevel = calculateLevel(depId)
-          maxDepLevel = Math.max(maxDepLevel, depLevel)
-        }
-      })
-
-      const level = maxDepLevel + 1
-      levelMap.set(stepId, level)
-      visiting.delete(stepId)
-      visited.add(stepId)
-
-      return level
-    }
-
-    // Calculate levels for all steps
-    visibleSteps.forEach(step => {
-      if (!visited.has(step.id)) {
-        calculateLevel(step.id)
-      }
-    })
+    // Calculate dependency levels using shared utility
+    const levelMap = calculateStepLevels(visibleSteps)
 
     // Group steps by level
     const levelGroups = new Map<number, TaskStep[]>()

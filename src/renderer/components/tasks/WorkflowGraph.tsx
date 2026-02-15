@@ -3,6 +3,7 @@ import { Card, Typography, Tag, Space, Tooltip } from '@arco-design/web-react'
 import { SequencedTask } from '@shared/sequencing-types'
 import { useTaskStore } from '../../store/useTaskStore'
 import { useSortedUserTaskTypes } from '../../store/useUserTaskTypeStore'
+import { calculateStepLevels } from '../endeavors/graph/graph-layout-utils'
 
 const { Title, Text } = Typography
 
@@ -40,9 +41,11 @@ export function WorkflowGraph({ task }: WorkflowGraphProps) {
   const currentTask = sequencedTasks.find(t => t.id === task.id) || task
   const { nodes, maxX, maxY } = useMemo(() => {
     const nodeMap = new Map<string, GraphNode>()
-    const levels = new Map<string, number>()
 
-    // First pass: create nodes and calculate levels
+    // Calculate levels using shared utility
+    const levels = calculateStepLevels(currentTask.steps)
+
+    // First pass: create nodes
     currentTask.steps.forEach((step, index) => {
       const nodeId = step.id || `step-${index}`
       const node: GraphNode = {
@@ -56,14 +59,6 @@ export function WorkflowGraph({ task }: WorkflowGraphProps) {
         dependencies: step.dependsOn,
       }
       nodeMap.set(nodeId, node)
-
-      // Calculate level based on dependencies
-      let level = 0
-      step.dependsOn.forEach(depId => {
-        const depLevel = levels.get(depId) || 0
-        level = Math.max(level, depLevel + 1)
-      })
-      levels.set(nodeId, level)
     })
 
     // Group nodes by level

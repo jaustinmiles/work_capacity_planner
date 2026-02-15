@@ -77,6 +77,7 @@ interface TaskStore {
   // Progress tracking actions
   startWorkOnStep: (stepId: string, __workflowId: string) => Promise<void>
   startWorkOnTask: (taskId: string) => Promise<void>
+  startWork: (item: { isSimpleTask: boolean; stepId: string; taskId: string }) => Promise<void>
   pauseWorkOnStep: (stepId: string) => Promise<void>
   pauseWorkOnTask: (taskId: string) => Promise<void>
   completeStep: (__stepId: string, actualMinutes?: number, __notes?: string) => Promise<void>
@@ -802,6 +803,14 @@ export const useTaskStore = create<TaskStore>()(
 
       // Re-throw error so caller knows the operation failed
       throw error
+    }
+  },
+
+  startWork: async (item: { isSimpleTask: boolean; stepId: string; taskId: string }) => {
+    if (item.isSimpleTask) {
+      await get().startWorkOnTask(item.taskId)
+    } else {
+      await get().startWorkOnStep(item.stepId, item.taskId)
     }
   },
 

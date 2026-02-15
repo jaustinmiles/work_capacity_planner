@@ -151,3 +151,9 @@ body[arco-theme='dark'] .arco-tooltip .arco-tooltip-content .arco-tooltip-conten
   color: #f6f6f6;
   border: 1px solid #4a4a4a;
 }
+
+/* Endeavor graph view: pulse animation for active work step */
+@keyframes pulse-glow {
+  0%, 100% { box-shadow: 0 0 0 3px rgba(0, 180, 42, 0.3), 0 0 16px rgba(0, 180, 42, 0.25); }
+  50% { box-shadow: 0 0 0 6px rgba(0, 180, 42, 0.15), 0 0 24px rgba(0, 180, 42, 0.35); }
+}
