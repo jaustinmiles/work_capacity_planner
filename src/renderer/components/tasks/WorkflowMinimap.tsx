@@ -3,6 +3,7 @@ import { StepStatus } from '@shared/enums'
 import { SequencedTask } from '@shared/sequencing-types'
 import { useTaskStore } from '@renderer/store/useTaskStore'
 import { useSortedUserTaskTypes } from '../../store/useUserTaskTypeStore'
+import { calculateStepLevels } from '../endeavors/graph/graph-layout-utils'
 
 interface WorkflowMinimapProps {
   task: SequencedTask
@@ -25,33 +26,8 @@ export function WorkflowMinimap({ task, width = 280, height = 80 }: WorkflowMini
       return { incompleteSteps: [], layout: { levels: 0, maxPerLevel: 0 } }
     }
 
-    // Build dependency map
-    const dependencyMap = new Map<string, string[]>()
-    incomplete.forEach(step => {
-      dependencyMap.set(step.id, step.dependsOn || [])
-    })
-
-    // Calculate levels for each step
-    const levels = new Map<string, number>()
-    const calculateLevel = (stepId: string, visited = new Set<string>()): number => {
-      if (visited.has(stepId)) return 0
-      visited.add(stepId)
-
-      const deps = dependencyMap.get(stepId) || []
-      if (deps.length === 0) return 0
-
-      const maxDepLevel = deps.reduce((max, depId) => {
-        const depStep = incomplete.find(s => s.id === depId)
-        if (!depStep) return max
-        return Math.max(max, calculateLevel(depId, visited))
-      }, -1)
-
-      return maxDepLevel + 1
-    }
-
-    incomplete.forEach(step => {
-      levels.set(step.id, calculateLevel(step.id))
-    })
+    // Calculate levels using shared utility
+    const levels = calculateStepLevels(incomplete)
 
     // Group by level
     const levelGroups = new Map<number, typeof incomplete>()

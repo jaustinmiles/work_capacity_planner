@@ -11,6 +11,7 @@ import { Handle, Position } from 'reactflow'
 import type { NodeProps } from 'reactflow'
 import type { UserTaskType } from '@shared/user-task-types'
 import { getTypeColor } from '@shared/user-task-types'
+import { formatMinutes } from '@shared/time-utils'
 import { hexToRgba } from './graph-layout-utils'
 
 const { Text } = Typography
@@ -29,15 +30,6 @@ interface TaskStepData {
   isEditable?: boolean
   isOnCriticalPath?: boolean
   isActiveWork?: boolean
-}
-
-function formatDuration(minutes: number): string {
-  const hours = Math.floor(minutes / 60)
-  const mins = minutes % 60
-  if (hours > 0) {
-    return `${hours}h${mins > 0 ? ` ${mins}m` : ''}`
-  }
-  return `${mins}m`
 }
 
 export const TaskStepGraphNode = React.memo(({ data }: NodeProps<TaskStepData>) => {
@@ -117,7 +109,7 @@ export const TaskStepGraphNode = React.memo(({ data }: NodeProps<TaskStepData>) 
 
       <Space size={4} style={{ flexWrap: 'wrap' }}>
         <Text type="secondary" style={{ fontSize: 11 }}>
-          {formatDuration(data.duration)}
+          {formatMinutes(data.duration)}
         </Text>
         <Tag size="small" color={isCompleted ? 'gray' : typeColor} style={{ fontSize: 10 }}>
           {typeEmoji && `${typeEmoji} `}{typeName}

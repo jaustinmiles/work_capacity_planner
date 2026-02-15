@@ -278,6 +278,33 @@ export enum AnimationSpeed {
   VeryFast = 4,    // 0.25 seconds per frame
 }
 
+// Graph node ID prefixes (used to construct/parse ReactFlow node IDs)
+export enum GraphNodePrefix {
+  Endeavor = 'endeavor',
+  Step = 'step',
+  Task = 'task',
+  Goal = 'goal',
+}
+
+// Graph edge ID prefixes
+export enum GraphEdgePrefix {
+  Internal = 'edge',
+  Dependency = 'dep',
+}
+
+// ReactFlow custom node type identifiers
+export enum GraphNodeType {
+  EndeavorRegion = 'endeavorRegion',
+  TaskStep = 'taskStep',
+  Goal = 'goal',
+}
+
+// ReactFlow edge type identifiers
+export enum GraphEdgeType {
+  SmoothStep = 'smoothstep',
+  Dependency = 'dependency',
+}
+
 // Re-export enum utility functions from enum-utils.ts for backwards compatibility
 // These functions are now defined in enum-utils.ts to keep enums.ts focused on definitions
 export { assertNever, isValidEnumValue, parseEnum } from './enum-utils'

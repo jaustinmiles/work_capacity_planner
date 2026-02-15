@@ -13,12 +13,14 @@ import { useCallback, useMemo } from 'react'
 import type { Edge, Connection } from 'reactflow'
 import { MarkerType } from 'reactflow'
 import type { EndeavorWithTasks, EndeavorDependencyWithNames } from '@shared/types'
+import { GraphNodePrefix, GraphEdgePrefix, GraphEdgeType } from '@shared/enums'
+import { makeNodeId, makeEdgeId, isNodeType } from '@shared/graph-node-ids'
 import { detectDependencyCycles } from '@shared/graph-utils'
 import { useEndeavorStore } from '../../../store/useEndeavorStore'
 import { useTaskStore } from '../../../store/useTaskStore'
 import { Message } from '../../common/Message'
 
-interface NodeIdInfo {
+export interface NodeIdInfo {
   type: 'step' | 'task'
   id: string
   endeavorId: string
@@ -31,12 +33,12 @@ interface NodeIdInfo {
  *   step-{stepId}  → workflow step
  *   task-{taskId}  → simple task
  */
-function parseNodeId(
+export function parseGraphNodeId(
   nodeId: string,
   endeavors: EndeavorWithTasks[],
 ): NodeIdInfo | null {
-  const isStep = nodeId.startsWith('step-')
-  const isTask = nodeId.startsWith('task-')
+  const isStep = isNodeType(nodeId, GraphNodePrefix.Step)
+  const isTask = isNodeType(nodeId, GraphNodePrefix.Task)
   const rawId = nodeId.replace(/^(step-|task-)/, '')
 
   for (const endeavor of endeavors) {
@@ -118,20 +120,20 @@ export function useGraphDependencies(
 
     for (const [endeavorId, deps] of dependencies) {
       for (const dep of deps) {
-        const sourceNodeId = `step-${dep.blockingStepId}`
+        const sourceNodeId = makeNodeId(GraphNodePrefix.Step, dep.blockingStepId)
         const targetNodeId = dep.blockedStepId
-          ? `step-${dep.blockedStepId}`
+          ? makeNodeId(GraphNodePrefix.Step, dep.blockedStepId)
           : dep.blockedTaskId
-            ? `task-${dep.blockedTaskId}`
+            ? makeNodeId(GraphNodePrefix.Task, dep.blockedTaskId)
             : null
 
         if (!targetNodeId) continue
 
         edges.push({
-          id: `dep-${dep.id}`,
+          id: makeEdgeId(GraphEdgePrefix.Dependency, dep.id),
           source: sourceNodeId,
           target: targetNodeId,
-          type: 'dependency',
+          type: GraphEdgeType.Dependency,
           animated: true,
           markerEnd: { type: MarkerType.ArrowClosed, color: dep.isHardBlock ? '#F77234' : '#F7BA1E' },
           data: {
@@ -152,8 +154,8 @@ export function useGraphDependencies(
   const onConnect = useCallback(async (connection: Connection) => {
     if (!connection.source || !connection.target) return
 
-    const source = parseNodeId(connection.source, endeavors)
-    const target = parseNodeId(connection.target, endeavors)
+    const source = parseGraphNodeId(connection.source, endeavors)
+    const target = parseGraphNodeId(connection.target, endeavors)
 
     if (!source || !target) {
       Message.warning('Cannot connect these nodes')

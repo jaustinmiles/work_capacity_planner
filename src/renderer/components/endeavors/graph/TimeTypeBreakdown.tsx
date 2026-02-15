@@ -10,18 +10,10 @@ import { Card, Typography, Space, Progress } from '@arco-design/web-react'
 import { IconDown, IconUp } from '@arco-design/web-react/icon'
 import type { EndeavorWithTasks } from '@shared/types'
 import type { UserTaskType } from '@shared/user-task-types'
-import { computeTimeByType } from '@shared/endeavor-graph-utils'
+import { aggregateTimeByType } from '@shared/endeavor-graph-utils'
+import { formatMinutes } from '@shared/time-utils'
 
 const { Text } = Typography
-
-function formatDuration(minutes: number): string {
-  const hours = Math.floor(minutes / 60)
-  const mins = minutes % 60
-  if (hours > 0) {
-    return `${hours}h ${mins > 0 ? `${mins}m` : ''}`
-  }
-  return `${mins}m`
-}
 
 interface TimeTypeBreakdownProps {
   endeavors: EndeavorWithTasks[]
@@ -31,39 +23,10 @@ interface TimeTypeBreakdownProps {
 export function TimeTypeBreakdown({ endeavors, userTypes }: TimeTypeBreakdownProps) {
   const [collapsed, setCollapsed] = useState(false)
 
-  // Aggregate time across all endeavors
-  const aggregated = useMemo(() => {
-    const typeMap = new Map<string, {
-      typeName: string
-      typeColor: string
-      typeEmoji: string
-      remaining: number
-      total: number
-    }>()
-
-    for (const endeavor of endeavors) {
-      const entries = computeTimeByType(endeavor, userTypes)
-      for (const entry of entries) {
-        const existing = typeMap.get(entry.typeId)
-        if (existing) {
-          existing.remaining += entry.remainingMinutes
-          existing.total += entry.totalMinutes
-        } else {
-          typeMap.set(entry.typeId, {
-            typeName: entry.typeName,
-            typeColor: entry.typeColor,
-            typeEmoji: entry.typeEmoji,
-            remaining: entry.remainingMinutes,
-            total: entry.totalMinutes,
-          })
-        }
-      }
-    }
-
-    return Array.from(typeMap.values())
-      .filter(e => e.total > 0)
-      .sort((a, b) => b.remaining - a.remaining)
-  }, [endeavors, userTypes])
+  const aggregated = useMemo(
+    () => aggregateTimeByType(endeavors, userTypes),
+    [endeavors, userTypes],
+  )
 
   const totalRemaining = aggregated.reduce((sum, e) => sum + e.remaining, 0)
 
@@ -100,7 +63,7 @@ export function TimeTypeBreakdown({ endeavors, userTypes }: TimeTypeBreakdownPro
             </Text>
             <Space size={4}>
               <Text type="secondary" style={{ fontSize: 11 }}>
-                {formatDuration(totalRemaining)}
+                {formatMinutes(totalRemaining)}
               </Text>
               {collapsed ? <IconDown style={{ fontSize: 12 }} /> : <IconUp style={{ fontSize: 12 }} />}
             </Space>
@@ -121,7 +84,7 @@ export function TimeTypeBreakdown({ endeavors, userTypes }: TimeTypeBreakdownPro
                       {entry.typeEmoji && `${entry.typeEmoji} `}{entry.typeName}
                     </Text>
                     <Text type="secondary" style={{ fontSize: 11 }}>
-                      {formatDuration(entry.remaining)}
+                      {formatMinutes(entry.remaining)}
                     </Text>
                   </div>
                   <Progress

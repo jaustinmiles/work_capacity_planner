@@ -5,7 +5,8 @@
  * across endeavors. Used by the graph view for highlighting and panels.
  */
 
-import { StepStatus } from './enums'
+import { StepStatus, GraphNodePrefix, GraphEdgePrefix } from './enums'
+import { makeNodeId, makeEdgeId } from './graph-node-ids'
 import type { EndeavorWithTasks, EndeavorDependencyWithNames, TaskStep } from './types'
 import type { UserTaskType } from './user-task-types'
 import { getTypeColor, getTypeName } from './user-task-types'
@@ -47,7 +48,7 @@ export function computeEndeavorCriticalPath(
     if (task.hasSteps && task.steps) {
       for (const step of task.steps) {
         if (step.status === StepStatus.Completed || step.status === StepStatus.Skipped) continue
-        const enriched = { ...step, graphNodeId: `step-${step.id}` }
+        const enriched = { ...step, graphNodeId: makeNodeId(GraphNodePrefix.Step, step.id) }
         allSteps.push(enriched)
         stepMap.set(step.id, enriched)
       }
@@ -65,7 +66,7 @@ export function computeEndeavorCriticalPath(
         status: StepStatus.Pending,
         stepIndex: 0,
         percentComplete: 0,
-        graphNodeId: `task-${task.id}`,
+        graphNodeId: makeNodeId(GraphNodePrefix.Task, task.id),
       } as TaskStep & { graphNodeId: string }
       allSteps.push(pseudoStep)
       stepMap.set(task.id, pseudoStep)
@@ -168,7 +169,9 @@ export function computeEndeavorCriticalPath(
   }
 
   for (let i = 0; i < bestResult.path.length - 1; i++) {
-    edgeIds.add(`edge-${bestResult.path[i]}-${bestResult.path[i + 1]}`)
+    const from = bestResult.path[i]!
+    const to = bestResult.path[i + 1]!
+    edgeIds.add(makeEdgeId(GraphEdgePrefix.Internal, from, to))
   }
 
   return {
@@ -223,4 +226,73 @@ export function computeTimeByType(
     })
     .filter(entry => entry.totalMinutes > 0)
     .sort((a, b) => b.remainingMinutes - a.remainingMinutes)
+}
+
+/**
+ * Compute the union of critical paths across all endeavors
+ *
+ * Returns the combined set of node/edge IDs that are on any endeavor's critical path.
+ */
+export function computeAllCriticalPaths(
+  endeavors: EndeavorWithTasks[],
+  dependencies: Map<string, EndeavorDependencyWithNames[]>,
+): { nodeIds: Set<string>; edgeIds: Set<string> } {
+  const allNodeIds = new Set<string>()
+  const allEdgeIds = new Set<string>()
+
+  for (const endeavor of endeavors) {
+    const crossDeps = dependencies.get(endeavor.id) ?? []
+    const result = computeEndeavorCriticalPath(endeavor, crossDeps)
+    result.nodeIds.forEach(id => allNodeIds.add(id))
+    result.edgeIds.forEach(id => allEdgeIds.add(id))
+  }
+
+  return { nodeIds: allNodeIds, edgeIds: allEdgeIds }
+}
+
+/**
+ * Aggregate remaining time by task type across all endeavors
+ *
+ * Merges per-endeavor time breakdowns into a single sorted list.
+ */
+export function aggregateTimeByType(
+  endeavors: EndeavorWithTasks[],
+  userTypes: UserTaskType[],
+): Array<{
+  typeName: string
+  typeColor: string
+  typeEmoji: string
+  remaining: number
+  total: number
+}> {
+  const typeMap = new Map<string, {
+    typeName: string
+    typeColor: string
+    typeEmoji: string
+    remaining: number
+    total: number
+  }>()
+
+  for (const endeavor of endeavors) {
+    const entries = computeTimeByType(endeavor, userTypes)
+    for (const entry of entries) {
+      const existing = typeMap.get(entry.typeId)
+      if (existing) {
+        existing.remaining += entry.remainingMinutes
+        existing.total += entry.totalMinutes
+      } else {
+        typeMap.set(entry.typeId, {
+          typeName: entry.typeName,
+          typeColor: entry.typeColor,
+          typeEmoji: entry.typeEmoji,
+          remaining: entry.remainingMinutes,
+          total: entry.totalMinutes,
+        })
+      }
+    }
+  }
+
+  return Array.from(typeMap.values())
+    .filter(e => e.total > 0)
+    .sort((a, b) => b.remaining - a.remaining)
 }

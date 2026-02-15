@@ -10,7 +10,10 @@ import type { Node, Edge } from 'reactflow'
 import { MarkerType } from 'reactflow'
 import type { EndeavorWithTasks, TaskStep, EndeavorDependencyWithNames } from '@shared/types'
 import type { UserTaskType } from '@shared/user-task-types'
+import { GraphNodePrefix, GraphEdgePrefix, GraphNodeType, GraphEdgeType } from '@shared/enums'
+import { makeNodeId, makeEdgeId } from '@shared/graph-node-ids'
 import { calculateEndeavorProgress } from '@shared/endeavor-utils'
+import { logger } from '@/logger'
 
 // Layout constants
 const NODE_WIDTH = 220
@@ -44,7 +47,7 @@ export function hexToRgba(hex: string, alpha: number): string {
  * Calculate dependency levels for steps using DFS
  * Returns a map of stepId → level (0-based, where 0 = no dependencies)
  */
-function calculateStepLevels(steps: TaskStep[]): Map<string, number> {
+export function calculateStepLevels(steps: TaskStep[]): Map<string, number> {
   const levelMap = new Map<string, number>()
   const visiting = new Set<string>()
   const stepMap = new Map<string, TaskStep>()
@@ -117,9 +120,9 @@ function layoutWorkflowSteps(
     maxRowCount = Math.max(maxRowCount, group.length)
     group.forEach((step, rowIndex) => {
       nodes.push({
-        id: `step-${step.id}`,
-        type: 'taskStep',
-        parentNode: `endeavor-${endeavorId}`,
+        id: makeNodeId(GraphNodePrefix.Step, step.id),
+        type: GraphNodeType.TaskStep,
+        parentNode: makeNodeId(GraphNodePrefix.Endeavor, endeavorId),
         extent: 'parent',
         position: {
           x: offsetX + level * HORIZONTAL_SPACING,
@@ -147,10 +150,10 @@ function layoutWorkflowSteps(
     step.dependsOn.forEach(depId => {
       if (stepIdSet.has(depId)) {
         edges.push({
-          id: `edge-${depId}-${step.id}`,
-          source: `step-${depId}`,
-          target: `step-${step.id}`,
-          type: 'smoothstep',
+          id: makeEdgeId(GraphEdgePrefix.Internal, depId, step.id),
+          source: makeNodeId(GraphNodePrefix.Step, depId),
+          target: makeNodeId(GraphNodePrefix.Step, step.id),
+          type: GraphEdgeType.SmoothStep,
           animated: true,
           markerEnd: { type: MarkerType.ArrowClosed },
           style: { stroke: '#86909c', strokeWidth: 1.5 },
@@ -176,9 +179,9 @@ function layoutSimpleTask(
   userTypes: UserTaskType[],
 ): { node: Node; width: number; height: number } {
   const node: Node = {
-    id: `task-${task.id}`,
-    type: 'taskStep',
-    parentNode: `endeavor-${endeavorId}`,
+    id: makeNodeId(GraphNodePrefix.Task, task.id),
+    type: GraphNodeType.TaskStep,
+    parentNode: makeNodeId(GraphNodePrefix.Endeavor, endeavorId),
     extent: 'parent',
     position: { x: offsetX, y: offsetY },
     data: {
@@ -263,14 +266,14 @@ export function computeGraphLayout(
     }
 
     // Add goal node: positioned to the right of all content
-    const goalNodeId = `goal-${endeavor.id}`
+    const goalNodeId = makeNodeId(GraphNodePrefix.Goal, endeavor.id)
     const goalX = REGION_PADDING + maxContentWidth + GOAL_NODE_OFFSET
     const goalY = REGION_HEADER_HEIGHT + Math.max((currentY - REGION_HEADER_HEIGHT) / 2 - 26, 0)
 
     innerNodes.push({
       id: goalNodeId,
-      type: 'goal',
-      parentNode: `endeavor-${endeavor.id}`,
+      type: GraphNodeType.Goal,
+      parentNode: makeNodeId(GraphNodePrefix.Endeavor, endeavor.id),
       extent: 'parent',
       position: { x: goalX, y: goalY },
       data: {
@@ -308,10 +311,10 @@ export function computeGraphLayout(
         for (const step of task.steps) {
           if (!dependedOnIds.has(step.id)) {
             innerEdges.push({
-              id: `edge-${step.id}-goal-${endeavor.id}`,
-              source: `step-${step.id}`,
+              id: makeEdgeId(GraphEdgePrefix.Internal, step.id, 'goal', endeavor.id),
+              source: makeNodeId(GraphNodePrefix.Step, step.id),
               target: goalNodeId,
-              type: 'smoothstep',
+              type: GraphEdgeType.SmoothStep,
               animated: false,
               markerEnd: { type: MarkerType.ArrowClosed },
               style: { stroke: '#C9CDD4', strokeWidth: 1.5, strokeDasharray: '4 3' },
@@ -320,10 +323,10 @@ export function computeGraphLayout(
         }
       } else if (!dependedOnIds.has(task.id)) {
         innerEdges.push({
-          id: `edge-${task.id}-goal-${endeavor.id}`,
-          source: `task-${task.id}`,
+          id: makeEdgeId(GraphEdgePrefix.Internal, task.id, 'goal', endeavor.id),
+          source: makeNodeId(GraphNodePrefix.Task, task.id),
           target: goalNodeId,
-          type: 'smoothstep',
+          type: GraphEdgeType.SmoothStep,
           animated: false,
           markerEnd: { type: MarkerType.ArrowClosed },
           style: { stroke: '#C9CDD4', strokeWidth: 1.5, strokeDasharray: '4 3' },
@@ -361,8 +364,8 @@ export function computeGraphLayout(
 
     // Create the endeavor region (group) node
     const regionNode: Node = {
-      id: `endeavor-${layout.endeavor.id}`,
-      type: 'endeavorRegion',
+      id: makeNodeId(GraphNodePrefix.Endeavor, layout.endeavor.id),
+      type: GraphNodeType.EndeavorRegion,
       position: { x: regionX, y: regionY },
       data: {
         label: layout.endeavor.name,
@@ -386,7 +389,76 @@ export function computeGraphLayout(
     columnHeights[minCol] += regionHeight + REGION_GAP
   }
 
+  if (allNodes.length === 0) {
+    logger.ui.warn('computeGraphLayout produced 0 nodes', { endeavorCount: endeavors.length }, 'graph-layout')
+  }
+
   return { nodes: allNodes, edges: allEdges }
+}
+
+/**
+ * Inject metadata (edit mode, critical path, active work) into graph nodes
+ *
+ * Only taskStep and goal nodes are enriched; other nodes pass through unchanged.
+ */
+export function injectNodeMetadata(
+  nodes: Node[],
+  options: {
+    isEditMode: boolean
+    criticalNodeIds: Set<string>
+    showCriticalPath: boolean
+    activeStepNodeId: string | null
+  },
+): Node[] {
+  return nodes.map(node => {
+    if (node.type === GraphNodeType.TaskStep) {
+      return {
+        ...node,
+        data: {
+          ...node.data,
+          isEditable: options.isEditMode,
+          isOnCriticalPath: options.criticalNodeIds.has(node.id),
+          isActiveWork: node.id === options.activeStepNodeId,
+        },
+      }
+    }
+    if (node.type === GraphNodeType.Goal) {
+      return {
+        ...node,
+        data: {
+          ...node.data,
+          isOnCriticalPath: options.showCriticalPath,
+        },
+      }
+    }
+    return node
+  })
+}
+
+/**
+ * Merge layout edges with dependency edges and apply critical path styling
+ *
+ * Critical path edges get golden stroke, wider width, and animation.
+ */
+export function mergeAndStyleEdges(
+  layoutEdges: Edge[],
+  dependencyEdges: Edge[],
+  criticalEdgeIds: Set<string>,
+): Edge[] {
+  return [...layoutEdges, ...dependencyEdges].map(edge => {
+    if (criticalEdgeIds.has(edge.id)) {
+      return {
+        ...edge,
+        style: {
+          ...edge.style,
+          stroke: '#FAAD14',
+          strokeWidth: 3,
+        },
+        animated: true,
+      }
+    }
+    return edge
+  })
 }
 
 /**
@@ -403,20 +475,20 @@ export function computeCrossEndeavorEdges(
 
   for (const [endeavorId, deps] of dependencies) {
     for (const dep of deps) {
-      const sourceNodeId = `step-${dep.blockingStepId}`
+      const sourceNodeId = makeNodeId(GraphNodePrefix.Step, dep.blockingStepId)
       const targetNodeId = dep.blockedStepId
-        ? `step-${dep.blockedStepId}`
+        ? makeNodeId(GraphNodePrefix.Step, dep.blockedStepId)
         : dep.blockedTaskId
-          ? `task-${dep.blockedTaskId}`
+          ? makeNodeId(GraphNodePrefix.Task, dep.blockedTaskId)
           : null
 
       if (!targetNodeId) continue
 
       edges.push({
-        id: `dep-${dep.id}`,
+        id: makeEdgeId(GraphEdgePrefix.Dependency, dep.id),
         source: sourceNodeId,
         target: targetNodeId,
-        type: 'dependency',
+        type: GraphEdgeType.Dependency,
         animated: true,
         markerEnd: {
           type: MarkerType.ArrowClosed,

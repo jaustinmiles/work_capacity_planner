@@ -10,28 +10,21 @@ import { Button, Typography, Space } from '@arco-design/web-react'
 import { IconPlayArrow } from '@arco-design/web-react/icon'
 import { Message } from '../../common/Message'
 import type { EndeavorWithTasks, EndeavorDependencyWithNames } from '@shared/types'
+import { GraphNodePrefix } from '@shared/enums'
+import { makeNodeId } from '@shared/graph-node-ids'
 import { findNextUnblockedStep } from '@shared/next-unblocked-step'
+import { formatMinutes } from '@shared/time-utils'
 import { useTaskStore } from '../../../store/useTaskStore'
 
 const { Text } = Typography
 
 const MAX_BLOCK_DURATION = 30
-const DEFAULT_BLOCK_DURATION = 25
 
 interface CreateScheduleBlockButtonProps {
   endeavors: EndeavorWithTasks[]
   dependencies: Map<string, EndeavorDependencyWithNames[]>
   activeStepNodeId: string | null
   onStepStarted: (nodeId: string) => void
-}
-
-function formatDuration(minutes: number): string {
-  if (minutes >= 60) {
-    const h = Math.floor(minutes / 60)
-    const m = minutes % 60
-    return `${h}h${m > 0 ? ` ${m}m` : ''}`
-  }
-  return `${minutes}m`
 }
 
 export function CreateScheduleBlockButton({
@@ -41,7 +34,7 @@ export function CreateScheduleBlockButton({
   onStepStarted,
 }: CreateScheduleBlockButtonProps) {
   const [loading, setLoading] = useState(false)
-  const { startWorkOnStep, startWorkOnTask } = useTaskStore()
+  const { startWork } = useTaskStore()
 
   const nextStep = useMemo(
     () => findNextUnblockedStep(endeavors, dependencies),
@@ -49,8 +42,8 @@ export function CreateScheduleBlockButton({
   )
 
   const blockDuration = useMemo(() => {
-    if (!nextStep) return DEFAULT_BLOCK_DURATION
-    return nextStep.duration <= MAX_BLOCK_DURATION ? nextStep.duration : DEFAULT_BLOCK_DURATION
+    if (!nextStep) return MAX_BLOCK_DURATION
+    return Math.min(nextStep.duration, MAX_BLOCK_DURATION)
   }, [nextStep])
 
   const handleStart = useCallback(async () => {
@@ -58,24 +51,20 @@ export function CreateScheduleBlockButton({
 
     setLoading(true)
     try {
-      if (nextStep.isSimpleTask) {
-        await startWorkOnTask(nextStep.taskId)
-      } else {
-        await startWorkOnStep(nextStep.stepId, nextStep.taskId)
-      }
+      await startWork(nextStep)
 
       const nodeId = nextStep.isSimpleTask
-        ? `task-${nextStep.taskId}`
-        : `step-${nextStep.stepId}`
+        ? makeNodeId(GraphNodePrefix.Task, nextStep.taskId)
+        : makeNodeId(GraphNodePrefix.Step, nextStep.stepId)
 
       onStepStarted(nodeId)
-      Message.success(`Started: ${nextStep.name} (${formatDuration(blockDuration)})`)
+      Message.success(`Started: ${nextStep.name} (${formatMinutes(blockDuration)})`)
     } catch (err) {
       Message.error(`Failed to start work: ${err instanceof Error ? err.message : 'Unknown error'}`)
     } finally {
       setLoading(false)
     }
-  }, [nextStep, blockDuration, startWorkOnStep, startWorkOnTask, onStepStarted])
+  }, [nextStep, blockDuration, startWork, onStepStarted])
 
   const isActive = activeStepNodeId !== null
 
@@ -110,7 +99,7 @@ export function CreateScheduleBlockButton({
             <Text style={{ color: 'inherit' }}>Working...</Text>
           ) : (
             <Text style={{ color: 'inherit' }}>
-              Work on Next Step ({formatDuration(blockDuration)})
+              Work on Next Step ({formatMinutes(blockDuration)})
             </Text>
           )}
         </Space>

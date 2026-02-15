@@ -25,22 +25,15 @@ import { DependencyEdge } from './DependencyEdge'
 import { TimeTypeBreakdown } from './TimeTypeBreakdown'
 import { CreateScheduleBlockButton } from './CreateScheduleBlockButton'
 import { useGraphDependencies } from './useGraphDependencies'
-import { computeGraphLayout, hexToRgba } from './graph-layout-utils'
-import { computeEndeavorCriticalPath } from '@shared/endeavor-graph-utils'
+import { computeGraphLayout, hexToRgba, injectNodeMetadata, mergeAndStyleEdges } from './graph-layout-utils'
+import { computeAllCriticalPaths } from '@shared/endeavor-graph-utils'
+import { GraphNodePrefix, GraphNodeType, GraphEdgeType } from '@shared/enums'
+import { isNodeType, parseNodeId } from '@shared/graph-node-ids'
+import { logger } from '@/logger'
 
 import 'reactflow/dist/style.css'
 
 const { Text } = Typography
-
-const nodeTypes = {
-  endeavorRegion: EndeavorRegionNode,
-  taskStep: TaskStepGraphNode,
-  goal: GoalNode,
-}
-
-const edgeTypes = {
-  dependency: DependencyEdge,
-}
 
 interface EndeavorGraphViewProps {
   onBackToList: () => void
@@ -55,58 +48,56 @@ export function EndeavorGraphView({ onBackToList, onSelectEndeavor }: EndeavorGr
   const { endeavors, loadEndeavors, status, dependencies } = useEndeavorStore()
   const userTypes = useSortedUserTaskTypes()
 
+  // Stable references to prevent ReactFlow from re-registering renderers
+  const nodeTypes = useMemo(() => ({
+    [GraphNodeType.EndeavorRegion]: EndeavorRegionNode,
+    [GraphNodeType.TaskStep]: TaskStepGraphNode,
+    [GraphNodeType.Goal]: GoalNode,
+  }), [])
+
+  const edgeTypes = useMemo(() => ({
+    [GraphEdgeType.Dependency]: DependencyEdge,
+  }), [])
+
   useEffect(() => {
     if (endeavors.length === 0) {
       loadEndeavors()
     }
   }, [endeavors.length, loadEndeavors])
 
-  const { nodes: layoutNodes, edges: layoutEdges } = useMemo(
-    () => computeGraphLayout(endeavors, userTypes),
-    [endeavors, userTypes],
-  )
+  // Log on mount
+  useEffect(() => {
+    logger.ui.info('EndeavorGraphView mounted', { endeavorCount: endeavors.length }, 'graph-view')
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  const { nodes: layoutNodes, edges: layoutEdges } = useMemo(() => {
+    const result = computeGraphLayout(endeavors, userTypes)
+    logger.ui.info('Graph layout computed', {
+      endeavorCount: endeavors.length,
+      nodeCount: result.nodes.length,
+      edgeCount: result.edges.length,
+    }, 'graph-layout')
+    return result
+  }, [endeavors, userTypes])
 
   // Compute critical path across all endeavors
   const criticalPathData = useMemo(() => {
     if (!showCriticalPath) return { nodeIds: new Set<string>(), edgeIds: new Set<string>() }
-
-    const allNodeIds = new Set<string>()
-    const allEdgeIds = new Set<string>()
-
-    for (const endeavor of endeavors) {
-      const crossDeps = dependencies.get(endeavor.id) ?? []
-      const result = computeEndeavorCriticalPath(endeavor, crossDeps)
-      result.nodeIds.forEach(id => allNodeIds.add(id))
-      result.edgeIds.forEach(id => allEdgeIds.add(id))
-    }
-
-    return { nodeIds: allNodeIds, edgeIds: allEdgeIds }
+    const result = computeAllCriticalPaths(endeavors, dependencies)
+    logger.ui.info('Critical path computed', {
+      nodeCount: result.nodeIds.size,
+      edgeCount: result.edgeIds.size,
+    }, 'graph-critical-path')
+    return result
   }, [showCriticalPath, endeavors, dependencies])
 
   // Inject isEditable, critical path, and active work data into node data
   const initialNodes = useMemo(
-    () => layoutNodes.map(node => {
-      if (node.type === 'taskStep') {
-        return {
-          ...node,
-          data: {
-            ...node.data,
-            isEditable: isEditMode,
-            isOnCriticalPath: criticalPathData.nodeIds.has(node.id),
-            isActiveWork: node.id === activeStepNodeId,
-          },
-        }
-      }
-      if (node.type === 'goal') {
-        return {
-          ...node,
-          data: {
-            ...node.data,
-            isOnCriticalPath: showCriticalPath,
-          },
-        }
-      }
-      return node
+    () => injectNodeMetadata(layoutNodes, {
+      isEditMode,
+      criticalNodeIds: criticalPathData.nodeIds,
+      showCriticalPath,
+      activeStepNodeId,
     }),
     [layoutNodes, isEditMode, criticalPathData, showCriticalPath, activeStepNodeId],
   )
@@ -114,20 +105,7 @@ export function EndeavorGraphView({ onBackToList, onSelectEndeavor }: EndeavorGr
   // Merge layout edges with cross-endeavor dependency edges, apply critical path styling
   const { dependencyEdges, onConnect: handleConnect, onDeleteDependency } = useGraphDependencies(endeavors, isEditMode)
   const initialEdges = useMemo(
-    () => [...layoutEdges, ...dependencyEdges].map(edge => {
-      if (criticalPathData.edgeIds.has(edge.id)) {
-        return {
-          ...edge,
-          style: {
-            ...edge.style,
-            stroke: '#FAAD14',
-            strokeWidth: 3,
-          },
-          animated: true,
-        }
-      }
-      return edge
-    }),
+    () => mergeAndStyleEdges(layoutEdges, dependencyEdges, criticalPathData.edgeIds),
     [layoutEdges, dependencyEdges, criticalPathData],
   )
 
@@ -153,27 +131,28 @@ export function EndeavorGraphView({ onBackToList, onSelectEndeavor }: EndeavorGr
   const onEdgeDoubleClick = useCallback(
     (_: React.MouseEvent, edge: Edge) => {
       if (!isEditMode) return
-      if (edge.id.startsWith('dep-') && edge.data?.dependencyId) {
+      if (edge.type === GraphEdgeType.Dependency && edge.data?.dependencyId) {
         onDeleteDependency(edge.data.dependencyId)
       }
     },
     [isEditMode, onDeleteDependency],
   )
 
-  // Double-click on region node to navigate to detail
+  // Double-click on region node to navigate to detail (view mode only)
   const onNodeDoubleClick = useCallback(
     (_: React.MouseEvent, node: { id: string }) => {
-      if (node.id.startsWith('endeavor-')) {
-        const endeavorId = node.id.replace('endeavor-', '')
-        onSelectEndeavor?.(endeavorId)
+      if (isEditMode) return
+      if (isNodeType(node.id, GraphNodePrefix.Endeavor)) {
+        const parsed = parseNodeId(node.id)
+        if (parsed) onSelectEndeavor?.(parsed.id)
       }
     },
-    [onSelectEndeavor],
+    [isEditMode, onSelectEndeavor],
   )
 
   // MiniMap color based on node type
   const miniMapNodeColor = useCallback((node: { type?: string; data?: { color?: string } }) => {
-    if (node.type === 'endeavorRegion' && node.data?.color) {
+    if (node.type === GraphNodeType.EndeavorRegion && node.data?.color) {
       return hexToRgba(node.data.color, 0.4)
     }
     return '#e2e2e2'
