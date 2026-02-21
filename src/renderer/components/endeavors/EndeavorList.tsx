@@ -31,6 +31,7 @@ import {
   IconCheck,
   IconArchive,
   IconLink,
+  IconBranch,
 } from '@arco-design/web-react/icon'
 import { Message } from '../common/Message'
 import { EndeavorStatus } from '@shared/enums'
@@ -43,6 +44,7 @@ const { Title, Text } = Typography
 
 interface EndeavorListProps {
   onSelectEndeavor?: (endeavorId: string) => void
+  onToggleGraph?: () => void
 }
 
 const STATUS_COLORS: Record<EndeavorStatus, string> = {
@@ -59,7 +61,7 @@ const STATUS_LABELS: Record<EndeavorStatus, string> = {
   [EndeavorStatus.Archived]: 'Archived',
 }
 
-export function EndeavorList({ onSelectEndeavor }: EndeavorListProps) {
+export function EndeavorList({ onSelectEndeavor, onToggleGraph }: EndeavorListProps) {
   const [statusFilter, setStatusFilter] = useState<EndeavorStatus | 'all'>('all')
   const [formVisible, setFormVisible] = useState(false)
   const [editingEndeavor, setEditingEndeavor] = useState<EndeavorWithTasks | null>(null)
@@ -296,6 +298,15 @@ export function EndeavorList({ onSelectEndeavor }: EndeavorListProps) {
                 { label: 'Archived', value: EndeavorStatus.Archived },
               ]}
             />
+            {onToggleGraph && (
+              <Button
+                type="secondary"
+                icon={<IconBranch />}
+                onClick={onToggleGraph}
+              >
+                Graph View
+              </Button>
+            )}
             <Button type="primary" icon={<IconPlus />} onClick={() => setFormVisible(true)}>
               New Endeavor
             </Button>

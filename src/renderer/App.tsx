@@ -29,6 +29,7 @@ import { TaskSlideshow } from './components/slideshow/TaskSlideshow'
 import { SprintBoard } from './components/sprint/SprintBoard'
 import { EndeavorList } from './components/endeavors/EndeavorList'
 import { EndeavorDetail } from './components/endeavors/EndeavorDetail'
+import { EndeavorGraphView } from './components/endeavors/graph/EndeavorGraphView'
 import { DevTools } from './components/dev/DevTools'
 import { TimeSinkManager } from './components/time-sinks/TimeSinkManager'
 import { TimeSinkLogger } from './components/time-sinks/TimeSinkLogger'
@@ -151,6 +152,10 @@ function AppContent() {
   const [showDevTools, setShowDevTools] = useState(false)
   const [showTaskTypeManager, setShowTaskTypeManager] = useState(false)
   const [selectedEndeavorId, setSelectedEndeavorId] = useState<string | null>(null)
+  const [endeavorViewMode, setEndeavorViewMode] = useState<'list' | 'graph'>('list')
+
+  // Graph mode needs full-height container without padding/maxWidth constraints
+  const isGraphMode = activeView === ViewType.Endeavors && endeavorViewMode === 'graph' && !selectedEndeavorId
 
   // Responsive breakpoints
   const [screenWidth, setScreenWidth] = useState(window.innerWidth)
@@ -668,9 +673,9 @@ function AppContent() {
             </Header>
 
             <Content style={{
-              padding: screenWidth < 768 ? 12 : 24, // Less padding on mobile
+              padding: isGraphMode ? 0 : (screenWidth < 768 ? 12 : 24),
               background: '#F7F8FA',
-              overflow: 'auto',
+              overflow: isGraphMode ? 'hidden' : 'auto',
               minWidth: 320, // CRITICAL FIX: Prevent extreme narrowing causing text breaking
               flex: 1, // Take remaining space
               maxWidth: '100%',
@@ -685,7 +690,7 @@ function AppContent() {
                 />
               )}
 
-              <div style={{ maxWidth: contentMaxWidth, margin: '0 auto' }}>
+              <div style={isGraphMode ? { height: '100%' } : { maxWidth: contentMaxWidth, margin: '0 auto' }}>
                 {isLoading ? (
                   <div style={{ textAlign: 'center', padding: '60px 0' }}>
                     <Spin size={40} />
@@ -720,9 +725,15 @@ function AppContent() {
                             endeavorId={selectedEndeavorId}
                             onBack={() => setSelectedEndeavorId(null)}
                           />
+                        ) : endeavorViewMode === 'graph' ? (
+                          <EndeavorGraphView
+                            onBackToList={() => setEndeavorViewMode('list')}
+                            onSelectEndeavor={(id) => setSelectedEndeavorId(id)}
+                          />
                         ) : (
                           <EndeavorList
                             onSelectEndeavor={(id) => setSelectedEndeavorId(id)}
+                            onToggleGraph={() => setEndeavorViewMode('graph')}
                           />
                         )}
                       </ErrorBoundary>
