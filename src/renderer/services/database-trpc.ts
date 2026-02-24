@@ -9,6 +9,20 @@
 
 import { createDynamicClient, type ApiClient } from '@shared/trpc-client'
 import type { Task, Session, AICallOptions, Endeavor, EndeavorWithTasks, EndeavorProgress } from '@shared/types'
+import type {
+  DeepWorkBoard,
+  DeepWorkNodeWithData,
+  CreateDeepWorkBoardInput,
+  UpdateDeepWorkBoardInput,
+  CreateTaskAndNodeInput,
+  AddExistingNodeInput,
+  UpdateNodePositionInput,
+  BatchUpdateNodePositionsInput,
+  SaveViewportInput,
+  ImportFromSprintInput,
+  CreateEdgeInput,
+  RemoveEdgeInput,
+} from '@shared/deep-work-board-types'
 import type { SequencedTask } from '@shared/sequencing-types'
 import { ChatMessageRole, EndeavorStatus, DeadlineType } from '@shared/enums'
 import type { UserTaskType, CreateUserTaskTypeInput, UpdateUserTaskTypeInput, AccumulatedTimeResult } from '@shared/user-task-types'
@@ -1417,6 +1431,67 @@ export class TrpcDatabaseService {
     updates: { isHardBlock?: boolean; notes?: string | null },
   ): Promise<unknown> {
     return this.client.endeavor.updateDependency.mutate({ id, ...updates })
+  }
+
+  // ============================================================================
+  // Deep Work Board Operations
+  // ============================================================================
+
+  async getDeepWorkBoards(): Promise<DeepWorkBoard[]> {
+    const boards = await this.client.deepWorkBoard.getAll.query()
+    return boards
+  }
+
+  async getDeepWorkBoardById(id: string): Promise<{ board: DeepWorkBoard; nodes: DeepWorkNodeWithData[] } | null> {
+    return this.client.deepWorkBoard.getById.query({ id })
+  }
+
+  async createDeepWorkBoard(data: CreateDeepWorkBoardInput): Promise<DeepWorkBoard> {
+    return this.client.deepWorkBoard.create.mutate(data)
+  }
+
+  async updateDeepWorkBoard(data: UpdateDeepWorkBoardInput): Promise<DeepWorkBoard> {
+    return this.client.deepWorkBoard.update.mutate(data)
+  }
+
+  async deleteDeepWorkBoard(id: string): Promise<{ success: boolean }> {
+    return this.client.deepWorkBoard.delete.mutate({ id })
+  }
+
+  async createDeepWorkTaskAndNode(data: CreateTaskAndNodeInput): Promise<DeepWorkNodeWithData> {
+    return this.client.deepWorkBoard.createTaskAndNode.mutate(data)
+  }
+
+  async addDeepWorkNode(data: AddExistingNodeInput): Promise<DeepWorkNodeWithData> {
+    return this.client.deepWorkBoard.addNode.mutate(data)
+  }
+
+  async updateDeepWorkNodePosition(data: UpdateNodePositionInput): Promise<void> {
+    await this.client.deepWorkBoard.updateNodePosition.mutate(data)
+  }
+
+  async updateDeepWorkNodePositions(data: BatchUpdateNodePositionsInput): Promise<{ count: number }> {
+    return this.client.deepWorkBoard.updateNodePositions.mutate(data)
+  }
+
+  async removeDeepWorkNode(nodeId: string): Promise<{ success: boolean }> {
+    return this.client.deepWorkBoard.removeNode.mutate({ nodeId })
+  }
+
+  async saveDeepWorkViewport(data: SaveViewportInput): Promise<{ success: boolean }> {
+    return this.client.deepWorkBoard.saveViewport.mutate(data)
+  }
+
+  async importDeepWorkFromSprint(data: ImportFromSprintInput): Promise<DeepWorkNodeWithData[]> {
+    return this.client.deepWorkBoard.importFromSprint.mutate(data)
+  }
+
+  async createDeepWorkEdge(data: CreateEdgeInput): Promise<{ nodes: DeepWorkNodeWithData[] }> {
+    return this.client.deepWorkBoard.createEdge.mutate(data)
+  }
+
+  async removeDeepWorkEdge(data: RemoveEdgeInput): Promise<{ nodes: DeepWorkNodeWithData[] }> {
+    return this.client.deepWorkBoard.removeEdge.mutate(data)
   }
 
   // ============================================================================

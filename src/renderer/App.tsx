@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react'
 import { Layout, Typography, ConfigProvider, Button, Space, Badge, Spin, Alert, Popconfirm, Tabs, Modal } from '@arco-design/web-react'
-import { IconApps, IconCalendar, IconList, IconBranch, IconSchedule, IconDelete, IconUserGroup, IconClockCircle, IconMenuFold, IconMenuUnfold, IconEye, IconSettings, IconMessage, IconStar } from '@arco-design/web-react/icon'
+import { IconApps, IconCalendar, IconList, IconBranch, IconSchedule, IconDelete, IconUserGroup, IconClockCircle, IconMenuFold, IconMenuUnfold, IconEye, IconSettings, IconMessage, IconStar, IconMindMapping } from '@arco-design/web-react/icon'
 import { ActionButtonOverflowMenu, FloatingSidebarButton } from './components/layout'
 import type { ActionButtonConfig } from './components/layout'
 import { MOBILE_LAYOUT } from '@shared/constants'
@@ -30,6 +30,7 @@ import { SprintBoard } from './components/sprint/SprintBoard'
 import { EndeavorList } from './components/endeavors/EndeavorList'
 import { EndeavorDetail } from './components/endeavors/EndeavorDetail'
 import { EndeavorGraphView } from './components/endeavors/graph/EndeavorGraphView'
+import { DeepWorkBoardView } from './components/deep-work/DeepWorkBoardView'
 import { DevTools } from './components/dev/DevTools'
 import { TimeSinkManager } from './components/time-sinks/TimeSinkManager'
 import { TimeSinkLogger } from './components/time-sinks/TimeSinkLogger'
@@ -154,8 +155,9 @@ function AppContent() {
   const [selectedEndeavorId, setSelectedEndeavorId] = useState<string | null>(null)
   const [endeavorViewMode, setEndeavorViewMode] = useState<'list' | 'graph'>('list')
 
-  // Graph mode needs full-height container without padding/maxWidth constraints
+  // Graph mode and Deep Work Board need full-height container without padding/maxWidth constraints
   const isGraphMode = activeView === ViewType.Endeavors && endeavorViewMode === 'graph' && !selectedEndeavorId
+  const isFullCanvasMode = isGraphMode || activeView === ViewType.DeepWork
 
   // Responsive breakpoints
   const [screenWidth, setScreenWidth] = useState(window.innerWidth)
@@ -604,6 +606,15 @@ function AppContent() {
                   }
                 />
                 <Tabs.TabPane
+                  key={ViewType.DeepWork}
+                  title={
+                    <Space>
+                      <IconMindMapping />
+                      {!isMobile && <span>Deep Work</span>}
+                    </Space>
+                  }
+                />
+                <Tabs.TabPane
                   key={ViewType.Calendar}
                   title={
                     <Space>
@@ -673,9 +684,9 @@ function AppContent() {
             </Header>
 
             <Content style={{
-              padding: isGraphMode ? 0 : (screenWidth < 768 ? 12 : 24),
+              padding: isFullCanvasMode ? 0 : (screenWidth < 768 ? 12 : 24),
               background: '#F7F8FA',
-              overflow: isGraphMode ? 'hidden' : 'auto',
+              overflow: isFullCanvasMode ? 'hidden' : 'auto',
               minWidth: 320, // CRITICAL FIX: Prevent extreme narrowing causing text breaking
               flex: 1, // Take remaining space
               maxWidth: '100%',
@@ -690,7 +701,7 @@ function AppContent() {
                 />
               )}
 
-              <div style={isGraphMode ? { height: '100%' } : { maxWidth: contentMaxWidth, margin: '0 auto' }}>
+              <div style={isFullCanvasMode ? { height: '100%' } : { maxWidth: contentMaxWidth, margin: '0 auto' }}>
                 {isLoading ? (
                   <div style={{ textAlign: 'center', padding: '60px 0' }}>
                     <Spin size={40} />
@@ -736,6 +747,12 @@ function AppContent() {
                             onToggleGraph={() => setEndeavorViewMode('graph')}
                           />
                         )}
+                      </ErrorBoundary>
+                    )}
+
+                    {activeView === ViewType.DeepWork && (
+                      <ErrorBoundary>
+                        <DeepWorkBoardView />
                       </ErrorBoundary>
                     )}
 
