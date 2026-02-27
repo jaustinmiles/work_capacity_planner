@@ -17,6 +17,7 @@ import { formatMinutes } from '@shared/time-utils'
 import { getDatabase } from '../../services/database'
 import { logger } from '@/logger'
 import type { DeepWorkNodeWithData } from '@shared/deep-work-board-types'
+import { calculateGridPosition } from '@shared/deep-work-node-utils'
 
 const { Text } = Typography
 
@@ -145,28 +146,20 @@ export function SprintImporter({ visible, onClose }: SprintImporterProps) {
 
       // Calculate positions: grid to the right of existing nodes
       const existingNodeArray = Array.from(nodes.values())
-      const maxX = existingNodeArray.length > 0
-        ? Math.max(...existingNodeArray.map((n) => n.positionX)) + 300
-        : 100
-      const startY = 100
-      const spacingX = 280
-      const spacingY = 150
-      const nodesPerRow = 4
 
       const selected = candidates.filter((c) => selectedIds.has(c.id))
       const newNodes: DeepWorkNodeWithData[] = []
 
       for (let i = 0; i < selected.length; i++) {
         const candidate = selected[i]!
-        const col = i % nodesPerRow
-        const row = Math.floor(i / nodesPerRow)
+        const pos = calculateGridPosition(i, existingNodeArray)
 
         const node = await db.addDeepWorkNode({
           boardId: activeBoardId,
           taskId: candidate.stepId ? undefined : candidate.taskId,
           stepId: candidate.stepId,
-          positionX: maxX + col * spacingX,
-          positionY: startY + row * spacingY,
+          positionX: pos.x,
+          positionY: pos.y,
         })
         newNodes.push(node)
       }

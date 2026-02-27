@@ -11,94 +11,15 @@ import { Handle, Position } from 'reactflow'
 import type { NodeProps } from 'reactflow'
 import { Tag, Typography } from '@arco-design/web-react'
 import { IconCheck, IconLock, IconClockCircle } from '@arco-design/web-react/icon'
-import { StepStatus } from '@shared/enums'
 import { DeepWorkNodeStatus } from '@shared/deep-work-board-types'
 import type { DeepWorkNodeWithData } from '@shared/deep-work-board-types'
 import { getTypeColor, getTypeEmoji, getTypeName } from '@shared/user-task-types'
 import { formatMinutes } from '@shared/time-utils'
+import { deriveDeepWorkDisplayStatus, STATUS_STYLES } from '@shared/deep-work-node-utils'
 import { useSortedUserTaskTypes } from '../../../store/useUserTaskTypeStore'
 import { useDeepWorkBoardStore } from '../../../store/useDeepWorkBoardStore'
 
 const { Text } = Typography
-
-// =============================================================================
-// Status Derivation
-// =============================================================================
-
-function deriveNodeStatus(node: DeepWorkNodeWithData, isActionable: boolean): DeepWorkNodeStatus {
-  if (node.task && !node.task.hasSteps) {
-    // Standalone task
-    if (node.task.completed) return DeepWorkNodeStatus.Completed
-    // Check if there's an active work session (TODO: wire to useTaskStore in Phase 5)
-    if (!isActionable) return DeepWorkNodeStatus.Blocked
-    return DeepWorkNodeStatus.Pending
-  }
-
-  if (node.step) {
-    switch (node.step.status) {
-      case StepStatus.Completed:
-      case StepStatus.Skipped:
-        return DeepWorkNodeStatus.Completed
-      case StepStatus.InProgress:
-        return DeepWorkNodeStatus.Active
-      case StepStatus.Waiting:
-        return DeepWorkNodeStatus.Waiting
-      case StepStatus.Pending:
-      default:
-        return isActionable ? DeepWorkNodeStatus.Pending : DeepWorkNodeStatus.Blocked
-    }
-  }
-
-  return DeepWorkNodeStatus.Pending
-}
-
-// =============================================================================
-// Styles
-// =============================================================================
-
-const STATUS_STYLES: Record<DeepWorkNodeStatus, {
-  border: string
-  borderStyle: string
-  background: string
-  textDecoration: string
-  opacity: number
-}> = {
-  [DeepWorkNodeStatus.Pending]: {
-    border: '2px solid',
-    borderStyle: 'solid',
-    background: '#ffffff',
-    textDecoration: 'none',
-    opacity: 1,
-  },
-  [DeepWorkNodeStatus.Active]: {
-    border: '2px solid #00b42a',
-    borderStyle: 'solid',
-    background: '#f0fff0',
-    textDecoration: 'none',
-    opacity: 1,
-  },
-  [DeepWorkNodeStatus.Waiting]: {
-    border: '2px dashed #ff7d00',
-    borderStyle: 'dashed',
-    background: '#fff7e6',
-    textDecoration: 'none',
-    opacity: 1,
-  },
-  [DeepWorkNodeStatus.Completed]: {
-    border: '2px solid #c9cdd4',
-    borderStyle: 'solid',
-    background: '#f7f8fa',
-    textDecoration: 'line-through',
-    opacity: 0.6,
-  },
-  [DeepWorkNodeStatus.Blocked]: {
-    border: '2px dashed #f53f3f',
-    borderStyle: 'dashed',
-    background: '#fff2f0',
-    textDecoration: 'none',
-    opacity: 0.8,
-  },
-}
 
 // =============================================================================
 // Component
@@ -115,7 +36,7 @@ function DeepWorkTaskNodeInner({ data, selected }: NodeProps<DeepWorkTaskNodeDat
   const expandNode = useDeepWorkBoardStore((s) => s.expandNode)
 
   const isActionable = actionableNodeIds.has(nodeWithData.id)
-  const status = deriveNodeStatus(nodeWithData, isActionable)
+  const status = deriveDeepWorkDisplayStatus(nodeWithData, isActionable)
   const styles = STATUS_STYLES[status]
 
   // Get display data from either task or step

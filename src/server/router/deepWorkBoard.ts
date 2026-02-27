@@ -539,7 +539,7 @@ export const deepWorkBoardRouter = router({
   getAll: sessionProcedure.query(async ({ ctx }): Promise<DeepWorkBoard[]> => {
     const boards = await ctx.prisma.deepWorkBoard.findMany({
       where: { sessionId: ctx.sessionId },
-      orderBy: { createdAt: 'asc' },
+      orderBy: { updatedAt: 'desc' },
     })
     return boards
   }),

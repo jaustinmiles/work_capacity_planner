@@ -29,10 +29,15 @@ import {
 } from '@arco-design/web-react/icon'
 import dayjs from 'dayjs'
 import { DeepWorkNodeStatus } from '@shared/deep-work-board-types'
-import type { DeepWorkNodeWithData } from '@shared/deep-work-board-types'
-import { DeadlineType, StepStatus } from '@shared/enums'
+import { DeadlineType } from '@shared/enums'
 import type { Task, TaskStep } from '@shared/types'
 import { formatMinutes } from '@shared/time-utils'
+import {
+  deriveDeepWorkDisplayStatus,
+  getInitialFields,
+  STATUS_LABELS,
+  type EditableFields,
+} from '@shared/deep-work-node-utils'
 import { useSortedUserTaskTypes } from '../../store/useUserTaskTypeStore'
 import { useTaskStore } from '../../store/useTaskStore'
 import { useDeepWorkBoardStore } from '../../store/useDeepWorkBoardStore'
@@ -40,23 +45,6 @@ import { logger } from '@/logger'
 
 const { Text } = Typography
 const { TextArea } = Input
-
-// =============================================================================
-// Types
-// =============================================================================
-
-interface EditableFields {
-  name: string
-  duration: number
-  importance: number
-  urgency: number
-  type: string
-  notes: string
-  cognitiveComplexity: number | null
-  asyncWaitTime: number
-  deadline: Date | null
-  deadlineType: DeadlineType | null
-}
 
 // =============================================================================
 // Component
@@ -200,7 +188,7 @@ export function DeepWorkNodeDetailPanel() {
   if (!node) return null
 
   // Derive status for display
-  const status = deriveDisplayStatus(node, isActionable)
+  const status = deriveDeepWorkDisplayStatus(node, isActionable)
 
   return (
     <div style={{ padding: 16, height: '100%', overflowY: 'auto' }}>
@@ -418,102 +406,6 @@ export function DeepWorkNodeDetailPanel() {
 // =============================================================================
 // Helpers
 // =============================================================================
-
-function getInitialFields(node: DeepWorkNodeWithData | null): EditableFields {
-  if (!node) {
-    return {
-      name: '',
-      duration: 30,
-      importance: 5,
-      urgency: 5,
-      type: '',
-      notes: '',
-      cognitiveComplexity: null,
-      asyncWaitTime: 0,
-      deadline: null,
-      deadlineType: null,
-    }
-  }
-
-  const task = node.task
-  const step = node.step
-
-  if (task && !task.hasSteps) {
-    return {
-      name: task.name,
-      duration: task.duration,
-      importance: task.importance,
-      urgency: task.urgency,
-      type: task.type ?? '',
-      notes: task.notes ?? '',
-      cognitiveComplexity: task.cognitiveComplexity ?? null,
-      asyncWaitTime: task.asyncWaitTime,
-      deadline: task.deadline ?? null,
-      deadlineType: task.deadlineType ?? null,
-    }
-  }
-
-  if (step) {
-    return {
-      name: step.name,
-      duration: step.duration,
-      importance: step.importance ?? node.parentTask?.importance ?? 5,
-      urgency: step.urgency ?? node.parentTask?.urgency ?? 5,
-      type: step.type,
-      notes: step.notes ?? '',
-      cognitiveComplexity: step.cognitiveComplexity ?? null,
-      asyncWaitTime: step.asyncWaitTime,
-      deadline: null, // Steps don't have deadlines
-      deadlineType: null,
-    }
-  }
-
-  return {
-    name: '',
-    duration: 30,
-    importance: 5,
-    urgency: 5,
-    type: '',
-    notes: '',
-    cognitiveComplexity: null,
-    asyncWaitTime: 0,
-    deadline: null,
-    deadlineType: null,
-  }
-}
-
-function deriveDisplayStatus(node: DeepWorkNodeWithData, isActionable: boolean): DeepWorkNodeStatus {
-  if (node.task && !node.task.hasSteps) {
-    if (node.task.completed) return DeepWorkNodeStatus.Completed
-    if (!isActionable) return DeepWorkNodeStatus.Blocked
-    return DeepWorkNodeStatus.Pending
-  }
-
-  if (node.step) {
-    switch (node.step.status) {
-      case StepStatus.Completed:
-      case StepStatus.Skipped:
-        return DeepWorkNodeStatus.Completed
-      case StepStatus.InProgress:
-        return DeepWorkNodeStatus.Active
-      case StepStatus.Waiting:
-        return DeepWorkNodeStatus.Waiting
-      case StepStatus.Pending:
-      default:
-        return isActionable ? DeepWorkNodeStatus.Pending : DeepWorkNodeStatus.Blocked
-    }
-  }
-
-  return DeepWorkNodeStatus.Pending
-}
-
-const STATUS_LABELS: Record<DeepWorkNodeStatus, { label: string; color: string }> = {
-  [DeepWorkNodeStatus.Pending]: { label: 'Ready', color: '#165DFF' },
-  [DeepWorkNodeStatus.Active]: { label: 'In Progress', color: '#00b42a' },
-  [DeepWorkNodeStatus.Waiting]: { label: 'Waiting', color: '#ff7d00' },
-  [DeepWorkNodeStatus.Completed]: { label: 'Completed', color: '#86909c' },
-  [DeepWorkNodeStatus.Blocked]: { label: 'Blocked', color: '#f53f3f' },
-}
 
 function StatusBadge({ status }: { status: DeepWorkNodeStatus }) {
   const { label, color } = STATUS_LABELS[status]

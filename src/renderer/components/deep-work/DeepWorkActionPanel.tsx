@@ -11,7 +11,7 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { Typography, Empty, Button, Divider, Progress } from '@arco-design/web-react'
-import { IconPlayArrow, IconPause, IconCheck } from '@arco-design/web-react/icon'
+import { IconPlayArrow, IconPause, IconCheck, IconDice } from '@arco-design/web-react/icon'
 import { useDeepWorkBoardStore } from '../../store/useDeepWorkBoardStore'
 import { useTaskStore } from '../../store/useTaskStore'
 import { useSortedUserTaskTypes } from '../../store/useUserTaskTypeStore'
@@ -19,44 +19,19 @@ import { getTypeEmoji } from '@shared/user-task-types'
 import { formatMinutes } from '@shared/time-utils'
 import type { DeepWorkNodeWithData } from '@shared/deep-work-board-types'
 import type { UnifiedWorkSession } from '@shared/unified-work-session-types'
+import {
+  getNodeName,
+  getNodeDuration,
+  getNodeTypeId,
+  getElapsedSeconds,
+  formatElapsedStopwatch,
+  findBoardSessions,
+  pickRandomActionableNode,
+} from '@shared/deep-work-node-utils'
 import { DeepWorkNodeDetailPanel } from './DeepWorkNodeDetailPanel'
 import { logger } from '@/logger'
 
 const { Title, Text } = Typography
-
-// =============================================================================
-// Helpers
-// =============================================================================
-
-function getNodeName(node: DeepWorkNodeWithData): string {
-  return node.task?.name ?? node.step?.name ?? 'Untitled'
-}
-
-function getNodeDuration(node: DeepWorkNodeWithData): number {
-  return node.task?.duration ?? node.step?.duration ?? 0
-}
-
-function getNodeTypeId(node: DeepWorkNodeWithData): string {
-  return node.task?.type ?? node.step?.type ?? ''
-}
-
-/** Calculate elapsed seconds from a session start time to now */
-function getElapsedSeconds(startTime: Date): number {
-  return Math.floor((Date.now() - new Date(startTime).getTime()) / 1000)
-}
-
-/** Format seconds into MM:SS or HH:MM:SS */
-function formatElapsed(totalSeconds: number): string {
-  const hours = Math.floor(totalSeconds / 3600)
-  const minutes = Math.floor((totalSeconds % 3600) / 60)
-  const seconds = totalSeconds % 60
-  const pad = (n: number): string => n.toString().padStart(2, '0')
-
-  if (hours > 0) {
-    return `${hours}:${pad(minutes)}:${pad(seconds)}`
-  }
-  return `${pad(minutes)}:${pad(seconds)}`
-}
 
 // =============================================================================
 // Component
@@ -135,6 +110,15 @@ export function DeepWorkActionPanel() {
       }, 'dwb-complete-work-error')
     }
   }, [completeStep, updateTask])
+
+  const handleRandomize = useCallback(async () => {
+    const boardSessions = findBoardSessions(nodes, activeWorkSessions)
+    const activeNodeIds = new Set(boardSessions.map((s) => s.nodeId))
+    const picked = pickRandomActionableNode(nodes, actionableNodeIds, activeNodeIds)
+    if (!picked) return
+    await handleStartWork(picked)
+    logger.ui.info('Randomizer picked node', { nodeId: picked.id, name: getNodeName(picked) }, 'dwb-randomize')
+  }, [nodes, actionableNodeIds, activeWorkSessions, handleStartWork])
 
   // If a node is expanded, show the detail panel instead
   if (expandedNodeId) {
@@ -215,7 +199,7 @@ export function DeepWorkActionPanel() {
                         </Text>
                       </div>
                       <Text style={{ fontSize: 16, fontWeight: 700, fontFamily: 'monospace', color: '#00b42a' }}>
-                        {formatElapsed(elapsed)}
+                        {formatElapsedStopwatch(elapsed)}
                       </Text>
                     </div>
 
@@ -261,10 +245,21 @@ export function DeepWorkActionPanel() {
         )}
 
         {/* Actionable Items */}
-        <div style={{ padding: '0 16px', marginBottom: 8 }}>
+        <div style={{ padding: '0 16px', marginBottom: 8, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <Text style={sectionHeaderStyle}>
             Ready to Start ({actionableNodes.length})
           </Text>
+          {actionableNodes.length > 0 && (
+            <Button
+              size="mini"
+              type="outline"
+              icon={<IconDice />}
+              onClick={handleRandomize}
+              title="Start a random task"
+            >
+              Randomize
+            </Button>
+          )}
         </div>
 
         {actionableNodes.length === 0 ? (
@@ -357,54 +352,3 @@ const sectionHeaderStyle: React.CSSProperties = {
   letterSpacing: 0.5,
 }
 
-interface BoardSessionInfo {
-  nodeId: string
-  node: DeepWorkNodeWithData
-  session: UnifiedWorkSession
-}
-
-/**
- * Find active work sessions that correspond to nodes on this board.
- * Matches sessions by taskId (for standalone tasks) or stepId (for steps).
- */
-function findBoardSessions(
-  nodes: Map<string, DeepWorkNodeWithData>,
-  activeWorkSessions: Map<string, UnifiedWorkSession>,
-): BoardSessionInfo[] {
-  const results: BoardSessionInfo[] = []
-
-  // Build lookup: taskId → nodeId, stepId → nodeId
-  const taskIdToNode = new Map<string, DeepWorkNodeWithData>()
-  const stepIdToNode = new Map<string, DeepWorkNodeWithData>()
-
-  for (const [, node] of nodes) {
-    if (node.taskId && node.task) {
-      taskIdToNode.set(node.taskId, node)
-    }
-    if (node.stepId && node.step) {
-      stepIdToNode.set(node.stepId, node)
-    }
-  }
-
-  for (const [, session] of activeWorkSessions) {
-    // Active session = no endTime
-    if (session.endTime) continue
-
-    // Check if session matches a step on the board
-    if (session.stepId) {
-      const node = stepIdToNode.get(session.stepId)
-      if (node) {
-        results.push({ nodeId: node.id, node, session })
-        continue
-      }
-    }
-
-    // Check if session matches a standalone task on the board
-    const node = taskIdToNode.get(session.taskId)
-    if (node && !node.task?.hasSteps) {
-      results.push({ nodeId: node.id, node, session })
-    }
-  }
-
-  return results
-}
