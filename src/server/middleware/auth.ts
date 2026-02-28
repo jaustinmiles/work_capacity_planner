@@ -6,6 +6,7 @@
  */
 
 import { TRPCError } from '@trpc/server'
+import { timingSafeEqual } from 'node:crypto'
 
 export interface AuthContext {
   isAuthenticated: boolean
@@ -26,8 +27,12 @@ export function validateApiKey(providedKey: string | undefined): AuthContext {
     return { isAuthenticated: true, apiKey: null }
   }
 
-  // Validate the provided key
-  if (providedKey === validKey) {
+  // Validate the provided key with timing-safe comparison
+  if (
+    providedKey &&
+    providedKey.length === validKey.length &&
+    timingSafeEqual(Buffer.from(providedKey), Buffer.from(validKey))
+  ) {
     return { isAuthenticated: true, apiKey: providedKey }
   }
 
