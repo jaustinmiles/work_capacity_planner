@@ -467,7 +467,139 @@ Done!`
     })
   })
 
+  describe('transformAmendments — branch coverage', () => {
+    it('should warn when TimeLog startTime fails to parse', () => {
+      const rawTimeLog: RawTimeLog = {
+        type: AmendmentType.TimeLog,
+        target: { type: 'task' as any, name: 'Test Task', confidence: 1.0 },
+        duration: 60,
+        startTime: 'not-a-time',
+        endTime: '2025-01-15T10:00:00Z',
+      }
+
+      const transformed = transformAmendments([rawTimeLog])
+      expect(transformed).toHaveLength(1)
+      const result = transformed[0] as any
+      // Invalid startTime should not produce a Date
+      expect(result.startTime).not.toBeInstanceOf(Date)
+      expect(result.endTime).toBeInstanceOf(Date)
+    })
+
+    it('should warn when TimeLog endTime fails to parse', () => {
+      const rawTimeLog: RawTimeLog = {
+        type: AmendmentType.TimeLog,
+        target: { type: 'task' as any, name: 'Test Task', confidence: 1.0 },
+        duration: 60,
+        startTime: '2025-01-15T09:00:00Z',
+        endTime: 'invalid-end',
+      }
+
+      const transformed = transformAmendments([rawTimeLog])
+      expect(transformed).toHaveLength(1)
+      const result = transformed[0] as any
+      expect(result.startTime).toBeInstanceOf(Date)
+      expect(result.endTime).not.toBeInstanceOf(Date)
+    })
+
+    it('should calculate duration from start/end when not provided', () => {
+      const rawTimeLog: RawTimeLog = {
+        type: AmendmentType.TimeLog,
+        target: { type: 'task' as any, name: 'Test Task', confidence: 1.0 },
+        // no duration
+        startTime: '2025-01-15T09:00:00Z',
+        endTime: '2025-01-15T10:30:00Z',
+      }
+
+      const transformed = transformAmendments([rawTimeLog])
+      expect(transformed).toHaveLength(1)
+      const result = transformed[0] as any
+      expect(result.duration).toBe(90) // 90 minutes between 9:00 and 10:30
+    })
+
+    it('should default duration to 0 when not provided and times are invalid', () => {
+      const rawTimeLog: RawTimeLog = {
+        type: AmendmentType.TimeLog,
+        target: { type: 'task' as any, name: 'Test Task', confidence: 1.0 },
+        // no duration, no valid times
+        startTime: 'garbage',
+        endTime: 'garbage',
+      }
+
+      const transformed = transformAmendments([rawTimeLog])
+      expect(transformed).toHaveLength(1)
+      const result = transformed[0] as any
+      expect(result.duration).toBe(0)
+    })
+
+    it('should fall back to current date for DeadlineChange with invalid deadline', () => {
+      const rawDeadline: RawDeadlineChange = {
+        type: AmendmentType.DeadlineChange,
+        target: { type: 'task' as any, name: 'Test Task', confidence: 1.0 },
+        newDeadline: 'not-a-date',
+      }
+
+      const transformed = transformAmendments([rawDeadline])
+      expect(transformed).toHaveLength(1)
+      const result = transformed[0] as any
+      expect(result.newDeadline).toBeInstanceOf(Date)
+    })
+
+    it('should fall back to current date for WorkPatternModification with invalid date', () => {
+      const rawPattern: RawWorkPatternModification = {
+        type: AmendmentType.WorkPatternModification,
+        date: 'invalid-date',
+        operation: WorkPatternOperation.AddBlock,
+        blockData: {
+          startTime: '2025-01-20T09:00:00Z',
+          endTime: '2025-01-20T12:00:00Z',
+          type: WorkBlockType.Focused,
+        },
+      }
+
+      const transformed = transformAmendments([rawPattern])
+      expect(transformed).toHaveLength(1)
+      const result = transformed[0] as any
+      expect(typeof result.date).toBe('string')
+      expect(result.date).toMatch(/^\d{4}-\d{2}-\d{2}$/)
+    })
+
+    it('should transform WorkPatternModification with meetingData', () => {
+      const rawPattern: RawWorkPatternModification = {
+        type: AmendmentType.WorkPatternModification,
+        date: '2025-01-20',
+        operation: WorkPatternOperation.AddBlock,
+        meetingData: {
+          startTime: '2025-01-20T13:00:00Z',
+          endTime: '2025-01-20T14:00:00Z',
+          name: 'Team Standup',
+        },
+      }
+
+      const transformed = transformAmendments([rawPattern])
+      expect(transformed).toHaveLength(1)
+      const result = transformed[0] as any
+      expect(result.meetingData).toBeDefined()
+      expect(typeof result.meetingData.startTime).toBe('string')
+      expect(result.meetingData.startTime).toMatch(/^\d{2}:\d{2}$/)
+      expect(typeof result.meetingData.endTime).toBe('string')
+      expect(result.meetingData.endTime).toMatch(/^\d{2}:\d{2}$/)
+    })
+  })
+
   describe('createUserErrorReport', () => {
+    it('should include errors string in report when present', () => {
+      const result: ValidationLoopResult = {
+        success: false,
+        attempts: 2,
+        errors: 'Something went wrong',
+        validationResults: [],
+      }
+
+      const report = createUserErrorReport(result)
+      expect(report).toContain('Last Error')
+      expect(report).toContain('Something went wrong')
+    })
+
     it('should generate basic report with attempt count', () => {
       const result: ValidationLoopResult = {
         success: false,

@@ -8,6 +8,7 @@
 import { useTaskStore } from './useTaskStore'
 import { useSchedulerStore } from './useSchedulerStore'
 import { useWorkPatternStore } from './useWorkPatternStore'
+import { useDeepWorkBoardStore } from './useDeepWorkBoardStore'
 import { logger } from '@/logger'
 import { shallow } from 'zustand/shallow'
 import type { Task } from '@shared/types'
@@ -190,18 +191,48 @@ export const connectStores = () => {
     },
   )
 
+  // Connect task store changes to Deep Work Board store
+  // When tasks/steps change status externally, refresh the board's node data
+  let dwbRefreshTimeout: NodeJS.Timeout | null = null
+
+  const unsubDwb = useTaskStore.subscribe(
+    (state) => ({
+      tasks: state.tasks,
+      sequencedTasks: state.sequencedTasks,
+    }),
+    () => {
+      // Only refresh if a board is currently active
+      const { activeBoardId } = useDeepWorkBoardStore.getState()
+      if (!activeBoardId) return
+
+      // Debounce to avoid rapid refreshes during bulk updates
+      if (dwbRefreshTimeout) {
+        clearTimeout(dwbRefreshTimeout)
+      }
+      dwbRefreshTimeout = setTimeout(() => {
+        useDeepWorkBoardStore.getState().refreshNodes()
+        dwbRefreshTimeout = null
+      }, 500)
+    },
+    { equalityFn: shallow },
+  )
+
   isConnected = true
 
   logger.ui.info('Store connections established', {}, 'store-connector')
 
   // Return cleanup function
   return () => {
-    // Clean up debounce timeout if pending
+    // Clean up debounce timeouts if pending
     if (taskStoreUpdateTimeout) {
       clearTimeout(taskStoreUpdateTimeout)
     }
+    if (dwbRefreshTimeout) {
+      clearTimeout(dwbRefreshTimeout)
+    }
     unsubTaskStore()
     unsubPatternStore()
+    unsubDwb()
     isConnected = false
   }
 }

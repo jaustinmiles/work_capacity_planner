@@ -131,6 +131,7 @@ model Session {
   ScheduleSnapshot      ScheduleSnapshot[]
   Conversation          Conversation[]
   Endeavor              Endeavor[]
+  DeepWorkBoard         DeepWorkBoard[]
 }
 
 // Schedule Snapshot - Captures schedule state at a point in time
@@ -529,4 +530,48 @@ model EndeavorDependency {
   @@index([blockedTaskId])
   @@index([blockedStepId])
   @@index([blockingStepId])
+}
+
+// =============================================================================
+// Deep Work Board Models - Freeform whiteboard canvas for task creation & execution
+// =============================================================================
+
+// DeepWorkBoard - A named whiteboard canvas for freeform task planning
+// Session-scoped, persists layout (zoom, pan, node positions) across restarts
+model DeepWorkBoard {
+  id               String         @id
+  sessionId        String
+  name             String
+  zoom             Float          @default(1.0)
+  panX             Float          @default(0.0)
+  panY             Float          @default(0.0)
+  actionPanelOpen  Boolean        @default(true)
+  actionPanelWidth Int            @default(320)
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @default(now())
+  Session          Session        @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  nodes            DeepWorkNode[]
+
+  @@index([sessionId])
+}
+
+// DeepWorkNode - Canvas position for a task or workflow step on a board
+// Projection layer: canonical data lives in Task/TaskStep, this stores canvas metadata
+// A node has EITHER taskId (standalone task) OR stepId (workflow step), never both
+model DeepWorkNode {
+  id        String        @id
+  boardId   String
+  taskId    String?       // Non-null for orphan/standalone tasks
+  stepId    String?       // Non-null for workflow steps
+  positionX Float
+  positionY Float
+  width     Float         @default(220)
+  height    Float         @default(90)
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @default(now())
+  board     DeepWorkBoard @relation(fields: [boardId], references: [id], onDelete: Cascade)
+
+  @@unique([boardId, taskId])
+  @@unique([boardId, stepId])
+  @@index([boardId])
 }

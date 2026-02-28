@@ -1,3 +1,5 @@
+import { getCurrentTime } from './time-provider'
+
 /**
  * Safely parse time string in "HH:MM" format
  * Returns [hours, minutes] with defaults if parsing fails
@@ -51,7 +53,7 @@ export function formatMinutes(minutes: number): string {
  * Format elapsed time with seconds for real-time display
  * Used for active sessions to show counting seconds
  */
-export function formatElapsedWithSeconds(startTime: Date, currentTime: Date = new Date()): string {
+export function formatElapsedWithSeconds(startTime: Date, currentTime: Date = getCurrentTime()): string {
   const elapsedMs = currentTime.getTime() - startTime.getTime()
   const totalSeconds = Math.floor(elapsedMs / 1000)
 

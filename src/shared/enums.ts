@@ -209,6 +209,7 @@ export enum ViewType {
   Schedule = 'schedule',
   Sprint = 'sprint',
   Endeavors = 'endeavors',
+  DeepWork = 'deepWork',
 }
 
 // Sprint filter modes for task list views
@@ -284,6 +285,8 @@ export enum GraphNodePrefix {
   Step = 'step',
   Task = 'task',
   Goal = 'goal',
+  DeepWorkTask = 'dwt',
+  DeepWorkStep = 'dws',
 }
 
 // Graph edge ID prefixes
@@ -297,12 +300,15 @@ export enum GraphNodeType {
   EndeavorRegion = 'endeavorRegion',
   TaskStep = 'taskStep',
   Goal = 'goal',
+  DeepWorkTask = 'deepWorkTask',
+  DeepWorkStep = 'deepWorkStep',
 }
 
 // ReactFlow edge type identifiers
 export enum GraphEdgeType {
   SmoothStep = 'smoothstep',
   Dependency = 'dependency',
+  DeepWorkDependency = 'deepWorkDependency',
 }
 
 // Re-export enum utility functions from enum-utils.ts for backwards compatibility
