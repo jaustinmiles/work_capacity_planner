@@ -37,6 +37,8 @@ import {
   getAccumulatedTimeForType,
   mergeAccumulatedTime,
   getBlockTypeDisplayColor,
+  getBlockTypeName,
+  getBlockTypeConfigName,
 } from '../user-task-types'
 
 describe('user-task-types', () => {
@@ -778,6 +780,60 @@ describe('user-task-types', () => {
       ]
       const result = getBlockTypeDisplayColor('type-no-color', typesWithNoColor)
       expect(result).toBe('arcoblue')
+    })
+  })
+
+  describe('getBlockTypeName', () => {
+    it('returns "Blocked" for blocked system type', () => {
+      expect(getBlockTypeName(WorkBlockType.Blocked, mockTypes)).toBe('Blocked')
+      expect(getBlockTypeName('blocked', mockTypes)).toBe('Blocked')
+    })
+
+    it('returns "Sleep" for sleep system type', () => {
+      expect(getBlockTypeName(WorkBlockType.Sleep, mockTypes)).toBe('Sleep')
+      expect(getBlockTypeName('sleep', mockTypes)).toBe('Sleep')
+    })
+
+    it('returns user type name for user-defined type', () => {
+      expect(getBlockTypeName('type-1', mockTypes)).toBe('Coding')
+      expect(getBlockTypeName('type-2', mockTypes)).toBe('Design')
+    })
+
+    it('returns "Unknown" for unrecognized type ID', () => {
+      expect(getBlockTypeName('nonexistent', mockTypes)).toBe('Unknown')
+    })
+  })
+
+  describe('getBlockTypeConfigName', () => {
+    it('returns "Sleep" for system sleep config', () => {
+      const config: BlockTypeConfig = { kind: BlockConfigKind.System, systemType: WorkBlockType.Sleep }
+      expect(getBlockTypeConfigName(config, mockTypes)).toBe('Sleep')
+    })
+
+    it('returns "Blocked" for system blocked config', () => {
+      const config: BlockTypeConfig = { kind: BlockConfigKind.System, systemType: WorkBlockType.Blocked }
+      expect(getBlockTypeConfigName(config, mockTypes)).toBe('Blocked')
+    })
+
+    it('returns user type name for single config', () => {
+      const config: BlockTypeConfig = { kind: BlockConfigKind.Single, typeId: 'type-1' }
+      expect(getBlockTypeConfigName(config, mockTypes)).toBe('Coding')
+    })
+
+    it('returns joined names for combo config', () => {
+      const config: BlockTypeConfig = {
+        kind: BlockConfigKind.Combo,
+        allocations: [
+          { typeId: 'type-1', ratio: 0.5 },
+          { typeId: 'type-2', ratio: 0.5 },
+        ],
+      }
+      expect(getBlockTypeConfigName(config, mockTypes)).toBe('Coding / Design')
+    })
+
+    it('returns "Unknown" for unknown single type', () => {
+      const config: BlockTypeConfig = { kind: BlockConfigKind.Single, typeId: 'nonexistent' }
+      expect(getBlockTypeConfigName(config, mockTypes)).toBe('Unknown')
     })
   })
 })

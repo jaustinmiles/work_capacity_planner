@@ -546,3 +546,114 @@ describe('recalculateWorkflowMetrics', () => {
     expect(metrics.criticalPathDuration).toBe(0)
   })
 })
+
+// =============================================================================
+// Edge Cases: null guards and uncovered branches
+// =============================================================================
+
+describe('determineMorphStrategy — edge cases', () => {
+  it('should return IntraWorkflow as fallback when both taskId and stepId are null', () => {
+    // This is the unreachable fallback at line 67 — nodes with no taskId or stepId
+    const nodeA = makeTaskNode('A')
+    nodeA.taskId = null
+    nodeA.task = null
+    const nodeB = makeTaskNode('B')
+    nodeB.taskId = null
+    nodeB.task = null
+
+    expect(determineMorphStrategy(nodeA, nodeB)).toBe(MorphStrategy.IntraWorkflow)
+  })
+})
+
+describe('buildConnectMorphResult — null guards', () => {
+  it('returns empty morph when CreateWorkflow nodes have null tasks', () => {
+    const nodeA = makeTaskNode('A')
+    nodeA.task = null
+    const nodeB = makeTaskNode('B')
+
+    // Since both appear to be task nodes (no step), strategy = CreateWorkflow
+    // But nodeA.task is null → empty morph
+    const result = buildConnectMorphResult(nodeA, nodeB, [])
+    expect(result.stepCreations).toHaveLength(0)
+  })
+
+  it('returns empty morph when JoinWorkflow node has null task/step', () => {
+    const taskNode = makeTaskNode('A')
+    const stepNode = makeStepNode('B', 'step-b', 'wf-1')
+    stepNode.step = null // Force null
+
+    const result = buildConnectMorphResult(taskNode, stepNode, [])
+    expect(result.stepCreations).toHaveLength(0)
+  })
+
+  it('returns empty morph when IntraWorkflow target has null step', () => {
+    const stepA = makeStepNode('A', 'step-a', 'wf-1')
+    const stepB = makeStepNode('B', 'step-b', 'wf-1')
+    stepB.step = null
+
+    const result = buildConnectMorphResult(stepA, stepB, [])
+    expect(result.stepCreations).toHaveLength(0)
+  })
+
+  it('returns empty morph when IntraWorkflow source has null stepId', () => {
+    const stepA = makeStepNode('A', 'step-a', 'wf-1')
+    stepA.stepId = null
+    const stepB = makeStepNode('B', 'step-b', 'wf-1')
+
+    const result = buildConnectMorphResult(stepA, stepB, [])
+    expect(result.stepCreations).toHaveLength(0)
+  })
+
+  it('returns empty morph when CrossWorkflow nodes have null parents', () => {
+    const stepA = makeStepNode('A', 'step-a', 'wf-1')
+    stepA.parentTask = null
+    const stepB = makeStepNode('B', 'step-b', 'wf-2')
+
+    const result = buildConnectMorphResult(stepA, stepB, [])
+    expect(result.crossWorkflowDependency).toBeNull()
+  })
+
+  it('handles JoinWorkflow with null parentTask.steps for maxStepIndex', () => {
+    const taskNode = makeTaskNode('A')
+    const stepNode = makeStepNode('B', 'step-b', 'wf-1')
+    // parentTask exists but has no steps array
+    stepNode.parentTask = { ...stepNode.parentTask!, steps: undefined as any }
+
+    const result = buildConnectMorphResult(stepNode, taskNode, [])
+    expect(result.strategy).toBe(MorphStrategy.JoinWorkflow)
+    expect(result.stepCreations).toHaveLength(1)
+  })
+})
+
+describe('buildDisconnectMorphResult — intra-workflow dependency removal', () => {
+  it('should remove dependsOn when both nodes retain other connections (intra-workflow)', () => {
+    // A→B (remove), A→C, D→B → both A and B keep connections
+    const stepA = makeStepNode('A', 'step-a', 'wf-1')
+    const stepB = makeStepNode('B', 'step-b', 'wf-1', ['step-a'])
+    const stepC = makeStepNode('C', 'step-c', 'wf-1')
+    const stepD = makeStepNode('D', 'step-d', 'wf-1')
+
+    const allEdges: DeepWorkEdge[] = [
+      makeEdge('A', 'B'),       // removing this one
+      makeEdge('A', 'C'),       // A retains this
+      makeEdge('D', 'B'),       // B retains this
+    ]
+    const removedEdge = allEdges[0]!
+
+    const nodeMap = new Map<string, DeepWorkNodeWithData>()
+    nodeMap.set('A', stepA)
+    nodeMap.set('B', stepB)
+    nodeMap.set('C', stepC)
+    nodeMap.set('D', stepD)
+
+    const result = buildDisconnectMorphResult(stepA, stepB, allEdges, nodeMap, removedEdge)
+
+    // Neither is isolated → simple dependency removal
+    expect(result.strategy).toBe(MorphStrategy.IntraWorkflow)
+    expect(result.nodeIdentityUpdates).toHaveLength(0)
+    expect(result.stepUpdates).toHaveLength(1)
+    expect(result.stepUpdates[0]!.id).toBe('step-b')
+    // dependsOn should have step-a filtered out
+    expect(result.stepUpdates[0]!.dependsOn).not.toContain('step-a')
+  })
+})

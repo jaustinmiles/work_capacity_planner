@@ -547,3 +547,98 @@ describe('deriveNodeStatus', () => {
     expect(deriveNodeStatus(node, true)).toBe(DeepWorkNodeStatus.Pending)
   })
 })
+
+// =============================================================================
+// Edge Cases: Clustering with workflow step nodes
+// =============================================================================
+
+describe('computeClusters — workflow detection', () => {
+  it('should identify workflow task ID when all steps share a parent', () => {
+    const nodes = new Map<string, DeepWorkNodeWithData>()
+    nodes.set('A', makeStepNode('A', 'step-a', 'wf-1'))
+    nodes.set('B', makeStepNode('B', 'step-b', 'wf-1', ['step-a']))
+
+    const edges: DeepWorkEdge[] = [makeEdge('A', 'B')]
+
+    const result = computeClusters(nodes, edges)
+
+    expect(result).toHaveLength(1)
+    expect(result[0]!.workflowTaskId).toBe('wf-1')
+    expect(result[0]!.displayName).toBe('Workflow wf-1')
+  })
+
+  it('should set null workflowTaskId when steps have different parents', () => {
+    const nodes = new Map<string, DeepWorkNodeWithData>()
+    nodes.set('A', makeStepNode('A', 'step-a', 'wf-1'))
+    nodes.set('B', makeStepNode('B', 'step-b', 'wf-2'))
+
+    const edges: DeepWorkEdge[] = [makeEdge('A', 'B', DeepWorkEdgeType.CrossWorkflow)]
+
+    const result = computeClusters(nodes, edges)
+
+    expect(result).toHaveLength(1)
+    expect(result[0]!.workflowTaskId).toBeNull()
+  })
+
+  it('should use root node name as displayName when no workflow', () => {
+    const nodes = new Map<string, DeepWorkNodeWithData>()
+    nodes.set('A', makeTaskNode('A'))
+    nodes.set('B', makeTaskNode('B'))
+
+    const edges: DeepWorkEdge[] = [makeEdge('A', 'B')]
+
+    const result = computeClusters(nodes, edges)
+
+    expect(result).toHaveLength(1)
+    expect(result[0]!.displayName).toBe('Task A')
+  })
+})
+
+// =============================================================================
+// Edge Cases: findActionableNodeIds with step status checks
+// =============================================================================
+
+describe('findActionableNodeIds — step status edge cases', () => {
+  it('should treat skipped steps as completed for dependency resolution', () => {
+    const nodes = new Map<string, DeepWorkNodeWithData>()
+    nodes.set('A', makeStepNode('A', 'step-a', 'wf-1', [], StepStatus.Skipped))
+    nodes.set('B', makeStepNode('B', 'step-b', 'wf-1', ['step-a']))
+
+    const edges: DeepWorkEdge[] = [makeEdge('A', 'B')]
+
+    const result = findActionableNodeIds(nodes, edges)
+
+    expect(result.has('A')).toBe(false) // Skipped
+    expect(result.has('B')).toBe(true)  // Dependency satisfied
+  })
+
+  it('should return false for dep with no task and no step', () => {
+    const nodeA = makeTaskNode('A')
+    nodeA.task = null
+    const nodeB = makeTaskNode('B')
+
+    const nodes = new Map<string, DeepWorkNodeWithData>()
+    nodes.set('A', nodeA)
+    nodes.set('B', nodeB)
+
+    const edges: DeepWorkEdge[] = [makeEdge('A', 'B')]
+
+    const result = findActionableNodeIds(nodes, edges)
+    // A has no task/step → treated as not completed → B is blocked
+    expect(result.has('B')).toBe(false)
+  })
+})
+
+// =============================================================================
+// Edge Cases: validateEdgeCreation
+// =============================================================================
+
+describe('validateEdgeCreation — target not found', () => {
+  it('should reject when target node is missing', () => {
+    const nodes = new Map<string, DeepWorkNodeWithData>()
+    nodes.set('A', makeTaskNode('A'))
+
+    const result = validateEdgeCreation('A', 'B', nodes, [])
+    expect(result).toContain('not found')
+  })
+})

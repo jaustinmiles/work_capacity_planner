@@ -125,7 +125,7 @@ const VIEWPORT_FLUSH_DELAY_MS = 500
  * For step nodes: edges come from TaskStep.dependsOn (intra-workflow)
  * For task nodes with dependencies: edges come from Task.dependencies
  */
-function deriveEdgesFromNodes(nodes: Map<string, DeepWorkNodeWithData>): DeepWorkEdge[] {
+export function deriveEdgesFromNodes(nodes: Map<string, DeepWorkNodeWithData>): DeepWorkEdge[] {
   const edges: DeepWorkEdge[] = []
   const nodeArray = Array.from(nodes.values())
 
@@ -184,7 +184,7 @@ function deriveEdgesFromNodes(nodes: Map<string, DeepWorkNodeWithData>): DeepWor
 /**
  * Compute which nodes are "actionable" — all dependencies satisfied, not completed.
  */
-function computeActionableNodeIds(
+export function computeActionableNodeIds(
   nodes: Map<string, DeepWorkNodeWithData>,
   edges: DeepWorkEdge[],
 ): Set<string> {

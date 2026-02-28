@@ -416,4 +416,37 @@ describe('Dependency Resolver', () => {
       expect(result.strategy).toBe('exact_name')
     })
   })
+
+  describe('step index fallback — array position when .index does not match', () => {
+    it('should fall back to array position when no step has matching .index', () => {
+      // Steps with non-sequential .index values that don't include 0
+      // Names deliberately avoid "step" to prevent word/partial matching
+      const stepsWithGaps: AvailableStep[] = [
+        { id: 'id-a', name: 'Initialize Database', index: 10 },
+        { id: 'id-b', name: 'Configure Networking', index: 20 },
+        { id: 'id-c', name: 'Validate Deployment', index: 30 },
+      ]
+
+      // "step 1" → parseStepIndex returns 0 (1-based → 0)
+      // No matching .index === 0, but array position 0 exists → fallback
+      const result = resolveDependency('step 1', stepsWithGaps)
+      expect(result.resolvedId).toBe('id-a')
+      expect(result.confidence).toBe(0.8)
+      expect(result.strategy).toBe('step_index')
+    })
+
+    it('should use array position for 0-based index when .index gaps exist', () => {
+      const stepsWithGaps: AvailableStep[] = [
+        { id: 'id-a', name: 'Initialize Database', index: 5 },
+        { id: 'id-b', name: 'Configure Networking', index: 15 },
+      ]
+
+      // "step-1" → parseStepIndex returns 1 (0-based due to hyphen)
+      // No matching .index === 1, but array position 1 exists → fallback
+      const result = resolveDependency('step-1', stepsWithGaps)
+      expect(result.resolvedId).toBe('id-b')
+      expect(result.confidence).toBe(0.8)
+      expect(result.strategy).toBe('step_index')
+    })
+  })
 })
