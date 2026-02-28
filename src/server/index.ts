@@ -13,6 +13,7 @@ import express from 'express'
 import cors from 'cors'
 import path from 'node:path'
 import fs from 'node:fs'
+import { URL } from 'node:url'
 import * as trpcExpress from '@trpc/server/adapters/express'
 import { appRouter } from './router'
 import { createContext } from './trpc'
@@ -20,15 +21,43 @@ import { disconnectPrisma } from './prisma'
 
 const app = express()
 
-// CORS configuration - restrict to localhost and local network IPs
+// Additional allowed origins from TASK_PLANNER_CORS_ORIGINS env var.
+// Comma-separated list of origin prefixes or wildcard domain patterns.
+// Examples: "https://myapp.example.com", "*.trycloudflare.com"
+const extraOrigins = (process.env.TASK_PLANNER_CORS_ORIGINS || '')
+  .split(',')
+  .map(s => s.trim())
+  .filter(Boolean)
+
 const isAllowedOrigin = (origin: string | undefined): boolean => {
   if (!origin) return true // Allow requests with no origin (same-origin, curl, etc.)
-  return (
+
+  // Built-in: localhost and private network ranges
+  if (
     origin.startsWith('http://localhost') ||
+    origin.startsWith('https://localhost') ||
     origin.startsWith('http://127.0.0.1') ||
-    origin.startsWith('http://192.168.') || // Local network Class C
-    origin.startsWith('http://10.') // Local network Class A
-  )
+    origin.startsWith('http://192.168.') ||
+    origin.startsWith('http://10.') ||
+    origin.startsWith('http://100.')
+  ) {
+    return true
+  }
+
+  // Check env-configured extra origins
+  for (const extra of extraOrigins) {
+    if (extra.startsWith('*.')) {
+      // Wildcard domain match: "*.trycloudflare.com" matches "https://foo-bar.trycloudflare.com"
+      try {
+        const url = new URL(origin)
+        if (url.hostname.endsWith(extra.slice(1))) return true
+      } catch { /* invalid URL */ }
+    } else if (origin.startsWith(extra)) {
+      return true
+    }
+  }
+
+  return false
 }
 
 app.use(
@@ -121,6 +150,13 @@ const server = app.listen(port, '0.0.0.0', () => {
   ║                                                            ║
   ╚════════════════════════════════════════════════════════════╝
   `)
+
+  if (!process.env.TASK_PLANNER_API_KEY) {
+    console.warn(
+      '  ⚠️  No TASK_PLANNER_API_KEY set — all requests are unauthenticated.\n' +
+        '  Set TASK_PLANNER_API_KEY in .env.server for secure remote access.\n',
+    )
+  }
 })
 
 // Graceful shutdown

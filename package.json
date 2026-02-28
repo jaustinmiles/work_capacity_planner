@@ -20,6 +20,7 @@
     "debug": "npm run build:main && npm run build:preload && concurrently -k \"npm run dev\" \"wait-on http://localhost:5174 && npm run electron:debug\"",
     "server": "dotenv -e .env.server -- tsx src/server/index.ts",
     "server:dev": "dotenv -e .env.server -- tsx watch src/server/index.ts",
+    "server:prod": "npm run build:web && npm run server",
     "build:web": "vite build --config vite.config.web.ts",
     "dev:web": "vite --config vite.config.web.ts",
     "preview:web": "vite preview --config vite.config.web.ts",
