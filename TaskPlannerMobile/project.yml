@@ -1,0 +1,59 @@
+name: TaskPlannerMobile
+options:
+  bundleIdPrefix: com.leftbrain
+  deploymentTarget:
+    iOS: "18.0"
+  xcodeVersion: "16.0"
+  generateEmptyDirectories: true
+
+settings:
+  base:
+    SWIFT_VERSION: "5.9"
+    TARGETED_DEVICE_FAMILY: "1"  # iPhone only
+    DEVELOPMENT_TEAM: ""
+
+targets:
+  TaskPlannerMobile:
+    type: application
+    platform: iOS
+    sources:
+      - path: TaskPlannerMobile
+        excludes:
+          - "**/*.xcassets"
+      - path: TaskPlannerMobile/Resources/Assets.xcassets
+        type: folder
+    resources:
+      - path: TaskPlannerMobile/Resources/Assets.xcassets
+    settings:
+      base:
+        GENERATE_INFOPLIST_FILE: true
+        INFOPLIST_KEY_UIApplicationSceneManifest_Generation: true
+        INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents: true
+        INFOPLIST_KEY_UILaunchScreen_Generation: true
+        INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone: "UIInterfaceOrientationPortrait"
+        INFOPLIST_KEY_NSMicrophoneUsageDescription: "TaskPlanner uses the microphone for voice input to create tasks and chat with AI."
+        INFOPLIST_KEY_NSSpeechRecognitionUsageDescription: "TaskPlanner uses speech recognition for hands-free task creation."
+        PRODUCT_BUNDLE_IDENTIFIER: com.leftbrain.TaskPlannerMobile
+        MARKETING_VERSION: "1.0.0"
+        CURRENT_PROJECT_VERSION: "1"
+        SWIFT_EMIT_LOC_STRINGS: true
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
+        CODE_SIGN_STYLE: Automatic
+    entitlements:
+      path: TaskPlannerMobile/TaskPlannerMobile.entitlements
+      properties:
+        com.apple.security.app-sandbox: true
+        com.apple.security.network.client: true
+
+  TaskPlannerMobileTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources:
+      - path: TaskPlannerMobileTests
+    dependencies:
+      - target: TaskPlannerMobile
+    settings:
+      base:
+        GENERATE_INFOPLIST_FILE: true
+        PRODUCT_BUNDLE_IDENTIFIER: com.leftbrain.TaskPlannerMobileTests
