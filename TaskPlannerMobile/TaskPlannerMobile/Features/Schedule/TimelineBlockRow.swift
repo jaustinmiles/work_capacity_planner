@@ -53,7 +53,7 @@ struct TimelineBlockRow: View {
                                     HStack(spacing: 2) {
                                         Text(tt.emoji)
                                             .font(.caption2)
-                                        Text("\(Int(alloc.ratio * 100))%")
+                                        Text("\(Int(alloc.percentage))%")
                                             .font(.caption2)
                                             .foregroundStyle(.secondary)
                                     }

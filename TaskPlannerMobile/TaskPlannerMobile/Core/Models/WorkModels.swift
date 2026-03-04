@@ -44,7 +44,7 @@ struct BlockTypeConfig: Codable {
 
 struct TypeAllocation: Codable {
     let typeId: String
-    let ratio: Double
+    let percentage: Double
 }
 
 struct WorkMeeting: Codable, Identifiable {

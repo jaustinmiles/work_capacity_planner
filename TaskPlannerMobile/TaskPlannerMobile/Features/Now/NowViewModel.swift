@@ -14,6 +14,7 @@ final class NowViewModel {
     var todayPattern: WorkPattern?
     var deadlineTasks: [TaskItem] = []
     var sprintTasks: [TaskItem] = []
+    var todaySessions: [WorkSession] = []
 
     var isLoading = false
     var isStarting = false
@@ -40,30 +41,64 @@ final class NowViewModel {
         guard let appState else { return }
         isLoading = true
         errorMessage = nil
+        var errors: [String] = []
+
+        // Each endpoint is isolated — one failure doesn't block others.
+        // Sequential awaits for simplicity; each is fast over local network.
 
         do {
-            // Load everything in parallel
-            async let activeResult = appState.workSessionService.getActive()
-            async let accumulatedResult = appState.workSessionService.getAccumulatedByDate(appState.todayDateString)
-            async let patternResult = appState.workPatternService.getByDate(appState.todayDateString)
-            async let deadlineResult = appState.taskService.getWithDeadlines()
-            async let sprintResult = appState.taskService.getSprintTasks()
-
-            activeSession = try await activeResult
-            accumulatedTime = try await accumulatedResult
-            todayPattern = try await patternResult
-            deadlineTasks = try await deadlineResult
-            sprintTasks = try await sprintResult
-
-            // Load next scheduled item if no active session
-            if activeSession == nil {
-                nextScheduledItem = try await appState.taskService.getNextScheduled(skipIndex: skipIndex)
-            } else {
-                // Start timer updates if session is active
-                startTimer()
-            }
+            activeSession = try await appState.workSessionService.getActive()
+            if activeSession != nil { startTimer() }
         } catch {
-            errorMessage = error.localizedDescription
+            print("[Now] workSession.getActive FAILED: \(error)")
+            errors.append("Active session: \(error.localizedDescription)")
+        }
+
+        do {
+            accumulatedTime = try await appState.workSessionService.getAccumulatedByDate(appState.todayDateString)
+        } catch {
+            print("[Now] workSession.getAccumulatedByDate FAILED: \(error)")
+            errors.append("Accumulated time: \(error.localizedDescription)")
+        }
+
+        do {
+            todaySessions = try await appState.workSessionService.getByDate(appState.todayDateString)
+        } catch {
+            print("[Now] workSession.getByDate FAILED: \(error)")
+            errors.append("Today sessions: \(error.localizedDescription)")
+        }
+
+        do {
+            todayPattern = try await appState.workPatternService.getByDate(appState.todayDateString)
+        } catch {
+            print("[Now] workPattern.getByDate FAILED: \(error)")
+            errors.append("Work pattern: \(error.localizedDescription)")
+        }
+
+        do {
+            let allTasks = try await appState.taskService.getAll()
+            deadlineTasks = allTasks
+                .filter { $0.deadline != nil && !$0.completed }
+                .sorted { ($0.deadline ?? .distantFuture) < ($1.deadline ?? .distantFuture) }
+            sprintTasks = allTasks
+                .filter { $0.inActiveSprint && !$0.completed }
+        } catch {
+            print("[Now] task.getAll FAILED: \(error)")
+            errors.append("Tasks: \(error.localizedDescription)")
+        }
+
+        // Load next scheduled item if no active session
+        if activeSession == nil {
+            do {
+                nextScheduledItem = try await appState.taskService.getNextScheduled(skipIndex: skipIndex)
+            } catch {
+                print("[Now] task.getNextScheduled FAILED: \(error)")
+                errors.append("Next scheduled: \(error.localizedDescription)")
+            }
+        }
+
+        if !errors.isEmpty {
+            errorMessage = errors.joined(separator: "\n")
         }
 
         isLoading = false
@@ -115,6 +150,31 @@ final class NowViewModel {
         isStarting = false
     }
 
+    /// Start a work session for a manually-selected task (and optional step)
+    func startTask(_ task: TaskItem, step: TaskStep?) async {
+        guard let appState else { return }
+        isStarting = true
+        errorMessage = nil
+
+        do {
+            let session = try await appState.workSessionService.create(CreateWorkSessionInput(
+                taskId: task.id,
+                stepId: step?.id,
+                startTime: Date(),
+                plannedMinutes: step?.duration ?? task.remainingDuration
+            ))
+            activeSession = session
+            nextScheduledItem = nil
+            startTimer()
+
+            UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+
+        isStarting = false
+    }
+
     /// Pause the active work session
     func pauseActiveSession() async {
         guard let appState, let session = activeSession else { return }
@@ -130,8 +190,9 @@ final class NowViewModel {
             // Reload next scheduled item
             nextScheduledItem = try await appState.taskService.getNextScheduled(skipIndex: skipIndex)
 
-            // Refresh accumulated time
+            // Refresh accumulated time and sessions
             accumulatedTime = try await appState.workSessionService.getAccumulatedByDate(appState.todayDateString)
+            todaySessions = try await appState.workSessionService.getByDate(appState.todayDateString)
 
             let generator = UIImpactFeedbackGenerator(style: .light)
             generator.impactOccurred()
@@ -168,10 +229,11 @@ final class NowViewModel {
             activeSession = nil
             stopTimer()
 
-            // Reload next scheduled item and accumulated time
+            // Reload next scheduled item, accumulated time, and sessions
             nextScheduledItem = try await appState.taskService.getNextScheduled(skipIndex: 0)
             skipIndex = 0
             accumulatedTime = try await appState.workSessionService.getAccumulatedByDate(appState.todayDateString)
+            todaySessions = try await appState.workSessionService.getByDate(appState.todayDateString)
 
             let generator = UINotificationFeedbackGenerator()
             generator.notificationOccurred(.success)

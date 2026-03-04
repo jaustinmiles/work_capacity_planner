@@ -7,6 +7,8 @@ struct NowView: View {
     @Environment(AppState.self) private var appState
     @State private var viewModel = NowViewModel()
     @State private var showSettings = false
+    @State private var showQuickTask = false
+    @State private var showStartSession = false
 
     var body: some View {
         NavigationStack {
@@ -33,6 +35,16 @@ struct NowView: View {
                             onStart: { Task { await viewModel.startNextTask() } },
                             onSkip: { Task { await viewModel.skipToNext() } }
                         )
+
+                        // Manual task picker
+                        Button {
+                            showStartSession = true
+                        } label: {
+                            Label("Choose a Different Task", systemImage: "list.bullet")
+                                .frame(maxWidth: .infinity)
+                        }
+                        .buttonStyle(.bordered)
+                        .controlSize(.regular)
                     }
 
                     // Today's Progress
@@ -41,6 +53,32 @@ struct NowView: View {
                         totalPlannedMinutes: viewModel.totalPlannedMinutes,
                         currentBlock: viewModel.currentBlock,
                         nextBlock: viewModel.nextBlock,
+                        taskTypes: appState.userTaskTypes
+                    )
+
+                    // Radar Chart — time logged by type
+                    if let accumulated = viewModel.accumulatedTime {
+                        let radarData = RadarChartView.prepareData(
+                            accumulated: accumulated,
+                            taskTypes: appState.userTaskTypes
+                        )
+                        if !radarData.isEmpty {
+                            VStack(alignment: .leading, spacing: 8) {
+                                Text("Time by Type")
+                                    .font(.subheadline)
+                                    .fontWeight(.semibold)
+                                RadarChartView(data: radarData)
+                                    .frame(maxWidth: .infinity)
+                            }
+                            .padding()
+                            .background(.ultraThinMaterial)
+                            .clipShape(RoundedRectangle(cornerRadius: 12))
+                        }
+                    }
+
+                    // Session Timeline — visual history of today's work
+                    SessionTimelineView(
+                        sessions: viewModel.todaySessions,
                         taskTypes: appState.userTaskTypes
                     )
 
@@ -70,6 +108,13 @@ struct NowView: View {
             }
             .navigationTitle("Now")
             .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    Button {
+                        showQuickTask = true
+                    } label: {
+                        Image(systemName: "plus")
+                    }
+                }
                 ToolbarItem(placement: .topBarTrailing) {
                     Button {
                         showSettings = true
@@ -77,6 +122,21 @@ struct NowView: View {
                         Image(systemName: "gearshape")
                     }
                 }
+            }
+            .sheet(isPresented: $showQuickTask) {
+                QuickTaskSheet()
+                    .environment(appState)
+            }
+            .onChange(of: showQuickTask) { _, isShowing in
+                if !isShowing {
+                    Task { await viewModel.loadAll() }
+                }
+            }
+            .sheet(isPresented: $showStartSession) {
+                StartSessionSheet { task, step in
+                    Task { await viewModel.startTask(task, step: step) }
+                }
+                .environment(appState)
             }
             .sheet(isPresented: $showSettings) {
                 SettingsView()
