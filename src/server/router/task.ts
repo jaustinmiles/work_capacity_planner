@@ -11,7 +11,14 @@
 import { z } from 'zod'
 import { router, protectedProcedure, sessionProcedure } from '../trpc'
 import { generateUniqueId } from '../../shared/step-id-utils'
-import { getCurrentTime } from '../../shared/time-provider'
+import { getCurrentTime, getLocalDateString } from '../../shared/time-provider'
+import { UnifiedScheduler, OptimizationMode } from '../../shared/unified-scheduler'
+import { DEFAULT_WORK_SETTINGS } from '../../shared/work-settings-types'
+import { filterSchedulableItems, filterSchedulableWorkflows } from '../../shared/utils/store-comparison'
+import { NextScheduledItemType, UnifiedScheduleItemType, MeetingType } from '../../shared/enums'
+import type { Task } from '../../shared/types'
+import type { SequencedTask } from '../../shared/sequencing-types'
+import type { DailyWorkPattern } from '../../shared/work-blocks-types'
 
 /**
  * Schema for creating a task
@@ -367,5 +374,166 @@ export const taskRouter = router({
       })
 
       return formatTask(task)
+    }),
+
+  /**
+   * Get the next scheduled task/step for the active session.
+   *
+   * Runs the UnifiedScheduler server-side to determine what the user
+   * should work on next. Used by the iOS companion app where the
+   * scheduler can't run client-side.
+   */
+  getNextScheduled: sessionProcedure
+    .input(z.object({ skipIndex: z.number().int().default(0) }))
+    .query(async ({ ctx, input }) => {
+      // Fetch all tasks for this session
+      const rawTasks = await ctx.prisma.task.findMany({
+        where: { sessionId: ctx.sessionId, archived: false },
+        include: { TaskStep: { orderBy: { stepIndex: 'asc' } } },
+      })
+
+      const allTasks = rawTasks.map(formatTask)
+
+      // Separate simple tasks from workflows (tasks with steps)
+      const simpleTasks = filterSchedulableItems(
+        allTasks.filter((t) => !t.hasSteps) as Task[],
+      )
+      const workflows = filterSchedulableWorkflows(
+        allTasks.filter((t) => t.hasSteps) as unknown as SequencedTask[],
+      )
+
+      // Fetch today's work pattern
+      const currentTime = getCurrentTime()
+      const todayDate = getLocalDateString(currentTime)
+
+      const pattern = await ctx.prisma.workPattern.findUnique({
+        where: {
+          sessionId_date: {
+            sessionId: ctx.sessionId,
+            date: todayDate,
+          },
+        },
+        include: {
+          WorkBlock: true,
+          WorkMeeting: true,
+        },
+      })
+
+      if (!pattern) {
+        return null
+      }
+
+      // Convert pattern to DailyWorkPattern format
+      const workPattern: DailyWorkPattern = {
+        id: pattern.id,
+        date: pattern.date,
+        blocks: pattern.WorkBlock.map((block) => ({
+          id: block.id,
+          startTime: block.startTime,
+          endTime: block.endTime,
+          typeConfig: JSON.parse(block.typeConfig as string),
+          capacity: block.totalCapacity
+            ? { totalMinutes: block.totalCapacity }
+            : undefined,
+        })),
+        accumulated: {},
+        meetings: pattern.WorkMeeting.map((meeting) => ({
+          id: meeting.id,
+          name: meeting.name,
+          startTime: meeting.startTime,
+          endTime: meeting.endTime,
+          type: meeting.type as MeetingType,
+          recurring: (meeting.recurring || 'none') as 'daily' | 'weekly' | 'none',
+          daysOfWeek: meeting.daysOfWeek
+            ? JSON.parse(meeting.daysOfWeek)
+            : undefined,
+        })),
+      }
+
+      // Run the scheduler
+      const scheduler = new UnifiedScheduler()
+      const items = [...simpleTasks, ...workflows]
+
+      const context = {
+        startDate: todayDate,
+        tasks: simpleTasks as Task[],
+        workflows: workflows,
+        workPatterns: [workPattern],
+        workSettings: DEFAULT_WORK_SETTINGS,
+        currentTime,
+      }
+
+      const config = {
+        startDate: currentTime,
+        allowTaskSplitting: true,
+        respectMeetings: true,
+        optimizationMode: OptimizationMode.Realistic,
+        debugMode: false,
+      }
+
+      const result = scheduler.scheduleForDisplay(items, context, config)
+
+      // Extract the next work item (skip non-work items)
+      const workItems = result.scheduled
+        .filter((item) => {
+          if (!item.startTime) return false
+          if (
+            item.type === UnifiedScheduleItemType.Meeting ||
+            item.type === UnifiedScheduleItemType.Break ||
+            item.type === UnifiedScheduleItemType.BlockedTime ||
+            item.type === UnifiedScheduleItemType.AsyncWait
+          ) {
+            return false
+          }
+          if (item.completed) return false
+          if (item.isWaitingOnAsync) return false
+          return true
+        })
+        .sort((a, b) => {
+          const aTime = a.startTime?.getTime() ?? 0
+          const bTime = b.startTime?.getTime() ?? 0
+          return aTime - bTime
+        })
+
+      if (workItems.length === 0 || input.skipIndex >= workItems.length) {
+        return null
+      }
+
+      const targetItem = workItems[input.skipIndex]
+      if (!targetItem?.startTime) return null
+
+      const taskId = targetItem.originalTaskId || targetItem.id
+
+      // Workflow step
+      if (targetItem.type === UnifiedScheduleItemType.WorkflowStep) {
+        const workflow = workflows.find((seq) =>
+          seq.steps.some((step) => step.id === taskId),
+        )
+        const step = workflow?.steps.find((s) => s.id === taskId)
+
+        if (step && workflow) {
+          return {
+            type: NextScheduledItemType.Step,
+            id: step.id,
+            workflowId: workflow.id,
+            title: step.name,
+            estimatedDuration: step.duration,
+            scheduledStartTime: targetItem.startTime,
+            loggedMinutes: step.actualDuration ?? 0,
+            workflowName: workflow.name,
+          }
+        }
+      }
+
+      // Regular task
+      const task = simpleTasks.find((t) => t.id === taskId)
+      return {
+        type: NextScheduledItemType.Task,
+        id: taskId,
+        title: targetItem.name,
+        estimatedDuration: targetItem.duration,
+        scheduledStartTime: targetItem.startTime,
+        loggedMinutes: task?.actualDuration ?? 0,
+      }
     }),
 })
