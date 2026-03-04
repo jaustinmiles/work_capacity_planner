@@ -169,11 +169,30 @@ final class TRPCClient {
         // Decode superjson response
         do {
             return try decoder.decode(T.self, from: data)
+        } catch let decodingError as DecodingError {
+            #if DEBUG
+            print("[tRPC] ❌ Decode error for \(path):")
+            switch decodingError {
+            case .typeMismatch(let type, let context):
+                print("[tRPC]   Type mismatch: expected \(type) at \(context.codingPath.map(\.stringValue).joined(separator: "."))")
+                print("[tRPC]   Debug: \(context.debugDescription)")
+            case .valueNotFound(let type, let context):
+                print("[tRPC]   Value not found: \(type) at \(context.codingPath.map(\.stringValue).joined(separator: "."))")
+            case .keyNotFound(let key, let context):
+                print("[tRPC]   Key not found: '\(key.stringValue)' in \(context.codingPath.map(\.stringValue).joined(separator: "."))")
+            case .dataCorrupted(let context):
+                print("[tRPC]   Data corrupted at \(context.codingPath.map(\.stringValue).joined(separator: "."))")
+                print("[tRPC]   Debug: \(context.debugDescription)")
+            @unknown default:
+                print("[tRPC]   \(decodingError)")
+            }
+            let preview = String(data: data.prefix(2000), encoding: .utf8) ?? "<binary>"
+            print("[tRPC]   Response preview: \(preview)")
+            #endif
+            throw decodingError
         } catch {
             #if DEBUG
-            print("[tRPC] Decode error for \(path): \(error)")
-            let fullResponse = String(data: data, encoding: .utf8) ?? "<binary>"
-            print("[tRPC] Full response body: \(fullResponse)")
+            print("[tRPC] ❌ Error for \(path): \(error)")
             #endif
             throw error
         }
