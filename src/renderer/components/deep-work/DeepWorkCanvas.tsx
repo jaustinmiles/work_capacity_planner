@@ -26,9 +26,22 @@ import type { DeepWorkTaskNodeData } from './nodes/DeepWorkTaskNode'
 import { DeepWorkConnectionLine, DeepWorkEdgeMarkers } from './edges/DeepWorkConnectionLine'
 import type { DeepWorkConnectionLineData } from './edges/DeepWorkConnectionLine'
 import { NodeQuickCreate } from './NodeQuickCreate'
+import { RadialTypePicker } from './RadialTypePicker'
+import { useSortedUserTaskTypes } from '../../store/useUserTaskTypeStore'
+import { useTaskStore } from '../../store/useTaskStore'
 import { logger } from '@/logger'
 
 import 'reactflow/dist/style.css'
+
+// =============================================================================
+// Types
+// =============================================================================
+
+interface TypePickerState {
+  nodeId: string
+  taskId: string
+  flowPosition: { x: number; y: number }
+}
 
 // =============================================================================
 // Component
@@ -49,8 +62,13 @@ export function DeepWorkCanvas({ onConnect, onDisconnect }: DeepWorkCanvasProps)
   const moveNodes = useDeepWorkBoardStore((s) => s.moveNodes)
   const addNode = useDeepWorkBoardStore((s) => s.addNode)
   const saveViewport = useDeepWorkBoardStore((s) => s.saveViewport)
+  const refreshNodes = useDeepWorkBoardStore((s) => s.refreshNodes)
+
+  const updateTask = useTaskStore((s) => s.updateTask)
+  const userTypes = useSortedUserTaskTypes()
 
   const [quickCreatePos, setQuickCreatePos] = useState<{ x: number; y: number } | null>(null)
+  const [typePickerState, setTypePickerState] = useState<TypePickerState | null>(null)
   const reactFlowInstanceRef = useRef<ReactFlowInstance | null>(null)
   const containerRef = useRef<HTMLDivElement>(null)
 
@@ -156,19 +174,54 @@ export function DeepWorkCanvas({ onConnect, onDisconnect }: DeepWorkCanvasProps)
     setQuickCreatePos(position)
   }, [])
 
-  // Handle quick-create confirm → create node
+  // Handle quick-create confirm → create node, then show type picker
   const handleQuickCreateConfirm = useCallback(async (name: string) => {
     if (!quickCreatePos) return
+    const pos = quickCreatePos // Capture before clearing
+    setQuickCreatePos(null)
+    setTypePickerState(null) // Dismiss any existing picker
     try {
-      await addNode(quickCreatePos, name)
-    } finally {
-      setQuickCreatePos(null)
+      const node = await addNode(pos, name)
+      // Show type picker only when there are multiple types to choose from
+      if (node.task && userTypes.length > 1) {
+        setTypePickerState({
+          nodeId: node.id,
+          taskId: node.task.id,
+          flowPosition: pos,
+        })
+      }
+    } catch (error) {
+      logger.ui.error('Failed to create node', {
+        error: error instanceof Error ? error.message : String(error),
+      }, 'dwb-quick-create-error')
     }
-  }, [quickCreatePos, addNode])
+  }, [quickCreatePos, addNode, userTypes.length])
 
   // Handle quick-create cancel
   const handleQuickCreateCancel = useCallback(() => {
     setQuickCreatePos(null)
+  }, [])
+
+  // Handle type picker selection → update task type, refresh nodes
+  const handleTypePickerSelect = useCallback(async (typeId: string): Promise<void> => {
+    if (!typePickerState) return
+    try {
+      await updateTask(typePickerState.taskId, { type: typeId })
+      await refreshNodes()
+    } catch (error) {
+      logger.ui.error('Failed to update node type', {
+        error: error instanceof Error ? error.message : String(error),
+        taskId: typePickerState.taskId,
+        typeId,
+      }, 'dwb-type-picker-error')
+    } finally {
+      setTypePickerState(null)
+    }
+  }, [typePickerState, updateTask, refreshNodes])
+
+  // Handle type picker dismiss
+  const handleTypePickerDismiss = useCallback((): void => {
+    setTypePickerState(null)
   }, [])
 
   // Handle edge connection
@@ -217,7 +270,7 @@ export function DeepWorkCanvas({ onConnect, onDisconnect }: DeepWorkCanvasProps)
         onConnect={handleConnect}
         onEdgesDelete={handleEdgesDelete}
         onMoveEnd={handleMoveEnd}
-        onPaneClick={() => setQuickCreatePos(null)}
+        onPaneClick={() => { setQuickCreatePos(null); setTypePickerState(null) }}
         onInit={handleInit}
         nodeTypes={nodeTypes}
         edgeTypes={edgeTypes}
@@ -255,6 +308,16 @@ export function DeepWorkCanvas({ onConnect, onDisconnect }: DeepWorkCanvasProps)
           position={reactFlowInstanceRef.current.flowToScreenPosition(quickCreatePos)}
           onConfirm={handleQuickCreateConfirm}
           onCancel={handleQuickCreateCancel}
+        />
+      )}
+
+      {/* Radial type picker overlay (shown after node creation for quick type assignment) */}
+      {typePickerState && reactFlowInstanceRef.current && (
+        <RadialTypePicker
+          position={reactFlowInstanceRef.current.flowToScreenPosition(typePickerState.flowPosition)}
+          currentTypeId={storeNodes.get(typePickerState.nodeId)?.task?.type ?? ''}
+          onSelect={handleTypePickerSelect}
+          onDismiss={handleTypePickerDismiss}
         />
       )}
     </div>
