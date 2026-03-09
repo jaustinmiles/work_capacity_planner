@@ -3,6 +3,8 @@ import { Form, Input, Button, Radio, Typography, Space, Alert, Checkbox } from '
 import { IconMessage, IconSave } from '@arco-design/web-react/icon'
 import { Message } from '../common/Message'
 import { logger } from '@/logger'
+import { saveFeedback as saveFeedbackViaService, type FeedbackItem } from '../../services/feedback-service'
+import { getCurrentTime } from '@shared/time-provider'
 
 const FormItem = Form.Item
 const TextArea = Input.TextArea
@@ -14,9 +16,10 @@ interface FeedbackFormProps {
   onClose?: () => void
 }
 
-interface FeedbackData {
-  type: 'bug' | 'feature' | 'improvement' | 'other'
-  priority: 'low' | 'medium' | 'high' | 'critical'
+/** Form values before adding timestamp and sessionId */
+interface FeedbackFormValues {
+  type: FeedbackItem['type']
+  priority: FeedbackItem['priority']
   title: string
   description: string
   components?: string[]
@@ -24,8 +27,6 @@ interface FeedbackData {
   expected?: string
   actual?: string
   context?: string
-  timestamp: string
-  sessionId: string
 }
 
 // Component options that map to actual files
@@ -60,7 +61,7 @@ const COMPONENT_OPTIONS = [
 export function FeedbackForm({ onClose }: FeedbackFormProps): React.ReactElement {
   const [form] = Form.useForm()
   const [loading, setLoading] = useState(false)
-  const [feedbackType, setFeedbackType] = useState<FeedbackData['type']>('improvement')
+  const [feedbackType, setFeedbackType] = useState<FeedbackItem['type']>('improvement')
 
   // Set default values when component mounts
   React.useEffect(() => {
@@ -72,19 +73,25 @@ export function FeedbackForm({ onClose }: FeedbackFormProps): React.ReactElement
 
   const handleSubmit = async (): Promise<void> => {
     try {
-      const values = await form.validate()
+      const values: FeedbackFormValues = await form.validate()
       setLoading(true)
 
       const sessionId = await window.electronAPI?.getSessionId?.() || 'unknown'
 
-      const feedback: FeedbackData = {
-        ...values,
-        timestamp: new Date().toISOString(),
+      const feedback: FeedbackItem = {
+        type: values.type,
+        priority: values.priority,
+        title: values.title,
+        description: values.description,
+        components: values.components,
+        steps: values.steps,
+        expected: values.expected,
+        actual: values.actual,
+        timestamp: getCurrentTime().toISOString(),
         sessionId,
       }
 
-      // Save feedback to a JSON file in the context folder for Claude to see
-      await saveFeedback(feedback)
+      await saveFeedbackViaService(feedback)
 
       Message.success('Feedback saved successfully!')
       logger.ui.info('Feedback submitted:', feedback)
@@ -98,28 +105,6 @@ export function FeedbackForm({ onClose }: FeedbackFormProps): React.ReactElement
       Message.error('Failed to save feedback')
     } finally {
       setLoading(false)
-    }
-  }
-
-  const saveFeedback = async (feedback: FeedbackData): Promise<void> => {
-    try {
-      // Get existing feedback or create new array
-      const existingFeedback = await window.electronAPI?.readFeedback?.() || []
-
-      // Add new feedback
-      const updatedFeedback = [...existingFeedback, feedback]
-
-      // Save to file
-      await window.electronAPI?.saveFeedback?.(updatedFeedback)
-    } catch (_error) {
-      // If the API doesn't exist yet, save to localStorage as fallback
-      const storedFeedback = window.localStorage.getItem('app_feedback')
-      const existing = storedFeedback ? JSON.parse(storedFeedback) : []
-      existing.push(feedback)
-      window.localStorage.setItem('app_feedback', JSON.stringify(existing))
-
-      // Also write to context folder if possible
-      logger.ui.info('Feedback saved to localStorage:', feedback)
     }
   }
 
@@ -150,7 +135,7 @@ export function FeedbackForm({ onClose }: FeedbackFormProps): React.ReactElement
         <FormItem label="Feedback Type" field="type" rules={[{ required: true }]}>
           <RadioGroup
             value={feedbackType}
-            onChange={(value) => setFeedbackType(value as FeedbackData['type'])}
+            onChange={(value) => setFeedbackType(value as FeedbackItem['type'])}
           >
             <Radio value="bug">Bug Report</Radio>
             <Radio value="feature">Feature Request</Radio>
