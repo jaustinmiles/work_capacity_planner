@@ -24,23 +24,14 @@ import {
   IconQuestionCircleFill,
   IconEdit,
 } from '@arco-design/web-react/icon'
+import {
+  loadFeedback as loadFeedbackFromService,
+  updateFeedback as updateFeedbackViaService,
+  type FeedbackItem,
+} from '../../services/feedback-service'
 
 const { Text, Paragraph } = Typography
 const { TextArea } = Input
-
-interface FeedbackItem {
-  type: 'bug' | 'feature' | 'improvement' | 'other'
-  priority: 'low' | 'medium' | 'high' | 'critical'
-  title: string
-  description: string
-  components?: string[]
-  steps?: string
-  expected?: string
-  actual?: string
-  timestamp: string
-  sessionId: string
-  resolved?: boolean
-}
 
 interface FeedbackViewerProps {
   onClose?: () => void
@@ -57,48 +48,22 @@ export function FeedbackViewer({ onClose: _onClose }: FeedbackViewerProps) {
   const [editForm, setEditForm] = useState<Partial<FeedbackItem>>({})
 
   useEffect(() => {
-    loadFeedback()
+    handleLoadFeedback()
   }, [])
 
-  const loadFeedback = async () => {
+  const handleLoadFeedback = async (): Promise<void> => {
     setLoading(true)
     try {
-      if (window.electronAPI?.loadFeedback) {
-        const data = await window.electronAPI.loadFeedback()
-        const flattenedData = flattenFeedback(data)
-        setFeedback(flattenedData)
-      } else if (typeof window !== 'undefined' && window.localStorage) {
-        const stored = window.localStorage.getItem('task-planner-feedback')
-        if (stored) {
-          const data = JSON.parse(stored)
-          const flattenedData = flattenFeedback(data)
-          setFeedback(flattenedData)
-        }
-      }
+      const data = await loadFeedbackFromService()
+      setFeedback(data)
     } catch (error) {
-      console.error('Failed to load feedback:', error)
       Notification.error(`Failed to load feedback: ${String(error)}`)
     } finally {
       setLoading(false)
     }
   }
 
-  const flattenFeedback = (data: any): FeedbackItem[] => {
-    const items: FeedbackItem[] = []
-    const processItem = (item: any) => {
-      if (Array.isArray(item)) {
-        item.forEach(processItem)
-      } else if (item && typeof item === 'object' && 'type' in item) {
-        items.push(item as FeedbackItem)
-      }
-    }
-    if (Array.isArray(data)) {
-      data.forEach(processItem)
-    }
-    return items
-  }
-
-  const markAsResolved = async (itemIds: string[]) => {
+  const markAsResolved = async (itemIds: string[]): Promise<void> => {
     try {
       const updatedFeedback = feedback.map(item => {
         if (itemIds.some(id => `${item.timestamp}-${item.sessionId}` === id)) {
@@ -107,22 +72,16 @@ export function FeedbackViewer({ onClose: _onClose }: FeedbackViewerProps) {
         return item
       })
 
-      if (window.electronAPI?.updateFeedback) {
-        await window.electronAPI.updateFeedback(updatedFeedback)
-      } else if (typeof window !== 'undefined' && window.localStorage) {
-        window.localStorage.setItem('task-planner-feedback', JSON.stringify(updatedFeedback))
-      }
-
+      await updateFeedbackViaService(updatedFeedback)
       setFeedback(updatedFeedback)
       setSelectedIds(new Set())
       Notification.success(`${itemIds.length} item(s) marked as resolved`)
     } catch (error) {
-      console.error('Failed to update feedback:', error)
       Notification.error(`Failed to update feedback: ${String(error)}`)
     }
   }
 
-  const markAsUnresolved = async (itemIds: string[]) => {
+  const markAsUnresolved = async (itemIds: string[]): Promise<void> => {
     try {
       const updatedFeedback = feedback.map(item => {
         if (itemIds.some(id => `${item.timestamp}-${item.sessionId}` === id)) {
@@ -131,17 +90,11 @@ export function FeedbackViewer({ onClose: _onClose }: FeedbackViewerProps) {
         return item
       })
 
-      if (window.electronAPI?.updateFeedback) {
-        await window.electronAPI.updateFeedback(updatedFeedback)
-      } else if (typeof window !== 'undefined' && window.localStorage) {
-        window.localStorage.setItem('task-planner-feedback', JSON.stringify(updatedFeedback))
-      }
-
+      await updateFeedbackViaService(updatedFeedback)
       setFeedback(updatedFeedback)
       setSelectedIds(new Set())
       Notification.success(`${itemIds.length} item(s) marked as pending`)
     } catch (error) {
-      console.error('Failed to update feedback:', error)
       Notification.error(`Failed to update feedback: ${String(error)}`)
     }
   }
@@ -205,7 +158,7 @@ export function FeedbackViewer({ onClose: _onClose }: FeedbackViewerProps) {
     setEditForm({ ...item })
   }
 
-  const handleSaveEdit = async () => {
+  const handleSaveEdit = async (): Promise<void> => {
     if (!editingItem || !editForm) return
 
     try {
@@ -216,20 +169,14 @@ export function FeedbackViewer({ onClose: _onClose }: FeedbackViewerProps) {
           return { ...item, ...editForm }
         }
         return item
-      })
+      }) as FeedbackItem[]
 
-      if (window.electronAPI?.updateFeedback) {
-        await window.electronAPI.updateFeedback(updatedFeedback)
-      } else if (typeof window !== 'undefined' && window.localStorage) {
-        window.localStorage.setItem('task-planner-feedback', JSON.stringify(updatedFeedback))
-      }
-
+      await updateFeedbackViaService(updatedFeedback)
       setFeedback(updatedFeedback)
       setEditingItem(null)
       setEditForm({})
       Notification.success('Feedback item updated successfully')
     } catch (error) {
-      console.error('Failed to update feedback:', error)
       Notification.error(`Failed to update feedback: ${String(error)}`)
     }
   }
@@ -255,7 +202,7 @@ export function FeedbackViewer({ onClose: _onClose }: FeedbackViewerProps) {
               </Radio.Group>
             </Space>
             <Space>
-              <Button icon={<IconRefresh />} onClick={loadFeedback}>
+              <Button icon={<IconRefresh />} onClick={handleLoadFeedback}>
                 Refresh
               </Button>
               {selectedIds.size > 0 && (
@@ -277,12 +224,15 @@ export function FeedbackViewer({ onClose: _onClose }: FeedbackViewerProps) {
             </Space>
           </Space>
 
-          <Space style={{ marginBottom: 16 }}>
+          <Space style={{ marginBottom: 16 }} wrap>
             <Text>Type Filter:</Text>
             <Checkbox.Group value={typeFilter} onChange={setTypeFilter}>
               <Checkbox value="bug">Bug</Checkbox>
               <Checkbox value="feature">Feature</Checkbox>
               <Checkbox value="improvement">Improvement</Checkbox>
+              <Checkbox value="technical_debt">Tech Debt</Checkbox>
+              <Checkbox value="enhancement">Enhancement</Checkbox>
+              <Checkbox value="refactoring">Refactoring</Checkbox>
               <Checkbox value="other">Other</Checkbox>
             </Checkbox.Group>
           </Space>
@@ -447,6 +397,9 @@ export function FeedbackViewer({ onClose: _onClose }: FeedbackViewerProps) {
                 <Select.Option value="bug">Bug</Select.Option>
                 <Select.Option value="feature">Feature</Select.Option>
                 <Select.Option value="improvement">Improvement</Select.Option>
+                <Select.Option value="technical_debt">Technical Debt</Select.Option>
+                <Select.Option value="enhancement">Enhancement</Select.Option>
+                <Select.Option value="refactoring">Refactoring</Select.Option>
                 <Select.Option value="other">Other</Select.Option>
               </Select>
             </div>

@@ -9,7 +9,10 @@
  *   unresolved - Show all unresolved feedback items
  *   summary - Show summary of feedback by status
  *   high - Show high priority unresolved items
- *   by-type [type] - Show unresolved items of specific type (bug/feature/improvement)
+ *   by-type [type] - Show unresolved items of specific type
+ *     Types: bug, feature, improvement, technical_debt, enhancement, refactoring, other
+ *   resolve [title] - Mark item(s) as resolved by title substring match
+ *   add [type] [priority] [title] [description] - Add a new feedback item
  */
 
 const fs = require('fs')
@@ -54,6 +57,9 @@ function getTypeColor(type) {
     case 'bug': return colors.red
     case 'feature': return colors.blue
     case 'improvement': return colors.cyan
+    case 'technical_debt': return colors.magenta
+    case 'enhancement': return colors.green
+    case 'refactoring': return colors.yellow
     default: return colors.reset
   }
 }
@@ -171,16 +177,71 @@ function showByType(type) {
   filtered.forEach((item, index) => formatFeedbackItem(item, index))
 }
 
+function resolveFeedback(titleSearch) {
+  const feedback = loadFeedback()
+  const searchLower = titleSearch.toLowerCase()
+  let resolvedCount = 0
+
+  feedback.forEach(item => {
+    if (!item.resolved && item.title.toLowerCase().includes(searchLower)) {
+      item.resolved = true
+      item.resolvedDate = new Date().toISOString()
+      resolvedCount++
+      console.log(`${colors.green}✓ Resolved:${colors.reset} ${item.title}`)
+    }
+  })
+
+  if (resolvedCount === 0) {
+    console.log(`${colors.yellow}No unresolved items matching "${titleSearch}" found.${colors.reset}`)
+    return
+  }
+
+  fs.writeFileSync(FEEDBACK_FILE, JSON.stringify(feedback, null, 2))
+  console.log(`\n${colors.bold}Resolved ${resolvedCount} item(s).${colors.reset}`)
+}
+
+const VALID_TYPES = ['bug', 'feature', 'improvement', 'technical_debt', 'enhancement', 'refactoring', 'other']
+const VALID_PRIORITIES = ['critical', 'high', 'medium', 'low']
+
+function addFeedback(type, priority, title, description) {
+  if (!VALID_TYPES.includes(type)) {
+    console.error(`Invalid type: ${type}. Valid types: ${VALID_TYPES.join(', ')}`)
+    process.exit(1)
+  }
+  if (!VALID_PRIORITIES.includes(priority)) {
+    console.error(`Invalid priority: ${priority}. Valid priorities: ${VALID_PRIORITIES.join(', ')}`)
+    process.exit(1)
+  }
+
+  const feedback = loadFeedback()
+  const newItem = {
+    type,
+    priority,
+    title,
+    description,
+    components: [],
+    timestamp: new Date().toISOString(),
+    sessionId: 'cli-feedback-utils',
+    resolved: false,
+  }
+
+  feedback.push(newItem)
+  fs.writeFileSync(FEEDBACK_FILE, JSON.stringify(feedback, null, 2))
+  console.log(`${colors.green}✓ Added new ${type} feedback:${colors.reset} ${title}`)
+}
+
 function showHelp() {
   console.log(`${colors.bold}Feedback Utility Script${colors.reset}`)
   console.log('\nUsage: node scripts/feedback-utils.js [command] [options]\n')
   console.log('Commands:')
-  console.log('  unresolved    - Show all unresolved feedback items (default)')
-  console.log('  summary       - Show summary of feedback by status')
-  console.log('  high          - Show high/critical priority unresolved items')
-  console.log('  by-type TYPE  - Show unresolved items of specific type')
-  console.log('                  Types: bug, feature, improvement')
-  console.log('  help          - Show this help message')
+  console.log('  unresolved          - Show all unresolved feedback items (default)')
+  console.log('  summary             - Show summary of feedback by status')
+  console.log('  high                - Show high/critical priority unresolved items')
+  console.log('  by-type TYPE        - Show unresolved items of specific type')
+  console.log(`                        Types: ${VALID_TYPES.join(', ')}`)
+  console.log('  resolve TITLE       - Mark items as resolved by title substring match')
+  console.log('  add TYPE PRI TITLE DESC - Add a new feedback item')
+  console.log('  help                - Show this help message')
 }
 
 // Main execution
@@ -199,11 +260,30 @@ switch (command) {
     break
   case 'by-type':
     if (!arg) {
-      console.error('Please specify a type: bug, feature, or improvement')
+      console.error(`Please specify a type: ${VALID_TYPES.join(', ')}`)
       process.exit(1)
     }
     showByType(arg)
     break
+  case 'resolve':
+    if (!arg) {
+      console.error('Please specify a title substring to match')
+      process.exit(1)
+    }
+    resolveFeedback(process.argv.slice(3).join(' '))
+    break
+  case 'add': {
+    const addType = process.argv[3]
+    const addPriority = process.argv[4]
+    const addTitle = process.argv[5]
+    const addDescription = process.argv.slice(6).join(' ')
+    if (!addType || !addPriority || !addTitle || !addDescription) {
+      console.error('Usage: add TYPE PRIORITY TITLE DESCRIPTION')
+      process.exit(1)
+    }
+    addFeedback(addType, addPriority, addTitle, addDescription)
+    break
+  }
   case 'help':
   case '--help':
   case '-h':

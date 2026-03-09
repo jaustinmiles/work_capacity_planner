@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
-import { Typography, Tooltip, Button, Switch } from '@arco-design/web-react'
-import { IconDown, IconRight, IconZoomIn, IconZoomOut } from '@arco-design/web-react/icon'
+import { Typography, Tooltip, Button, Switch, Input, Select, Space } from '@arco-design/web-react'
+import { IconDown, IconRight, IconZoomIn, IconZoomOut, IconPlus, IconCheck, IconClose } from '@arco-design/web-react/icon'
 import { Task } from '@shared/types'
 import { SequencedTask } from '@shared/sequencing-types'
 import {
@@ -39,6 +39,16 @@ interface SwimLaneTimelineProps {
   wakeTimeHour?: number
   maxHeight?: number | string
   dayCount?: number // Dynamic day count for ultra-wide screens (default: 3)
+  onQuickCreateTask?: (data: QuickCreateTaskData) => Promise<void>
+}
+
+/** Minimal data for quick task creation from swim lanes */
+export interface QuickCreateTaskData {
+  name: string
+  type: string // UserTaskType.id
+  duration: number // minutes
+  importance: number // 1-10
+  urgency: number // 1-10
 }
 
 // Note: Time label width is now responsive - see responsiveTimeLabelWidth in component
@@ -76,6 +86,7 @@ export function SwimLaneTimeline({
   wakeTimeHour = 6,
   maxHeight,
   dayCount = DEFAULT_TOTAL_DAYS,
+  onQuickCreateTask,
 }: SwimLaneTimelineProps) {
   // Calculate total hours based on day count
   const TOTAL_DAYS = dayCount
@@ -100,6 +111,13 @@ export function SwimLaneTimeline({
   const sessionFontSize = Math.max(9, Math.min(13, 11 * Math.sqrt(zoomFactor)))
   const [currentTime, setCurrentTime] = useState(new Date())
   const [showCircadianRhythm, setShowCircadianRhythm] = useState(false)
+
+  // Quick-create task state
+  const [showQuickCreate, setShowQuickCreate] = useState(false)
+  const [quickCreateName, setQuickCreateName] = useState('')
+  const [quickCreateType, setQuickCreateType] = useState('')
+  const [quickCreateDuration, setQuickCreateDuration] = useState(60)
+  const [quickCreateLoading, setQuickCreateLoading] = useState(false)
 
   // Responsive container measurement - now actively used for responsive sizing
   const { ref: timelineRef, width: containerWidth, isNarrow } = useContainerQuery<HTMLDivElement>()
@@ -575,6 +593,38 @@ export function SwimLaneTimeline({
     }
     return undefined
   }, [dragState, creatingSession, onSessionUpdate, onSessionCreate, hourWidth])
+
+  const DEFAULT_IMPORTANCE = 5
+  const DEFAULT_URGENCY = 5
+
+  const handleQuickCreate = async (): Promise<void> => {
+    if (!quickCreateName.trim() || !quickCreateType || !onQuickCreateTask) return
+
+    setQuickCreateLoading(true)
+    try {
+      await onQuickCreateTask({
+        name: quickCreateName.trim(),
+        type: quickCreateType,
+        duration: quickCreateDuration,
+        importance: DEFAULT_IMPORTANCE,
+        urgency: DEFAULT_URGENCY,
+      })
+      // Reset form on success
+      setQuickCreateName('')
+      setQuickCreateType('')
+      setQuickCreateDuration(60)
+      setShowQuickCreate(false)
+    } finally {
+      setQuickCreateLoading(false)
+    }
+  }
+
+  const handleQuickCreateCancel = (): void => {
+    setShowQuickCreate(false)
+    setQuickCreateName('')
+    setQuickCreateType('')
+    setQuickCreateDuration(60)
+  }
 
   return (
     <div style={{
@@ -1135,6 +1185,113 @@ export function SwimLaneTimeline({
               </div>
             </div>
           ))}
+
+          {/* Quick-create task row */}
+          {onQuickCreateTask && (
+            <div
+              style={{
+                borderBottom: '1px solid #e5e6eb',
+                display: 'flex',
+                position: 'relative',
+                width: responsiveTimeLabelWidth + TOTAL_HOURS * hourWidth,
+                minWidth: responsiveTimeLabelWidth + TOTAL_HOURS * hourWidth,
+                minHeight: showQuickCreate ? 'auto' : laneHeight,
+                height: showQuickCreate ? 'auto' : laneHeight,
+                background: showQuickCreate ? '#f7f8fa' : 'transparent',
+              }}
+            >
+              <div
+                style={{
+                  width: responsiveTimeLabelWidth,
+                  minWidth: responsiveTimeLabelWidth,
+                  borderRight: '1px solid #e5e6eb',
+                  padding: '4px',
+                  display: 'flex',
+                  alignItems: showQuickCreate ? 'flex-start' : 'center',
+                  justifyContent: showQuickCreate ? 'flex-start' : 'center',
+                  background: '#f7f8fa',
+                  position: 'sticky',
+                  left: 0,
+                  zIndex: 5,
+                  flexShrink: 0,
+                }}
+              >
+                {showQuickCreate ? (
+                  <Space direction="vertical" size="small" style={{ width: '100%', padding: '4px 0' }}>
+                    <Input
+                      placeholder="Task name"
+                      size="small"
+                      value={quickCreateName}
+                      onChange={setQuickCreateName}
+                      autoFocus
+                      onPressEnter={() => {
+                        if (quickCreateName.trim() && quickCreateType) {
+                          void handleQuickCreate()
+                        }
+                      }}
+                      style={{ width: '100%' }}
+                    />
+                    <Select
+                      placeholder="Type"
+                      size="small"
+                      value={quickCreateType || undefined}
+                      onChange={setQuickCreateType}
+                      style={{ width: '100%' }}
+                    >
+                      {userTaskTypes.map(t => (
+                        <Select.Option key={t.id} value={t.id}>
+                          {t.emoji} {t.name}
+                        </Select.Option>
+                      ))}
+                    </Select>
+                    <Input
+                      placeholder="Duration (min)"
+                      size="small"
+                      type="number"
+                      value={String(quickCreateDuration)}
+                      onChange={(val) => setQuickCreateDuration(Math.max(5, Number(val) || 60))}
+                      style={{ width: '100%' }}
+                      addAfter="min"
+                    />
+                    <Space>
+                      <Button
+                        size="mini"
+                        type="primary"
+                        icon={<IconCheck />}
+                        onClick={() => void handleQuickCreate()}
+                        loading={quickCreateLoading}
+                        disabled={!quickCreateName.trim() || !quickCreateType}
+                      >
+                        Create
+                      </Button>
+                      <Button
+                        size="mini"
+                        icon={<IconClose />}
+                        onClick={handleQuickCreateCancel}
+                      >
+                        Cancel
+                      </Button>
+                    </Space>
+                  </Space>
+                ) : (
+                  <Button
+                    size="mini"
+                    type="text"
+                    icon={<IconPlus />}
+                    onClick={() => setShowQuickCreate(true)}
+                    style={{ color: '#86909c' }}
+                  >
+                    Add Task
+                  </Button>
+                )}
+              </div>
+              {/* Empty timeline area for the add row */}
+              <div style={{
+                flex: 1,
+                minHeight: laneHeight,
+              }} />
+            </div>
+          )}
         </div>
       </div>
     </div>

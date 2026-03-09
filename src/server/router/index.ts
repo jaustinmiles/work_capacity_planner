@@ -22,6 +22,7 @@ import { speechRouter } from './speech'
 import { aiRouter } from './ai'
 import { endeavorRouter } from './endeavor'
 import { deepWorkBoardRouter } from './deepWorkBoard'
+import { feedbackRouter } from './feedback'
 
 /**
  * Main application router
@@ -43,6 +44,7 @@ import { deepWorkBoardRouter } from './deepWorkBoard'
  * - ai: AI operations (Claude for chat, brainstorm, workflows)
  * - endeavor: Higher-level goal grouping for workflows/tasks
  * - deepWorkBoard: Freeform whiteboard canvas for task creation and execution
+ * - feedback: Development feedback (file-based, context/feedback.json)
  */
 export const appRouter = router({
   session: sessionRouter,
@@ -61,6 +63,7 @@ export const appRouter = router({
   ai: aiRouter,
   endeavor: endeavorRouter,
   deepWorkBoard: deepWorkBoardRouter,
+  feedback: feedbackRouter,
 })
 
 /**

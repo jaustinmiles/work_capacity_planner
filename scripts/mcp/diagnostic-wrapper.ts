@@ -60,10 +60,52 @@ class DiagnosticWrapper {
                 },
                 type: {
                   type: 'string',
-                  enum: ['bug', 'feature', 'improvement'],
+                  enum: ['bug', 'feature', 'improvement', 'technical_debt', 'enhancement', 'refactoring', 'other'],
                   description: 'Filter by feedback type',
                 },
               },
+            },
+          },
+          {
+            name: 'resolve_feedback',
+            description: 'Mark feedback item(s) as resolved by title substring match',
+            inputSchema: {
+              type: 'object',
+              properties: {
+                title: {
+                  type: 'string',
+                  description: 'Title substring to match (case-insensitive)',
+                },
+              },
+              required: ['title'],
+            },
+          },
+          {
+            name: 'add_feedback',
+            description: 'Add a new feedback item',
+            inputSchema: {
+              type: 'object',
+              properties: {
+                type: {
+                  type: 'string',
+                  enum: ['bug', 'feature', 'improvement', 'technical_debt', 'enhancement', 'refactoring', 'other'],
+                  description: 'Feedback type',
+                },
+                priority: {
+                  type: 'string',
+                  enum: ['critical', 'high', 'medium', 'low'],
+                  description: 'Priority level',
+                },
+                title: {
+                  type: 'string',
+                  description: 'Feedback title',
+                },
+                description: {
+                  type: 'string',
+                  description: 'Detailed description',
+                },
+              },
+              required: ['type', 'priority', 'title', 'description'],
             },
           },
           {
@@ -275,6 +317,12 @@ class DiagnosticWrapper {
           case 'get_next_feedback':
             return await this.callFeedbackUtils(args)
 
+          case 'resolve_feedback':
+            return await this.callResolveFeedback(args)
+
+          case 'add_feedback':
+            return await this.callAddFeedback(args)
+
           case 'inspect_database':
             return await this.callDbInspector(args)
 
@@ -341,6 +389,38 @@ class DiagnosticWrapper {
         {
           type: 'text',
           text: `**Feedback Query Results**\n\n\`\`\`\n${output}\n\`\`\``,
+        },
+      ],
+    }
+  }
+
+  private async callResolveFeedback(args: Record<string, string>) {
+    const { title } = args
+    const scriptPath = path.join(process.cwd(), 'scripts/analysis/feedback-utils.js')
+
+    const output = await this.runScript('node', [scriptPath, 'resolve', title])
+
+    return {
+      content: [
+        {
+          type: 'text',
+          text: `**Feedback Resolve Results**\n\n\`\`\`\n${output}\n\`\`\``,
+        },
+      ],
+    }
+  }
+
+  private async callAddFeedback(args: Record<string, string>) {
+    const { type: feedbackType, priority, title, description } = args
+    const scriptPath = path.join(process.cwd(), 'scripts/analysis/feedback-utils.js')
+
+    const output = await this.runScript('node', [scriptPath, 'add', feedbackType, priority, title, description])
+
+    return {
+      content: [
+        {
+          type: 'text',
+          text: `**Feedback Add Results**\n\n\`\`\`\n${output}\n\`\`\``,
         },
       ],
     }

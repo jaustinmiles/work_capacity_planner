@@ -33,14 +33,14 @@ import { useSortedUserTaskTypes } from '../../store/useUserTaskTypeStore'
 import { useActiveSinkSession, useSortedTimeSinks } from '../../store/useTimeSinkStore'
 import { getDatabase } from '../../services/database'
 import { logger } from '@/logger'
-import { SwimLaneTimeline } from './SwimLaneTimeline'
+import { SwimLaneTimeline, type QuickCreateTaskData } from './SwimLaneTimeline'
 import { CircularClock } from './CircularClock'
 import { LinearTimeline } from './LinearTimeline'
 import { WorkBlock } from '@shared/work-blocks-types'
 import { ClockTimePicker } from '../common/ClockTimePicker'
 import { useResponsive } from '../../providers/ResponsiveProvider'
 import { useLayoutStore } from '../../store/useLayoutStore'
-import { WorkLoggerLayoutMode } from '@shared/enums'
+import { WorkLoggerLayoutMode, TaskStatus } from '@shared/enums'
 import { ULTRA_WIDE_DEFAULTS } from '@shared/constants'
 import {
   WorkSessionData,
@@ -96,6 +96,7 @@ export function WorkLoggerDual({ visible, onClose }: WorkLoggerDualProps) {
   const [showCircadianSettings, setShowCircadianSettings] = useState(false)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [showPlannedOverlay, setShowPlannedOverlay] = useState(false)
+  const [taskSearchQuery, setTaskSearchQuery] = useState('')
 
   // Get today's frozen schedule snapshot
   const todaySnapshot = useTodaySnapshot()
@@ -700,11 +701,17 @@ export function WorkLoggerDual({ visible, onClose }: WorkLoggerDualProps) {
     }
   }
 
-  // Get available tasks for assignment
+  // Get available tasks for assignment (excludes completed and archived)
   const availableTasks = useMemo(() => {
     const options: TaskSelectOption[] = []
 
-    const allTasks = [...tasks, ...sequencedTasks]
+    // Filter out completed and archived tasks before building options
+    const activeTasks = tasks.filter(t => !t.completed && !t.archived)
+    const activeSequenced = sequencedTasks.filter(t =>
+      t.overallStatus !== 'completed' && !t.archived,
+    )
+
+    const allTasks = [...activeTasks, ...activeSequenced]
     allTasks.forEach(task => {
       if (!task.hasSteps) {
         options.push({
@@ -803,6 +810,31 @@ export function WorkLoggerDual({ visible, onClose }: WorkLoggerDualProps) {
   // Callback to handle workflow expansion changes from SwimLaneTimeline
   const handleWorkflowExpansionChange = useCallback((expanded: Set<string>) => {
     setExpandedWorkflows(expanded)
+  }, [])
+
+  // Quick-create task from swim lane — creates a minimal task via the store
+  const handleQuickCreateTask = useCallback(async (data: QuickCreateTaskData): Promise<void> => {
+    const db = getDatabase()
+    const session = await db.getCurrentSession()
+    if (!session) return
+
+    await useTaskStore.getState().addTask({
+      name: data.name,
+      type: data.type,
+      duration: data.duration,
+      importance: data.importance,
+      urgency: data.urgency,
+      asyncWaitTime: 0,
+      dependencies: [],
+      completed: false,
+      hasSteps: false,
+      overallStatus: TaskStatus.NotStarted,
+      criticalPathDuration: 0,
+      worstCaseDuration: 0,
+      archived: false,
+      inActiveSprint: false,
+      sessionId: session.id,
+    })
   }, [])
 
   return (
@@ -1071,6 +1103,7 @@ export function WorkLoggerDual({ visible, onClose }: WorkLoggerDualProps) {
                       onSessionSelect={(id) => setSelectedSessionId(id || null)}
                       expandedWorkflows={expandedWorkflows}
                       onExpandedWorkflowsChange={handleWorkflowExpansionChange}
+                      onQuickCreateTask={handleQuickCreateTask}
                       bedtimeHour={bedtimeHour}
                       wakeTimeHour={wakeTimeHour}
                       maxHeight={isCompact ? 500 : 800}
@@ -1185,6 +1218,7 @@ export function WorkLoggerDual({ visible, onClose }: WorkLoggerDualProps) {
                     onSessionSelect={(id) => setSelectedSessionId(id || null)}
                     expandedWorkflows={expandedWorkflows}
                     onExpandedWorkflowsChange={handleWorkflowExpansionChange}
+                    onQuickCreateTask={handleQuickCreateTask}
                     bedtimeHour={bedtimeHour}
                     wakeTimeHour={wakeTimeHour}
                     maxHeight={isCompact ? 500 : 700}
@@ -1221,6 +1255,7 @@ export function WorkLoggerDual({ visible, onClose }: WorkLoggerDualProps) {
                     onSessionSelect={(id) => setSelectedSessionId(id || null)}
                     expandedWorkflows={expandedWorkflows}
                     onExpandedWorkflowsChange={handleWorkflowExpansionChange}
+                    onQuickCreateTask={handleQuickCreateTask}
                     bedtimeHour={bedtimeHour}
                     wakeTimeHour={wakeTimeHour}
                     maxHeight={isCompact ? 500 : isMobile ? 600 : 700}
@@ -1345,6 +1380,7 @@ export function WorkLoggerDual({ visible, onClose }: WorkLoggerDualProps) {
         onCancel={() => {
           setPendingSession(null)
           setShowAssignModal(false)
+          setTaskSearchQuery('')
         }}
       >
         {pendingSession && (
@@ -1353,7 +1389,10 @@ export function WorkLoggerDual({ visible, onClose }: WorkLoggerDualProps) {
               Session time: {minutesToTime(pendingSession.startMinutes!)} - {minutesToTime(pendingSession.endMinutes!)}
             </Text>
             <Select
-              placeholder="Select task or workflow step"
+              placeholder="Search and select task or workflow step"
+              showSearch
+              filterOption={false}
+              onSearch={(inputValue) => setTaskSearchQuery(inputValue)}
               style={{ width: '100%' }}
               onChange={async (value) => {
                 logger.ui.debug('Task assignment selected', {
@@ -1456,9 +1495,12 @@ export function WorkLoggerDual({ visible, onClose }: WorkLoggerDualProps) {
 
                 setPendingSession(null)
                 setShowAssignModal(false)
+                setTaskSearchQuery('')
               }}
             >
-              {availableTasks.map(task => (
+              {availableTasks
+                .filter(task => !taskSearchQuery || task.label.toLowerCase().includes(taskSearchQuery.toLowerCase()))
+                .map(task => (
                 <Select.Option key={task.value} value={task.value}>
                   <Space>
                     <Tag
