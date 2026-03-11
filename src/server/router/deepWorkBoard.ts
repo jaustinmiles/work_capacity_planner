@@ -11,7 +11,7 @@ import { TRPCError } from '@trpc/server'
 import { router, sessionProcedure, protectedProcedure } from '../trpc'
 import { generateUniqueId } from '../../shared/step-id-utils'
 import { getCurrentTime } from '../../shared/time-provider'
-import { TaskStatus, StepStatus } from '../../shared/enums'
+import { TaskStatus, StepStatus, EndeavorStatus } from '../../shared/enums'
 import type { DeepWorkBoard, DeepWorkNode, DeepWorkNodeWithData, DeepWorkEdge } from '../../shared/deep-work-board-types'
 import type { MorphResult } from '../../shared/deep-work-board-types'
 import type { Task, TaskStep } from '../../shared/types'
@@ -25,6 +25,7 @@ import { buildConnectMorphResult, buildDisconnectMorphResult, classifyEdgeType, 
 
 const createBoardInput = z.object({
   name: z.string().min(1).max(100),
+  endeavorId: z.string().optional(),
 })
 
 const updateBoardInput = z.object({
@@ -83,6 +84,14 @@ const removeEdgeInput = z.object({
 })
 
 const importFromSprintInput = z.object({
+  boardId: z.string(),
+})
+
+const importFromEndeavorInput = z.object({
+  endeavorId: z.string(),
+})
+
+const syncBoardToEndeavorInput = z.object({
   boardId: z.string(),
 })
 
@@ -455,6 +464,7 @@ export const deepWorkBoardRouter = router({
           id: generateUniqueId('dwb'),
           sessionId: ctx.sessionId,
           name: input.name,
+          endeavorId: input.endeavorId ?? null,
           createdAt: now,
           updatedAt: now,
         },
@@ -877,5 +887,249 @@ export const deepWorkBoardRouter = router({
       }
 
       return newNodes
+    }),
+
+  // ============================================================================
+  // Endeavor Import / Sync
+  // ============================================================================
+
+  /**
+   * Create a board linked to an endeavor and import all its tasks/steps.
+   * If a board already exists for this endeavor, switch to it and import new items.
+   * Returns the board ID so the client can navigate to it.
+   */
+  importFromEndeavor: sessionProcedure
+    .input(importFromEndeavorInput)
+    .mutation(async ({ ctx, input }): Promise<{ boardId: string; newNodeCount: number }> => {
+      const now = getCurrentTime()
+
+      // Verify endeavor exists and is not archived
+      const endeavor = await ctx.prisma.endeavor.findUnique({
+        where: { id: input.endeavorId },
+        include: {
+          EndeavorItem: {
+            include: {
+              Task: {
+                include: { TaskStep: { orderBy: { stepIndex: 'asc' } } },
+              },
+            },
+            orderBy: { sortOrder: 'asc' },
+          },
+        },
+      })
+
+      if (!endeavor) {
+        throw new TRPCError({ code: 'NOT_FOUND', message: 'Endeavor not found' })
+      }
+      if (endeavor.status === EndeavorStatus.Archived) {
+        throw new TRPCError({ code: 'BAD_REQUEST', message: 'Cannot open archived endeavor in whiteboard' })
+      }
+
+      // Check if a board already exists for this endeavor
+      let board = await ctx.prisma.deepWorkBoard.findFirst({
+        where: { endeavorId: input.endeavorId },
+      })
+
+      if (!board) {
+        board = await ctx.prisma.deepWorkBoard.create({
+          data: {
+            id: generateUniqueId('dwb'),
+            sessionId: ctx.sessionId,
+            name: endeavor.name,
+            endeavorId: input.endeavorId,
+            createdAt: now,
+            updatedAt: now,
+          },
+        })
+      }
+
+      // Get existing nodes on this board to avoid duplicates
+      const existingNodes = await ctx.prisma.deepWorkNode.findMany({
+        where: { boardId: board.id },
+      })
+      const existingTaskIds = new Set(existingNodes.filter(n => n.taskId).map(n => n.taskId))
+      const existingStepIds = new Set(existingNodes.filter(n => n.stepId).map(n => n.stepId))
+
+      // Position new nodes to the right of existing ones
+      const maxX = existingNodes.length > 0
+        ? Math.max(...existingNodes.map(n => n.positionX)) + 300
+        : 100
+      const startY = 100
+      const nodeSpacingX = 280
+      const nodeSpacingY = 150
+      const nodesPerRow = 4
+
+      let nodeIndex = 0
+
+      for (const item of endeavor.EndeavorItem) {
+        const task = item.Task
+        if (task.archived) continue
+
+        if (task.hasSteps && task.TaskStep.length > 0) {
+          for (const step of task.TaskStep) {
+            if (existingStepIds.has(step.id)) continue
+
+            const col = nodeIndex % nodesPerRow
+            const row = Math.floor(nodeIndex / nodesPerRow)
+            await ctx.prisma.deepWorkNode.create({
+              data: {
+                id: generateUniqueId('dwn'),
+                boardId: board.id,
+                stepId: step.id,
+                positionX: maxX + col * nodeSpacingX,
+                positionY: startY + row * nodeSpacingY,
+                createdAt: now,
+                updatedAt: now,
+              },
+            })
+            nodeIndex++
+          }
+        } else {
+          if (existingTaskIds.has(task.id)) continue
+
+          const col = nodeIndex % nodesPerRow
+          const row = Math.floor(nodeIndex / nodesPerRow)
+          await ctx.prisma.deepWorkNode.create({
+            data: {
+              id: generateUniqueId('dwn'),
+              boardId: board.id,
+              taskId: task.id,
+              positionX: maxX + col * nodeSpacingX,
+              positionY: startY + row * nodeSpacingY,
+              createdAt: now,
+              updatedAt: now,
+            },
+          })
+          nodeIndex++
+        }
+      }
+
+      return { boardId: board.id, newNodeCount: nodeIndex }
+    }),
+
+  /**
+   * Sync board state back to the linked endeavor.
+   * - Adds any new tasks/workflows created on the board to the endeavor
+   * - Creates hard-block EndeavorDependencies from cross-workflow board edges
+   */
+  syncBoardToEndeavor: sessionProcedure
+    .input(syncBoardToEndeavorInput)
+    .mutation(async ({ ctx, input }): Promise<{ addedTasks: number; addedDependencies: number }> => {
+      const board = await ctx.prisma.deepWorkBoard.findUnique({
+        where: { id: input.boardId },
+      })
+
+      if (!board) {
+        throw new TRPCError({ code: 'NOT_FOUND', message: 'Board not found' })
+      }
+      if (!board.endeavorId) {
+        throw new TRPCError({ code: 'BAD_REQUEST', message: 'Board is not linked to an endeavor' })
+      }
+
+      const endeavorId = board.endeavorId
+      const now = getCurrentTime()
+
+      // Get all board nodes hydrated with task/step data
+      const boardNodes = await ctx.prisma.deepWorkNode.findMany({
+        where: { boardId: input.boardId },
+      })
+      const hydratedNodes = await Promise.all(boardNodes.map(n => hydrateNode(ctx.prisma, n)))
+
+      // Get existing endeavor items
+      const existingItems = await ctx.prisma.endeavorItem.findMany({
+        where: { endeavorId },
+      })
+      const existingTaskIds = new Set(existingItems.map(i => i.taskId))
+
+      // Find the max sort order for new items
+      const maxSortOrder = existingItems.length > 0
+        ? Math.max(...existingItems.map(i => i.sortOrder))
+        : -1
+      let nextSortOrder = maxSortOrder + 1
+
+      // 1. Add new tasks to endeavor
+      let addedTasks = 0
+      const taskIdsOnBoard = new Set<string>()
+
+      for (const node of hydratedNodes) {
+        // Determine which task this node represents
+        let taskId: string | null = null
+        if (node.taskId && node.task) {
+          taskId = node.taskId
+        } else if (node.stepId && node.parentTask) {
+          taskId = node.parentTask.id
+        }
+
+        if (!taskId) continue
+        if (taskIdsOnBoard.has(taskId)) continue // Already counted this workflow
+        taskIdsOnBoard.add(taskId)
+
+        if (!existingTaskIds.has(taskId)) {
+          await ctx.prisma.endeavorItem.create({
+            data: {
+              id: generateUniqueId('ei'),
+              endeavorId,
+              taskId,
+              sortOrder: nextSortOrder++,
+              addedAt: now,
+            },
+          })
+          addedTasks++
+        }
+      }
+
+      // 2. Create cross-workflow dependencies from board edges
+      // Find step nodes and their parent workflows
+      const stepNodeMap = new Map<string, { stepId: string; taskId: string }>()
+      for (const node of hydratedNodes) {
+        if (node.stepId && node.parentTask) {
+          stepNodeMap.set(node.id, { stepId: node.stepId, taskId: node.parentTask.id })
+        }
+      }
+
+      // Find cross-workflow edges by checking step dependencies
+      const existingDeps = await ctx.prisma.endeavorDependency.findMany({
+        where: { endeavorId },
+      })
+      const existingDepKeys = new Set(
+        existingDeps.map(d => `${d.blockingStepId}:${d.blockedStepId ?? ''}:${d.blockedTaskId ?? ''}`),
+      )
+
+      let addedDependencies = 0
+
+      for (const node of hydratedNodes) {
+        if (!node.step || !node.parentTask) continue
+        const targetTaskId = node.parentTask.id
+
+        // Check this step's dependsOn for steps in DIFFERENT workflows
+        for (const depStepId of node.step.dependsOn) {
+          // Find the node for the dependency source
+          const sourceNode = hydratedNodes.find(n => n.stepId === depStepId)
+          if (!sourceNode || !sourceNode.parentTask) continue
+
+          const sourceTaskId = sourceNode.parentTask.id
+          if (sourceTaskId === targetTaskId) continue // Same workflow — skip (intra-workflow dep)
+
+          // This is a cross-workflow dependency
+          const depKey = `${depStepId}:${node.stepId}:`
+          if (existingDepKeys.has(depKey)) continue // Already exists
+
+          await ctx.prisma.endeavorDependency.create({
+            data: {
+              id: generateUniqueId('edep'),
+              endeavorId,
+              blockingStepId: depStepId,
+              blockingTaskId: sourceTaskId,
+              blockedStepId: node.stepId,
+              isHardBlock: true,
+              createdAt: now,
+            },
+          })
+          existingDepKeys.add(depKey)
+          addedDependencies++
+        }
+      }
+
+      return { addedTasks, addedDependencies }
     }),
 })

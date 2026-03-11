@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useCallback } from 'react'
 import { Layout, Typography, ConfigProvider, Button, Space, Badge, Spin, Alert, Popconfirm, Tabs, Modal } from '@arco-design/web-react'
 import { IconApps, IconCalendar, IconList, IconBranch, IconSchedule, IconDelete, IconUserGroup, IconClockCircle, IconMenuFold, IconMenuUnfold, IconEye, IconSettings, IconMessage, IconStar, IconMindMapping } from '@arco-design/web-react/icon'
 import { ActionButtonOverflowMenu, FloatingSidebarButton } from './components/layout'
@@ -39,6 +39,7 @@ import { useWorkPatternStore } from './store/useWorkPatternStore'
 import { useTimeSinkStore } from './store/useTimeSinkStore'
 import { useScheduleSnapshotStore } from './store/useScheduleSnapshotStore'
 import { useUserTaskTypeStore } from './store/useUserTaskTypeStore'
+import { useDeepWorkBoardStore } from './store/useDeepWorkBoardStore'
 import { connectStores } from './store/storeConnector'
 import { getDatabase } from './services/database'
 import { logger } from '@/logger'
@@ -154,6 +155,19 @@ function AppContent() {
   const [showTaskTypeManager, setShowTaskTypeManager] = useState(false)
   const [selectedEndeavorId, setSelectedEndeavorId] = useState<string | null>(null)
   const [endeavorViewMode, setEndeavorViewMode] = useState<'list' | 'graph'>('list')
+
+  // Open an endeavor in the Deep Work Board and navigate to it
+  const handleOpenEndeavorInWhiteboard = useCallback(async (endeavorId: string) => {
+    try {
+      await useDeepWorkBoardStore.getState().openFromEndeavor(endeavorId)
+      setActiveView(ViewType.DeepWork)
+    } catch (err) {
+      logger.ui.error('Failed to open endeavor in whiteboard', {
+        endeavorId,
+        error: err instanceof Error ? err.message : String(err),
+      }, 'endeavor-whiteboard-error')
+    }
+  }, [])
 
   // Graph mode and Deep Work Board need full-height container without padding/maxWidth constraints
   const isGraphMode = activeView === ViewType.Endeavors && endeavorViewMode === 'graph' && !selectedEndeavorId
@@ -735,16 +749,19 @@ function AppContent() {
                           <EndeavorDetail
                             endeavorId={selectedEndeavorId}
                             onBack={() => setSelectedEndeavorId(null)}
+                            onOpenInWhiteboard={handleOpenEndeavorInWhiteboard}
                           />
                         ) : endeavorViewMode === 'graph' ? (
                           <EndeavorGraphView
                             onBackToList={() => setEndeavorViewMode('list')}
                             onSelectEndeavor={(id) => setSelectedEndeavorId(id)}
+                            onOpenInWhiteboard={handleOpenEndeavorInWhiteboard}
                           />
                         ) : (
                           <EndeavorList
                             onSelectEndeavor={(id) => setSelectedEndeavorId(id)}
                             onToggleGraph={() => setEndeavorViewMode('graph')}
+                            onOpenInWhiteboard={handleOpenEndeavorInWhiteboard}
                           />
                         )}
                       </ErrorBoundary>
