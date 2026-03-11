@@ -6,18 +6,20 @@
  * Used for both standalone tasks and workflow steps (differentiated by data).
  */
 
-import { memo, useCallback } from 'react'
+import { memo, useCallback, useState } from 'react'
 import { Handle, Position } from 'reactflow'
 import type { NodeProps } from 'reactflow'
-import { Tag, Typography } from '@arco-design/web-react'
-import { IconCheck, IconLock, IconClockCircle } from '@arco-design/web-react/icon'
+import { Button, Popconfirm, Tag, Tooltip, Typography } from '@arco-design/web-react'
+import { IconCheck, IconClockCircle, IconDelete, IconLock } from '@arco-design/web-react/icon'
 import { DeepWorkNodeStatus } from '@shared/deep-work-board-types'
 import type { DeepWorkNodeWithData } from '@shared/deep-work-board-types'
 import { getTypeColor, getTypeEmoji, getTypeName } from '@shared/user-task-types'
 import { formatMinutes } from '@shared/time-utils'
 import { deriveDeepWorkDisplayStatus, STATUS_STYLES } from '@shared/deep-work-node-utils'
+import { logger } from '@/logger'
 import { useSortedUserTaskTypes } from '../../../store/useUserTaskTypeStore'
 import { useDeepWorkBoardStore } from '../../../store/useDeepWorkBoardStore'
+import { useTaskStore } from '../../../store/useTaskStore'
 
 const { Text } = Typography
 
@@ -34,6 +36,9 @@ function DeepWorkTaskNodeInner({ data, selected }: NodeProps<DeepWorkTaskNodeDat
   const userTypes = useSortedUserTaskTypes()
   const actionableNodeIds = useDeepWorkBoardStore((s) => s.actionableNodeIds)
   const expandNode = useDeepWorkBoardStore((s) => s.expandNode)
+  const removeNode = useDeepWorkBoardStore((s) => s.removeNode)
+  const deleteTask = useTaskStore((s) => s.deleteTask)
+  const [isHovered, setIsHovered] = useState(false)
 
   const isActionable = actionableNodeIds.has(nodeWithData.id)
   const status = deriveDeepWorkDisplayStatus(nodeWithData, isActionable)
@@ -48,6 +53,8 @@ function DeepWorkTaskNodeInner({ data, selected }: NodeProps<DeepWorkTaskNodeDat
   const typeEmoji = getTypeEmoji(userTypes, typeId)
   const typeName = getTypeName(userTypes, typeId)
 
+  const isStandaloneTask = !!nodeWithData.task && !nodeWithData.step
+  const showDeleteButton = isHovered && isStandaloneTask
   const borderColor = status === DeepWorkNodeStatus.Pending ? typeColor : undefined
 
   const handleDoubleClick = useCallback(() => {
@@ -57,6 +64,8 @@ function DeepWorkTaskNodeInner({ data, selected }: NodeProps<DeepWorkTaskNodeDat
   return (
     <div
       onDoubleClick={handleDoubleClick}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
       style={{
         padding: '10px 14px',
         borderRadius: 8,
@@ -94,6 +103,49 @@ function DeepWorkTaskNodeInner({ data, selected }: NodeProps<DeepWorkTaskNodeDat
         <IconClockCircle style={{ position: 'absolute', top: 6, right: 8, color: '#ff7d00', fontSize: 14 }} />
       )}
 
+      {/* Delete button (hover-only, standalone tasks only) */}
+      {showDeleteButton && (
+        <div style={{ position: 'absolute', top: 4, left: 4 }}>
+          <Popconfirm
+            title="Delete Task"
+            content="This will permanently delete the task. Are you sure?"
+            onOk={async () => {
+              const taskId = nodeWithData.taskId
+              const taskName = nodeWithData.task?.name
+              logger.ui.debug('Delete task confirmed from Deep Work Board', {
+                nodeId: nodeWithData.id, taskId, taskName,
+              })
+              try {
+                if (taskId) {
+                  await deleteTask(taskId)
+                }
+                await removeNode(nodeWithData.id)
+                logger.ui.warn('Task deleted from Deep Work Board', {
+                  nodeId: nodeWithData.id, taskId, taskName,
+                })
+              } catch (error) {
+                logger.ui.error('Failed to delete task from Deep Work Board', {
+                  error: error instanceof Error ? error.message : String(error),
+                  nodeId: nodeWithData.id, taskId,
+                })
+              }
+            }}
+            okText="Delete"
+            okButtonProps={{ status: 'danger' }}
+          >
+            <Tooltip content="Delete task">
+              <Button
+                type="text"
+                size="small"
+                status="danger"
+                icon={<IconDelete />}
+                style={{ padding: '2px 4px', minWidth: 'auto', height: 'auto' }}
+              />
+            </Tooltip>
+          </Popconfirm>
+        </div>
+      )}
+
       {/* Task name */}
       <Text
         style={{
@@ -104,6 +156,7 @@ function DeepWorkTaskNodeInner({ data, selected }: NodeProps<DeepWorkTaskNodeDat
           textDecoration: styles.textDecoration,
           color: status === DeepWorkNodeStatus.Completed ? '#86909c' : '#1d2129',
           marginBottom: 6,
+          paddingLeft: showDeleteButton ? 20 : 0,
           paddingRight: 20,
           overflow: 'hidden',
           textOverflow: 'ellipsis',

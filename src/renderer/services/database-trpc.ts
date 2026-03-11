@@ -20,6 +20,10 @@ import type {
   BatchUpdateNodePositionsInput,
   SaveViewportInput,
   ImportFromSprintInput,
+  ImportFromEndeavorInput,
+  ImportFromEndeavorResult,
+  SyncBoardToEndeavorInput,
+  SyncBoardToEndeavorResult,
   CreateEdgeInput,
   RemoveEdgeInput,
 } from '@shared/deep-work-board-types'
@@ -1484,6 +1488,14 @@ export class TrpcDatabaseService {
 
   async importDeepWorkFromSprint(data: ImportFromSprintInput): Promise<DeepWorkNodeWithData[]> {
     return this.client.deepWorkBoard.importFromSprint.mutate(data)
+  }
+
+  async importDeepWorkFromEndeavor(data: ImportFromEndeavorInput): Promise<ImportFromEndeavorResult> {
+    return this.client.deepWorkBoard.importFromEndeavor.mutate(data)
+  }
+
+  async syncDeepWorkBoardToEndeavor(data: SyncBoardToEndeavorInput): Promise<SyncBoardToEndeavorResult> {
+    return this.client.deepWorkBoard.syncBoardToEndeavor.mutate(data)
   }
 
   async createDeepWorkEdge(data: CreateEdgeInput): Promise<{ nodes: DeepWorkNodeWithData[] }> {

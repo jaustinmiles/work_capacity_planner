@@ -38,6 +38,7 @@ import {
   IconExclamationCircle,
   IconCheck,
   IconClockCircle,
+  IconMindMapping,
 } from '@arco-design/web-react/icon'
 import { getDatabase } from '../../services/database'
 import { Message } from '../common/Message'
@@ -53,6 +54,7 @@ const { Title, Text } = Typography
 interface EndeavorDetailProps {
   endeavorId: string
   onBack: () => void
+  onOpenInWhiteboard?: (endeavorId: string) => void
 }
 
 const STATUS_COLORS: Record<string, string> = {
@@ -80,7 +82,7 @@ interface BlockingEndeavor {
   blockingTaskCount: number
 }
 
-export function EndeavorDetail({ endeavorId, onBack }: EndeavorDetailProps) {
+export function EndeavorDetail({ endeavorId, onBack, onOpenInWhiteboard }: EndeavorDetailProps) {
   const [addTaskModalVisible, setAddTaskModalVisible] = useState(false)
   const [addDepModalVisible, setAddDepModalVisible] = useState(false)
   const [addDepForTaskId, setAddDepForTaskId] = useState<string | undefined>()
@@ -239,19 +241,33 @@ export function EndeavorDetail({ endeavorId, onBack }: EndeavorDetailProps) {
               )}
             </div>
           </Space>
-          <Tag
-            color={
-              endeavor.status === EndeavorStatus.Active
-                ? 'arcoblue'
-                : endeavor.status === EndeavorStatus.Completed
-                  ? 'green'
-                  : endeavor.status === EndeavorStatus.Paused
-                    ? 'orange'
-                    : 'gray'
-            }
-          >
-            {endeavor.status}
-          </Tag>
+          <Space>
+            {onOpenInWhiteboard && (
+              <Tooltip content="Open in Whiteboard">
+                <Button
+                  type="secondary"
+                  size="small"
+                  icon={<IconMindMapping />}
+                  onClick={() => onOpenInWhiteboard(endeavorId)}
+                >
+                  Whiteboard
+                </Button>
+              </Tooltip>
+            )}
+            <Tag
+              color={
+                endeavor.status === EndeavorStatus.Active
+                  ? 'arcoblue'
+                  : endeavor.status === EndeavorStatus.Completed
+                    ? 'green'
+                    : endeavor.status === EndeavorStatus.Paused
+                      ? 'orange'
+                      : 'gray'
+              }
+            >
+              {endeavor.status}
+            </Tag>
+          </Space>
         </Space>
 
         {/* Progress */}
