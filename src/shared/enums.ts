@@ -311,6 +311,22 @@ export enum GraphEdgeType {
   DeepWorkDependency = 'deepWorkDependency',
 }
 
+// Pomodoro cycle phases - tracks where in the work/break cycle the user is
+export enum PomodoroPhase {
+  Work = 'work',
+  ShortBreak = 'short_break',
+  LongBreak = 'long_break',
+  Paused = 'paused',
+  Completed = 'completed',
+}
+
+// Pomodoro prompt types - what the UI should prompt the user for
+export enum PomodoroPromptType {
+  BreakActivity = 'break_activity',
+  NextTask = 'next_task',
+  TaskComplete = 'task_complete',
+}
+
 // Re-export enum utility functions from enum-utils.ts for backwards compatibility
 // These functions are now defined in enum-utils.ts to keep enums.ts focused on definitions
 export { assertNever, isValidEnumValue, parseEnum } from './enum-utils'

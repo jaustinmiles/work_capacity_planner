@@ -45,6 +45,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
   updateFeedback: (updatedFeedback: unknown) =>
     ipcRenderer.invoke('feedback:update', updatedFeedback),
 
+  // Desktop notifications
+  showNotification: (title: string, body: string) =>
+    ipcRenderer.invoke('notification:show', { title, body }),
+
   // App metadata
   getSessionId: () => ipcRenderer.invoke('app:getSessionId'),
 })

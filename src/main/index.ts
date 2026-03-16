@@ -25,6 +25,37 @@ app.whenReady().then(() => {
 })
 
 // ============================================================================
+// Desktop Notification Handlers
+// Used by Pomodoro timer and other features that need OS-level notifications
+// ============================================================================
+
+ipcMain.handle(
+  'notification:show',
+  async (_event: IpcMainInvokeEvent, payload: { title: string; body: string }) => {
+    // Electron's Notification class isn't in this project's type defs,
+    // so we access it dynamically from the electron module.
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const electron = require('electron') as Record<string, unknown>
+    const NotificationClass = electron.Notification as {
+      isSupported: () => boolean
+      new (options: { title: string; body: string }): { show: () => void }
+    }
+
+    if (!NotificationClass?.isSupported()) {
+      mainLogger.warn('Desktop notifications not supported on this platform')
+      return false
+    }
+
+    const notification = new NotificationClass({
+      title: payload.title,
+      body: payload.body,
+    })
+    notification.show()
+    return true
+  },
+)
+
+// ============================================================================
 // Feedback Handlers (File-based, Development Only)
 // Used to collect user feedback during development via the DevTools panel
 // ============================================================================

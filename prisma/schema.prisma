@@ -132,6 +132,8 @@ model Session {
   Conversation          Conversation[]
   Endeavor              Endeavor[]
   DeepWorkBoard         DeepWorkBoard[]
+  PomodoroSettings      PomodoroSettings?
+  PomodoroCycles        PomodoroCycle[]
 }
 
 // Schedule Snapshot - Captures schedule state at a point in time
@@ -338,15 +340,18 @@ model WorkSession {
   endTime        DateTime?    // Session end time (null = in progress)
   plannedMinutes Int          @default(0)  // Estimated duration
   actualMinutes  Int?         // Actual duration (null = in progress)
-  notes          String?      // Session notes/comments
-  createdAt      DateTime     @default(now())
-  WorkPattern    WorkPattern? @relation(fields: [patternId], references: [id])
-  WorkBlock      WorkBlock?   @relation(fields: [blockId], references: [id], onDelete: SetNull)
-  Task           Task         @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  notes           String?        // Session notes/comments
+  pomodoroCycleId String?        // Pomodoro cycle this session belongs to (optional)
+  createdAt       DateTime       @default(now())
+  WorkPattern     WorkPattern?   @relation(fields: [patternId], references: [id])
+  WorkBlock       WorkBlock?     @relation(fields: [blockId], references: [id], onDelete: SetNull)
+  Task            Task           @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  PomodoroCycle   PomodoroCycle? @relation(fields: [pomodoroCycleId], references: [id], onDelete: SetNull)
 
   @@index([startTime])
   @@index([taskId])
   @@index([blockId])
+  @@index([pomodoroCycleId])
 }
 
 model ProductivityPattern {
@@ -578,4 +583,44 @@ model DeepWorkNode {
   @@unique([boardId, taskId])
   @@unique([boardId, stepId])
   @@index([boardId])
+}
+
+// Pomodoro settings - user-configurable cycle durations and behavior
+// Session-scoped: each session has its own pomodoro preferences
+model PomodoroSettings {
+  id                    String   @id
+  sessionId             String   @unique
+  workDurationMinutes   Int      @default(25)   // Work interval length
+  shortBreakMinutes     Int      @default(5)    // Short break length
+  longBreakMinutes      Int      @default(15)   // Long break length (after N cycles)
+  cyclesBeforeLongBreak Int      @default(4)    // How many work cycles before a long break
+  autoStartBreak        Boolean  @default(true) // Auto-start break when work ends
+  autoStartWork         Boolean  @default(false) // Auto-start work when break ends
+  idleReminderMinutes   Int?                    // Minutes after break ends to send idle reminder (null = disabled)
+  soundEnabled          Boolean  @default(true) // Play sound on timer expiry
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @default(now())
+  Session               Session  @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+}
+
+// Pomodoro cycle - a single work/break cycle grouping multiple work sessions
+// The cycle tracks which phase (work/break) is active and links to the work sessions within it
+model PomodoroCycle {
+  id                   String        @id
+  sessionId            String
+  cycleNumber          Int           // 1-based cycle count within the day
+  status               String        @default("work") // PomodoroPhase enum value
+  workDurationMinutes  Int           // Snapshot of duration at cycle start
+  breakDurationMinutes Int           // Snapshot of break duration at cycle start
+  phaseStartTime       DateTime      // When the current phase (work or break) started
+  startTime            DateTime      // When the overall cycle started
+  endTime              DateTime?     // When the cycle ended (null = in progress)
+  breakTimeSinkId      String?       // TimeSink chosen for break activity
+  createdAt            DateTime      @default(now())
+  Session              Session       @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  WorkSessions         WorkSession[]
+
+  @@index([sessionId])
+  @@index([startTime])
+  @@index([status])
 }

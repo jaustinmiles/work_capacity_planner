@@ -24,6 +24,7 @@ const createSessionInput = z.object({
   notes: z.string().nullable().optional(),
   blockId: z.string().nullable().optional(),
   patternId: z.string().nullable().optional(),
+  pomodoroCycleId: z.string().nullable().optional(),
 })
 
 /**
@@ -39,6 +40,7 @@ const updateSessionInput = z.object({
   taskId: z.string().optional(),
   stepId: z.string().nullable().optional(),
   blockId: z.string().nullable().optional(),
+  pomodoroCycleId: z.string().nullable().optional(),
 })
 
 /**
@@ -113,6 +115,7 @@ export const workSessionRouter = router({
         notes: input.notes ?? null,
         blockId: blockId ?? null,
         patternId: input.patternId ?? null,
+        pomodoroCycleId: input.pomodoroCycleId ?? null,
       },
       include: {
         Task: true,

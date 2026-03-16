@@ -103,3 +103,15 @@ export const MOBILE_LAYOUT = {
   SWIM_LANE_TIME_LABEL_WIDTH_TABLET: 100,
   SWIM_LANE_TIME_LABEL_WIDTH_DESKTOP: 120,
 } as const
+
+/**
+ * Pomodoro cycle defaults
+ * All values are user-configurable — these are initial defaults only
+ */
+export const POMODORO_DEFAULTS = {
+  WORK_DURATION_MINUTES: 25,
+  SHORT_BREAK_MINUTES: 5,
+  LONG_BREAK_MINUTES: 15,
+  CYCLES_BEFORE_LONG_BREAK: 4,
+  TIMER_TICK_INTERVAL_MS: 1000,
+} as const

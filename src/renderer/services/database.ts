@@ -29,6 +29,9 @@ declare global {
       loadFeedback?: () => Promise<unknown[]>
       updateFeedback?: (updatedFeedback: unknown) => Promise<boolean>
 
+      // Desktop notifications
+      showNotification?: (title: string, body: string) => Promise<boolean>
+
       // App metadata
       getSessionId?: () => Promise<string>
     }

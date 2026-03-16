@@ -28,7 +28,8 @@ import type {
   RemoveEdgeInput,
 } from '@shared/deep-work-board-types'
 import type { SequencedTask } from '@shared/sequencing-types'
-import { ChatMessageRole, EndeavorStatus, DeadlineType } from '@shared/enums'
+import { ChatMessageRole, EndeavorStatus, DeadlineType, PomodoroPhase } from '@shared/enums'
+import type { UpdatePomodoroSettingsInput } from '@shared/pomodoro-types'
 import type { UserTaskType, CreateUserTaskTypeInput, UpdateUserTaskTypeInput, AccumulatedTimeResult } from '@shared/user-task-types'
 import type { TimeSink, TimeSinkSession, CreateTimeSinkInput, UpdateTimeSinkInput, TimeSinkAccumulatedResult } from '@shared/time-sink-types'
 import type { ScheduleSnapshot, ScheduleSnapshotData } from '@shared/schedule-snapshot-types'
@@ -1525,6 +1526,50 @@ export class TrpcDatabaseService {
       filename,
       options,
     })
+  }
+
+  // ===========================================================================
+  // Pomodoro
+  // ===========================================================================
+
+  async getPomodoroSettings(): Promise<Record<string, unknown> | null> {
+    return this.client.pomodoro.getSettings.query()
+  }
+
+  async updatePomodoroSettings(input: UpdatePomodoroSettingsInput): Promise<Record<string, unknown>> {
+    return this.client.pomodoro.updateSettings.mutate(input)
+  }
+
+  async startPomodoroCycle(input: {
+    workDurationMinutes?: number
+    breakDurationMinutes?: number
+  }): Promise<Record<string, unknown>> {
+    return this.client.pomodoro.startCycle.mutate(input)
+  }
+
+  async getActivePomodoroCycle(): Promise<Record<string, unknown> | null> {
+    return this.client.pomodoro.getActiveCycle.query()
+  }
+
+  async updatePomodoroCyclePhase(input: {
+    cycleId: string
+    status: PomodoroPhase
+    phaseStartTime: Date
+    breakTimeSinkId?: string | null
+  }): Promise<Record<string, unknown>> {
+    return this.client.pomodoro.updateCyclePhase.mutate(input)
+  }
+
+  async endPomodoroCycle(cycleId: string): Promise<Record<string, unknown>> {
+    return this.client.pomodoro.endCycle.mutate({ cycleId })
+  }
+
+  async getPomodoroCyclesByDate(date: string): Promise<Record<string, unknown>[]> {
+    return this.client.pomodoro.getCyclesByDate.query({ date })
+  }
+
+  async getPomodoroCycleWithSessions(cycleId: string): Promise<Record<string, unknown> | null> {
+    return this.client.pomodoro.getCycleWithSessions.query({ cycleId })
   }
 }
 
