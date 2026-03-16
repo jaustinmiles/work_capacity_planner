@@ -23,6 +23,7 @@ export interface DeepWorkBoard {
   id: string
   sessionId: string
   name: string
+  endeavorId: string | null // Non-null when board was created from an endeavor (enables sync-back)
   zoom: number
   panX: number
   panY: number
@@ -214,6 +215,7 @@ export interface MorphResult {
 
 export interface CreateDeepWorkBoardInput {
   name: string
+  endeavorId?: string
 }
 
 export interface UpdateDeepWorkBoardInput {
@@ -266,6 +268,24 @@ export interface RemoveEdgeInput {
 
 export interface ImportFromSprintInput {
   boardId: string
+}
+
+export interface ImportFromEndeavorInput {
+  endeavorId: string
+}
+
+export interface SyncBoardToEndeavorInput {
+  boardId: string
+}
+
+export interface ImportFromEndeavorResult {
+  boardId: string
+  newNodeCount: number
+}
+
+export interface SyncBoardToEndeavorResult {
+  addedTasks: number
+  addedDependencies: number
 }
 
 export interface AddExistingNodeInput {

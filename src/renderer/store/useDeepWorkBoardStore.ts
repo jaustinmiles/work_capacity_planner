@@ -95,6 +95,8 @@ interface DeepWorkBoardActions {
 
   // Import
   importFromSprint: () => Promise<number>
+  openFromEndeavor: (endeavorId: string) => Promise<string>
+  syncToEndeavor: () => Promise<{ addedTasks: number; addedDependencies: number }>
 
   // Derived state recomputation
   recomputeEdges: () => void
@@ -632,6 +634,43 @@ export const useDeepWorkBoardStore = create<DeepWorkBoardStore>()(
 
       logger.ui.info('Sprint import complete', { count: newNodes.length }, 'dwb-import')
       return newNodes.length
+    },
+
+    openFromEndeavor: async (endeavorId: string): Promise<string> => {
+      const db = getDatabase()
+      const result = await db.importDeepWorkFromEndeavor({ endeavorId })
+
+      // Switch to the board (loads nodes + edges from server)
+      await get().switchBoard(result.boardId)
+
+      // Also refresh boards list to include the new/existing board
+      await get().loadBoards()
+
+      logger.ui.info('Endeavor opened in board', {
+        endeavorId,
+        boardId: result.boardId,
+        newNodes: result.newNodeCount,
+      }, 'dwb-endeavor-import')
+
+      return result.boardId
+    },
+
+    syncToEndeavor: async (): Promise<{ addedTasks: number; addedDependencies: number }> => {
+      const { activeBoardId } = get()
+      if (!activeBoardId) {
+        throw new Error('No active board')
+      }
+
+      const db = getDatabase()
+      const result = await db.syncDeepWorkBoardToEndeavor({ boardId: activeBoardId })
+
+      logger.ui.info('Board synced to endeavor', {
+        boardId: activeBoardId,
+        addedTasks: result.addedTasks,
+        addedDependencies: result.addedDependencies,
+      }, 'dwb-endeavor-sync')
+
+      return result
     },
 
     // ========================================================================

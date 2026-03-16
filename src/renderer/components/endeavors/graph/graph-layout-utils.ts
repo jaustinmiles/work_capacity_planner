@@ -408,9 +408,19 @@ export function injectNodeMetadata(
     criticalNodeIds: Set<string>
     showCriticalPath: boolean
     activeStepNodeId: string | null
+    onOpenInWhiteboard?: (endeavorId: string) => void
   },
 ): Node[] {
   return nodes.map(node => {
+    if (node.type === GraphNodeType.EndeavorRegion) {
+      return {
+        ...node,
+        data: {
+          ...node.data,
+          onOpenInWhiteboard: options.onOpenInWhiteboard,
+        },
+      }
+    }
     if (node.type === GraphNodeType.TaskStep) {
       return {
         ...node,

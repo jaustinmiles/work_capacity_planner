@@ -6,8 +6,9 @@
 
 import { useState, useCallback } from 'react'
 import { Button, Space, Input, Select, Divider } from '@arco-design/web-react'
-import { IconPlus, IconImport, IconMenuFold, IconMenuUnfold } from '@arco-design/web-react/icon'
+import { IconPlus, IconImport, IconMenuFold, IconMenuUnfold, IconSync } from '@arco-design/web-react/icon'
 import { useDeepWorkBoardStore, BoardLoadStatus } from '../../store/useDeepWorkBoardStore'
+import { Message } from '../common/Message'
 import { SprintImporter } from './SprintImporter'
 
 export function DeepWorkToolbar() {
@@ -20,6 +21,7 @@ export function DeepWorkToolbar() {
   const switchBoard = useDeepWorkBoardStore((s) => s.switchBoard)
   const updateBoardName = useDeepWorkBoardStore((s) => s.updateBoardName)
   const toggleActionPanel = useDeepWorkBoardStore((s) => s.toggleActionPanel)
+  const syncToEndeavor = useDeepWorkBoardStore((s) => s.syncToEndeavor)
 
   const [isEditingName, setIsEditingName] = useState(false)
   const [editName, setEditName] = useState('')
@@ -45,6 +47,19 @@ export function DeepWorkToolbar() {
   const handleOpenImporter = useCallback(() => {
     setShowImporter(true)
   }, [])
+
+  const handleSyncToEndeavor = useCallback(async () => {
+    try {
+      const result = await syncToEndeavor()
+      Message.success(
+        `Synced: ${result.addedTasks} task(s), ${result.addedDependencies} dependency(ies) added`,
+      )
+    } catch (err) {
+      Message.error(
+        `Sync failed: ${err instanceof Error ? err.message : 'Unknown error'}`,
+      )
+    }
+  }, [syncToEndeavor])
 
   return (
     <div
@@ -122,6 +137,15 @@ export function DeepWorkToolbar() {
         >
           Import Sprint
         </Button>
+        {activeBoard?.endeavorId && (
+          <Button
+            size="small"
+            icon={<IconSync />}
+            onClick={handleSyncToEndeavor}
+          >
+            Sync to Endeavor
+          </Button>
+        )}
       </Space>
 
       {/* Spacer */}

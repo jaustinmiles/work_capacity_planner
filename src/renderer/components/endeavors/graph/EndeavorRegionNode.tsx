@@ -7,7 +7,8 @@
  */
 
 import React from 'react'
-import { Tag, Progress, Typography, Space } from '@arco-design/web-react'
+import { Tag, Progress, Typography, Space, Tooltip } from '@arco-design/web-react'
+import { IconMindMapping } from '@arco-design/web-react/icon'
 import type { NodeProps } from 'reactflow'
 import { EndeavorStatus } from '@shared/enums'
 import type { EndeavorProgress } from '@shared/types'
@@ -36,6 +37,7 @@ interface EndeavorRegionData {
   progress: EndeavorProgress
   description?: string
   endeavorId: string
+  onOpenInWhiteboard?: (endeavorId: string) => void
 }
 
 export const EndeavorRegionNode = React.memo(({ data }: NodeProps<EndeavorRegionData>) => {
@@ -75,6 +77,17 @@ export const EndeavorRegionNode = React.memo(({ data }: NodeProps<EndeavorRegion
         </Space>
 
         <Space size={8}>
+          {data.onOpenInWhiteboard && (
+            <Tooltip content="Open in Whiteboard">
+              <IconMindMapping
+                style={{ fontSize: 16, cursor: 'pointer', color: '#86909c' }}
+                onClick={(e) => {
+                  e.stopPropagation()
+                  data.onOpenInWhiteboard?.(data.endeavorId)
+                }}
+              />
+            </Tooltip>
+          )}
           <Text type="secondary" style={{ fontSize: 12 }}>
             {data.progress.completedTasks}/{data.progress.totalTasks}
           </Text>

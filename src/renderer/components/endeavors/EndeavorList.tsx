@@ -32,6 +32,7 @@ import {
   IconArchive,
   IconLink,
   IconBranch,
+  IconMindMapping,
 } from '@arco-design/web-react/icon'
 import { Message } from '../common/Message'
 import { EndeavorStatus } from '@shared/enums'
@@ -45,6 +46,7 @@ const { Title, Text } = Typography
 interface EndeavorListProps {
   onSelectEndeavor?: (endeavorId: string) => void
   onToggleGraph?: () => void
+  onOpenInWhiteboard?: (endeavorId: string) => void
 }
 
 const STATUS_COLORS: Record<EndeavorStatus, string> = {
@@ -61,7 +63,7 @@ const STATUS_LABELS: Record<EndeavorStatus, string> = {
   [EndeavorStatus.Archived]: 'Archived',
 }
 
-export function EndeavorList({ onSelectEndeavor, onToggleGraph }: EndeavorListProps) {
+export function EndeavorList({ onSelectEndeavor, onToggleGraph, onOpenInWhiteboard }: EndeavorListProps) {
   const [statusFilter, setStatusFilter] = useState<EndeavorStatus | 'all'>('all')
   const [formVisible, setFormVisible] = useState(false)
   const [editingEndeavor, setEditingEndeavor] = useState<EndeavorWithTasks | null>(null)
@@ -162,6 +164,17 @@ export function EndeavorList({ onSelectEndeavor, onToggleGraph }: EndeavorListPr
               handleEdit(endeavor)
             }}
           />,
+          onOpenInWhiteboard && (
+            <Button
+              key="whiteboard"
+              type="text"
+              icon={<IconMindMapping />}
+              onClick={(e) => {
+                e.stopPropagation()
+                onOpenInWhiteboard(endeavor.id)
+              }}
+            />
+          ),
           endeavor.status === EndeavorStatus.Active ? (
             <Button
               key="pause"
