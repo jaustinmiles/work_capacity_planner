@@ -283,6 +283,7 @@ export const usePomodoroStore = create<PomodoroStoreState>()(
           activeCycle: { ...activeCycle, status: breakPhase, phaseStartTime: now, breakTimeSinkId: sinkId ?? null },
           timerState: {
             ...usePomodoroStore.getState().timerState,
+            isActive: true,
             currentPhase: breakPhase,
             remainingSeconds: phaseDurationToSeconds(activeCycle.breakDurationMinutes),
             totalSeconds: phaseDurationToSeconds(activeCycle.breakDurationMinutes),
@@ -335,6 +336,7 @@ export const usePomodoroStore = create<PomodoroStoreState>()(
           activeCycle: { ...activeCycle, status: PomodoroPhase.Work, phaseStartTime: now },
           timerState: {
             ...usePomodoroStore.getState().timerState,
+            isActive: true,
             currentPhase: PomodoroPhase.Work,
             remainingSeconds: phaseDurationToSeconds(activeCycle.workDurationMinutes),
             totalSeconds: phaseDurationToSeconds(activeCycle.workDurationMinutes),
@@ -498,7 +500,8 @@ export const usePomodoroStore = create<PomodoroStoreState>()(
             ? cycle.workDurationMinutes
             : cycle.breakDurationMinutes
           const remaining = computeRemainingSeconds(cycle.phaseStartTime, durationMinutes, getCurrentTime())
-          const activeWorkSession = await getDatabase().getActiveWorkSession()
+          const db = getDatabase()
+          const activeWorkSession = await db.getActiveWorkSession()
           const isLinkedToCycle = activeWorkSession?.pomodoroCycleId === cycle.id
 
           let currentTaskId: string | null = isLinkedToCycle ? (activeWorkSession?.taskId ?? null) : null
@@ -507,13 +510,13 @@ export const usePomodoroStore = create<PomodoroStoreState>()(
           // Restore a display name when session records don't contain denormalized taskName.
           if (isLinkedToCycle && !currentTaskName) {
             if (activeWorkSession?.stepId) {
-              const workflow = await getDatabase().getWorkflowByStepId(activeWorkSession.stepId)
+              const workflow = await db.getWorkflowByStepId(activeWorkSession.stepId)
               if (workflow) {
                 currentTaskId = workflow.id
                 currentTaskName = workflow.name
               }
             } else if (activeWorkSession?.taskId) {
-              const task = await getDatabase().getTaskById(activeWorkSession.taskId)
+              const task = await db.getTaskById(activeWorkSession.taskId)
               if (task) {
                 currentTaskName = task.name
               }

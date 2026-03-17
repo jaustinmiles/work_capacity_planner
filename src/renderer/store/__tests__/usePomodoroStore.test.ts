@@ -115,6 +115,9 @@ const mockDbApi = {
   getPomodoroCyclesByDate: vi.fn().mockResolvedValue([]),
   getPomodoroCycleWithSessions: vi.fn().mockResolvedValue(null),
   updateWorkSession: vi.fn().mockResolvedValue({}),
+  getActiveWorkSession: vi.fn().mockResolvedValue(null),
+  getWorkflowByStepId: vi.fn().mockResolvedValue(null),
+  getTaskById: vi.fn().mockResolvedValue(null),
 }
 
 vi.mock('@renderer/services/database', () => ({

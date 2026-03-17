@@ -8,6 +8,7 @@ import {
   createUnifiedWorkSession,
 } from '../../shared/unified-work-session-types'
 import { getCurrentTime } from '@/shared/time-provider'
+import { PomodoroPhase } from '@/shared/enums'
 import { dateToYYYYMMDD, addDays } from '@/shared/time-utils'
 
 /**
@@ -148,11 +149,11 @@ export class WorkTrackingService {
       const sessionKey = this.getSessionKey(workSession)
       this.activeSessions.set(sessionKey, workSession)
 
-      // Auto-link to active Pomodoro cycle (if any)
+      // Auto-link to active Pomodoro cycle (only during work phase)
       // Uses dynamic import to avoid circular dependency
       const { usePomodoroStore } = await import('../store/usePomodoroStore')
       const pomodoroState = usePomodoroStore.getState()
-      if (pomodoroState.activeCycle) {
+      if (pomodoroState.activeCycle && pomodoroState.activeCycle.status === PomodoroPhase.Work) {
         await this.database.updateWorkSession(workSession.id, {
           pomodoroCycleId: pomodoroState.activeCycle.id,
         })
