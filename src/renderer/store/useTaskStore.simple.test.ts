@@ -16,7 +16,12 @@ vi.mock('../services/database', () => ({
   })),
 }))
 
-// Events system has been removed
+// Mock the Pomodoro store (dynamically imported via WorkTrackingService)
+vi.mock('./usePomodoroStore', () => ({
+  usePomodoroStore: {
+    getState: vi.fn(() => ({ activeCycle: null, setActiveTask: vi.fn() })),
+  },
+}))
 
 vi.mock('@/shared/logger', () => ({
   logger: {

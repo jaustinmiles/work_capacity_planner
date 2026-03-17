@@ -18,6 +18,13 @@ vi.mock('../database', () => ({
   })),
 }))
 
+// Mock the Pomodoro store (dynamically imported in startWorkSession)
+vi.mock('../../store/usePomodoroStore', () => ({
+  usePomodoroStore: {
+    getState: vi.fn(() => ({ activeCycle: null, setActiveTask: vi.fn() })),
+  },
+}))
+
 // Mock logger
 vi.mock('@/shared/logger', () => ({
   logger: {
