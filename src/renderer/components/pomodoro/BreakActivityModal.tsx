@@ -19,7 +19,9 @@ interface BreakActivityModalProps {
 export function BreakActivityModal({ visible, onClose }: BreakActivityModalProps) {
   const timeSinks = useSortedTimeSinks()
   const settings = usePomodoroSettings()
-  const { transitionToBreak, endCycle, dismissPrompt } = usePomodoroStore()
+  const transitionToBreak = usePomodoroStore((s) => s.transitionToBreak)
+  const endCycle = usePomodoroStore((s) => s.endCycle)
+  const dismissPrompt = usePomodoroStore((s) => s.dismissPrompt)
 
   const handleSelectActivity = async (sinkId: string): Promise<void> => {
     await transitionToBreak(sinkId)

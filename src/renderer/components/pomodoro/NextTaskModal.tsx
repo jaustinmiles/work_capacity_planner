@@ -18,9 +18,11 @@ interface NextTaskModalProps {
 }
 
 export function NextTaskModal({ visible, onClose }: NextTaskModalProps) {
-  const { tasks } = useTaskStore()
+  const tasks = useTaskStore((s) => s.tasks)
   const timerState = usePomodoroTimer()
-  const { transitionToWork, endCycle, dismissPrompt } = usePomodoroStore()
+  const transitionToWork = usePomodoroStore((s) => s.transitionToWork)
+  const endCycle = usePomodoroStore((s) => s.endCycle)
+  const dismissPrompt = usePomodoroStore((s) => s.dismissPrompt)
 
   // Filter to incomplete, non-archived tasks
   const incompleteTasks = tasks.filter(

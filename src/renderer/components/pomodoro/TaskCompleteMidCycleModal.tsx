@@ -18,8 +18,10 @@ interface TaskCompleteMidCycleModalProps {
 }
 
 export function TaskCompleteMidCycleModal({ visible, onClose }: TaskCompleteMidCycleModalProps) {
-  const { tasks } = useTaskStore()
-  const { switchTaskWithinCycle, endCycle, dismissPrompt } = usePomodoroStore()
+  const tasks = useTaskStore((s) => s.tasks)
+  const switchTaskWithinCycle = usePomodoroStore((s) => s.switchTaskWithinCycle)
+  const endCycle = usePomodoroStore((s) => s.endCycle)
+  const dismissPrompt = usePomodoroStore((s) => s.dismissPrompt)
 
   const incompleteTasks = tasks.filter(
     (t) => t.overallStatus !== TaskStatus.Completed && !t.archived,

@@ -97,15 +97,18 @@ interface PomodoroStoreState {
 // Helpers
 // ============================================================================
 
+// Cached fallback settings — stable reference prevents React 19 infinite re-render loop
+// when usePomodoroSettings() selector returns this for null settings
+const DEFAULT_EFFECTIVE_SETTINGS: PomodoroSettings = {
+  id: '',
+  sessionId: '',
+  ...DEFAULT_POMODORO_SETTINGS,
+  createdAt: new Date(0),
+  updatedAt: new Date(0),
+}
+
 function getEffectiveSettings(settings: PomodoroSettings | null): PomodoroSettings {
-  if (settings) return settings
-  return {
-    id: '',
-    sessionId: '',
-    ...DEFAULT_POMODORO_SETTINGS,
-    createdAt: getCurrentTime(),
-    updatedAt: getCurrentTime(),
-  }
+  return settings ?? DEFAULT_EFFECTIVE_SETTINGS
 }
 
 /**
@@ -591,7 +594,9 @@ export const usePomodoroStore = create<PomodoroStoreState>()(
           getCurrentTime(),
         )
 
-        set({ timerState: { ...timerState, remainingSeconds: remaining } })
+        if (remaining !== timerState.remainingSeconds) {
+          set({ timerState: { ...timerState, remainingSeconds: remaining } })
+        }
 
         if (remaining === 0) {
           get()._onTimerExpired()
