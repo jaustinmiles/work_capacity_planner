@@ -49,6 +49,7 @@ const { Header, Sider, Content } = Layout
 const { Title } = Typography
 
 import { TaskStatus, StepStatus, ViewType } from '@shared/enums'
+import { usePomodoroStore } from './store/usePomodoroStore'
 
 interface ExtractedTask {
   name: string
@@ -88,6 +89,8 @@ function AppContent() {
 
         // Initialize user task types (needed for task type display)
         await useUserTaskTypeStore.getState().loadTypes()
+
+        await usePomodoroStore.getState().initialize()
 
         logger.system.info('All stores initialized successfully', {}, 'app-init')
       } catch (error) {
@@ -466,501 +469,501 @@ function AppContent() {
         primaryColor: '#165DFF',
       }}
     >
-        <Layout style={{ minHeight: '100vh' }}>
-          <Sider
-            collapsible
-            collapsed={sidebarCollapsed}
-            onCollapse={handleSidebarCollapse}
-            width={screenWidth < 768 ? 280 : 320}
-            collapsedWidth={
-              isMobile
-                ? MOBILE_LAYOUT.SIDEBAR_COLLAPSED_WIDTH_MOBILE
-                : isCompact
-                  ? MOBILE_LAYOUT.SIDEBAR_COLLAPSED_WIDTH_TABLET
-                  : MOBILE_LAYOUT.SIDEBAR_COLLAPSED_WIDTH_DESKTOP
-            }
-            trigger={null}
-            style={{
-              background: '#fff',
-              boxShadow: '2px 0 8px rgba(0,0,0,0.1)',
-              overflow: 'hidden',
-              // Fully hide on mobile when collapsed
-              display: isMobile && sidebarCollapsed ? 'none' : 'block',
-              // Responsive sidebar width
-              minWidth: sidebarCollapsed
-                ? (isMobile ? 0 : isCompact ? MOBILE_LAYOUT.SIDEBAR_COLLAPSED_WIDTH_TABLET : MOBILE_LAYOUT.SIDEBAR_COLLAPSED_WIDTH_DESKTOP)
-                : (screenWidth < 768 ? 280 : 320),
-              maxWidth: sidebarCollapsed
-                ? (isMobile ? 0 : isCompact ? MOBILE_LAYOUT.SIDEBAR_COLLAPSED_WIDTH_TABLET : MOBILE_LAYOUT.SIDEBAR_COLLAPSED_WIDTH_DESKTOP)
-                : (screenWidth < 768 ? 280 : 320),
-            }}
-          >
-            <div style={{
-              padding: '16px',
-              borderBottom: '1px solid #E5E8EF',
-              display: 'flex',
-              alignItems: 'center',
-              gap: 12,
-              minHeight: 60,
-            }}>
-              <Button
-                type="text"
-                size="default"
-                icon={sidebarCollapsed ? <IconMenuUnfold /> : <IconMenuFold />}
-                onClick={() => handleSidebarCollapse(!sidebarCollapsed)}
-                style={{
-                  minWidth: 32,
-                  padding: '4px 8px',
-                }}
-              />
-              {!sidebarCollapsed && (
-                <Title heading={5} style={{ margin: 0, color: '#1D2129', flex: 1 }}>
-                  Work Capacity
-                </Title>
-              )}
+      <Layout style={{ minHeight: '100vh' }}>
+        <Sider
+          collapsible
+          collapsed={sidebarCollapsed}
+          onCollapse={handleSidebarCollapse}
+          width={screenWidth < 768 ? 280 : 320}
+          collapsedWidth={
+            isMobile
+              ? MOBILE_LAYOUT.SIDEBAR_COLLAPSED_WIDTH_MOBILE
+              : isCompact
+                ? MOBILE_LAYOUT.SIDEBAR_COLLAPSED_WIDTH_TABLET
+                : MOBILE_LAYOUT.SIDEBAR_COLLAPSED_WIDTH_DESKTOP
+          }
+          trigger={null}
+          style={{
+            background: '#fff',
+            boxShadow: '2px 0 8px rgba(0,0,0,0.1)',
+            overflow: 'hidden',
+            // Fully hide on mobile when collapsed
+            display: isMobile && sidebarCollapsed ? 'none' : 'block',
+            // Responsive sidebar width
+            minWidth: sidebarCollapsed
+              ? (isMobile ? 0 : isCompact ? MOBILE_LAYOUT.SIDEBAR_COLLAPSED_WIDTH_TABLET : MOBILE_LAYOUT.SIDEBAR_COLLAPSED_WIDTH_DESKTOP)
+              : (screenWidth < 768 ? 280 : 320),
+            maxWidth: sidebarCollapsed
+              ? (isMobile ? 0 : isCompact ? MOBILE_LAYOUT.SIDEBAR_COLLAPSED_WIDTH_TABLET : MOBILE_LAYOUT.SIDEBAR_COLLAPSED_WIDTH_DESKTOP)
+              : (screenWidth < 768 ? 280 : 320),
+          }}
+        >
+          <div style={{
+            padding: '16px',
+            borderBottom: '1px solid #E5E8EF',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 12,
+            minHeight: 60,
+          }}>
+            <Button
+              type="text"
+              size="default"
+              icon={sidebarCollapsed ? <IconMenuUnfold /> : <IconMenuFold />}
+              onClick={() => handleSidebarCollapse(!sidebarCollapsed)}
+              style={{
+                minWidth: 32,
+                padding: '4px 8px',
+              }}
+            />
+            {!sidebarCollapsed && (
+              <Title heading={5} style={{ margin: 0, color: '#1D2129', flex: 1 }}>
+                Work Capacity
+              </Title>
+            )}
+          </div>
+
+
+          {/* Work Status Widget */}
+          {!sidebarCollapsed && (
+            <div style={{ padding: '20px 16px' }}>
+              <WorkStatusWidget />
             </div>
-
-
-            {/* Work Status Widget */}
-            {!sidebarCollapsed && (
-              <div style={{ padding: '20px 16px' }}>
-                <WorkStatusWidget />
-              </div>
-            )}
-
-            {/* Time Sink Logger */}
-            {!sidebarCollapsed && (
-              <div style={{ padding: '0 16px 16px 16px' }}>
-                <TimeSinkLogger onOpenSettings={() => setShowTaskTypeManager(true)} />
-              </div>
-            )}
-
-          </Sider>
-
-          {/* Floating button to reopen sidebar on mobile when fully collapsed */}
-          {isMobile && sidebarCollapsed && (
-            <FloatingSidebarButton onClick={() => handleSidebarCollapse(false)} />
           )}
 
-          <Layout style={{
-            // Add right margin when chat sidebar is open (sidebar is fixed position)
-            marginRight: sidebarOpen ? sidebarWidth : 0,
-            transition: 'margin-right 0.2s ease',
+          {/* Time Sink Logger */}
+          {!sidebarCollapsed && (
+            <div style={{ padding: '0 16px 16px 16px' }}>
+              <TimeSinkLogger onOpenSettings={() => setShowTaskTypeManager(true)} />
+            </div>
+          )}
+
+        </Sider>
+
+        {/* Floating button to reopen sidebar on mobile when fully collapsed */}
+        {isMobile && sidebarCollapsed && (
+          <FloatingSidebarButton onClick={() => handleSidebarCollapse(false)} />
+        )}
+
+        <Layout style={{
+          // Add right margin when chat sidebar is open (sidebar is fixed position)
+          marginRight: sidebarOpen ? sidebarWidth : 0,
+          transition: 'margin-right 0.2s ease',
+        }}>
+          <Header style={{
+            background: '#FAFBFC',
+            borderBottom: '1px solid #E5E8EF',
+            padding: '0 24px',
+            height: 64,
+            display: 'flex',
+            alignItems: 'center',
+            gap: 24,
           }}>
-            <Header style={{
-              background: '#FAFBFC',
-              borderBottom: '1px solid #E5E8EF',
-              padding: '0 24px',
-              height: 64,
-              display: 'flex',
-              alignItems: 'center',
-              gap: 24,
-            }}>
-              {/* Horizontal Navigation Tabs - hide text on mobile */}
-              <Tabs
-                activeTab={activeView}
-                onChange={(key) => setActiveView(key as ViewType)}
-                type="line"
-                style={{ flex: 1, minWidth: 0 }}
-              >
-                <Tabs.TabPane
-                  key={ViewType.Timeline}
-                  title={
-                    <Space>
-                      <IconSchedule />
-                      {!isMobile && <span>Timeline</span>}
-                    </Space>
-                  }
-                />
-                <Tabs.TabPane
-                  key={ViewType.Schedule}
-                  title={
-                    <Space>
-                      <IconCalendar />
-                      {!isMobile && <span>Schedule</span>}
-                    </Space>
-                  }
-                />
-                <Tabs.TabPane
-                  key={ViewType.Workflows}
-                  title={
-                    <Space>
-                      <IconBranch />
-                      {!isMobile && <span>Workflows</span>}
-                      {activeWorkflows > 0 && <Badge count={activeWorkflows} dot />}
-                    </Space>
-                  }
-                />
-                <Tabs.TabPane
-                  key={ViewType.Tasks}
-                  title={
-                    <Space>
-                      <IconList />
-                      {!isMobile && <span>Tasks</span>}
-                      {incompleteTasks > 0 && <Badge count={incompleteTasks} dot />}
-                    </Space>
-                  }
-                />
-                <Tabs.TabPane
-                  key={ViewType.Sprint}
-                  title={
-                    <Space>
-                      <IconApps />
-                      {!isMobile && <span>Sprint</span>}
-                    </Space>
-                  }
-                />
-                <Tabs.TabPane
-                  key={ViewType.Endeavors}
-                  title={
-                    <Space>
-                      <IconStar />
-                      {!isMobile && <span>Endeavors</span>}
-                    </Space>
-                  }
-                />
-                <Tabs.TabPane
-                  key={ViewType.DeepWork}
-                  title={
-                    <Space>
-                      <IconMindMapping />
-                      {!isMobile && <span>Deep Work</span>}
-                    </Space>
-                  }
-                />
-                <Tabs.TabPane
-                  key={ViewType.Calendar}
-                  title={
-                    <Space>
-                      <IconCalendar />
-                      {!isMobile && <span>Calendar</span>}
-                    </Space>
-                  }
-                />
-                <Tabs.TabPane
-                  key={ViewType.Matrix}
-                  title={
-                    <Space>
-                      <IconApps />
-                      {!isMobile && <span>Matrix</span>}
-                    </Space>
-                  }
-                />
-              </Tabs>
-
-              {/* Action Buttons - responsive overflow menu ensures all buttons accessible */}
-              <ActionButtonOverflowMenu
-                buttons={[
-                  {
-                    key: 'chat',
-                    icon: <IconMessage />,
-                    label: 'Chat',
-                    onClick: toggleSidebar,
-                    priority: 1,
-                    isActive: sidebarOpen,
-                    title: 'AI Chat',
-                  },
-                  {
-                    key: 'logwork',
-                    icon: <IconClockCircle />,
-                    label: 'Log Work',
-                    onClick: () => setShowWorkLoggerDual(true),
-                    priority: 1,
-                    buttonType: 'primary',
-                    title: 'Log Work',
-                  },
-                  {
-                    key: 'tournament',
-                    icon: <IconEye />,
-                    label: 'Tournament',
-                    onClick: () => setShowTaskSlideshow(true),
-                    priority: 2,
-                    title: 'Task Tournament',
-                  },
-                  {
-                    key: 'settings',
-                    icon: <IconSettings />,
-                    label: 'Settings',
-                    onClick: () => setShowTaskTypeManager(true),
-                    priority: 3,
-                    title: 'Settings',
-                  },
-                  {
-                    key: 'sessions',
-                    icon: <IconUserGroup />,
-                    label: 'Sessions',
-                    onClick: () => setShowSessionManager(true),
-                    priority: 3,
-                    title: 'Session Manager',
-                  },
-                ] satisfies ActionButtonConfig[]
-              }/>
-            </Header>
-
-            <Content style={{
-              padding: isFullCanvasMode ? 0 : (screenWidth < 768 ? 12 : 24),
-              background: '#F7F8FA',
-              overflow: isFullCanvasMode ? 'hidden' : 'auto',
-              minWidth: 320, // CRITICAL FIX: Prevent extreme narrowing causing text breaking
-              flex: 1, // Take remaining space
-              maxWidth: '100%',
-            }}>
-              {error && (
-                <Alert
-                  type="error"
-                  title="Error"
-                  content={error}
-                  style={{ marginBottom: 16, maxWidth: contentMaxWidth, margin: '0 auto 16px auto' }}
-                  showIcon
-                />
-              )}
-
-              <div style={isFullCanvasMode ? { height: '100%' } : { maxWidth: contentMaxWidth, margin: '0 auto' }}>
-                {isLoading ? (
-                  <div style={{ textAlign: 'center', padding: '60px 0' }}>
-                    <Spin size={40} />
-                    <div style={{ marginTop: 16 }}>
-                      <Typography.Text type="secondary">Loading data...</Typography.Text>
-                    </div>
-                  </div>
-                ) : (
-                  <>
-                    {activeView === ViewType.Tasks && (
-                      <ErrorBoundary>
-                        <TaskList onAddTask={() => setTaskFormVisible(true)} />
-                      </ErrorBoundary>
-                    )}
-
-                    {activeView === ViewType.Matrix && (
-                      <ErrorBoundary>
-                        <EisenhowerMatrix onAddTask={() => setTaskFormVisible(true)} />
-                      </ErrorBoundary>
-                    )}
-
-                    {activeView === ViewType.Sprint && (
-                      <ErrorBoundary>
-                        <SprintBoard />
-                      </ErrorBoundary>
-                    )}
-
-                    {activeView === ViewType.Endeavors && (
-                      <ErrorBoundary>
-                        {selectedEndeavorId ? (
-                          <EndeavorDetail
-                            endeavorId={selectedEndeavorId}
-                            onBack={() => setSelectedEndeavorId(null)}
-                            onOpenInWhiteboard={handleOpenEndeavorInWhiteboard}
-                          />
-                        ) : endeavorViewMode === 'graph' ? (
-                          <EndeavorGraphView
-                            onBackToList={() => setEndeavorViewMode('list')}
-                            onSelectEndeavor={(id) => setSelectedEndeavorId(id)}
-                            onOpenInWhiteboard={handleOpenEndeavorInWhiteboard}
-                          />
-                        ) : (
-                          <EndeavorList
-                            onSelectEndeavor={(id) => setSelectedEndeavorId(id)}
-                            onToggleGraph={() => setEndeavorViewMode('graph')}
-                            onOpenInWhiteboard={handleOpenEndeavorInWhiteboard}
-                          />
-                        )}
-                      </ErrorBoundary>
-                    )}
-
-                    {activeView === ViewType.DeepWork && (
-                      <ErrorBoundary>
-                        <DeepWorkBoardView />
-                      </ErrorBoundary>
-                    )}
-
-                    {activeView === ViewType.Calendar && (
-                      <ErrorBoundary>
-                        <WeeklyCalendar />
-                      </ErrorBoundary>
-                    )}
-
-                    {activeView === ViewType.Workflows && (
-                      <ErrorBoundary>
-                        <Space direction="vertical" style={{ width: '100%' }} size="large">
-                          {/* Header with Add Button */}
-                          <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                            <Typography.Title heading={5}>
-                              {sequencedTasks.length > 0 ? `Your Workflows (${sequencedTasks.length})` : 'Workflows'}
-                            </Typography.Title>
-                            <Space>
-                              <Button
-                                type="primary"
-                                onClick={() => setSequencedTaskFormVisible(true)}
-                              >
-                                Add Sequenced Task
-                              </Button>
-                              {process.env.NODE_ENV === 'development' && sequencedTasks.length > 0 && (
-                                <Popconfirm
-                                  title="Delete All Workflows?"
-                                  content="This will permanently delete all workflows and their steps. This action cannot be undone."
-                                  onOk={handleDeleteAllSequencedTasks}
-                                  okText="Delete All"
-                                  cancelText="Cancel"
-                                  okButtonProps={{ status: 'danger' }}
-                                >
-                                  <Button
-                                    type="text"
-                                    size="small"
-                                    status="danger"
-                                    icon={<IconDelete />}
-                                  >
-                                    Delete All Workflows
-                                  </Button>
-                                </Popconfirm>
-                              )}
-                            </Space>
-                          </div>
-
-                          {/* User's Created Workflows */}
-                          {sequencedTasks.length > 0 ? (
-                            sequencedTasks
-                              .sort((a, b) => {
-                                // Sort by priority (importance * urgency) descending
-                                const priorityA = a.importance * a.urgency
-                                const priorityB = b.importance * b.urgency
-                                return priorityB - priorityA
-                              })
-                              .map(task => (
-                                <SequencedTaskView
-                                  key={task.id}
-                                  task={task}
-                                  onUpdateStep={handleUpdateStep}
-                                  onStartWorkflow={() => handleStartWorkflow(task.id)}
-                                  onPauseWorkflow={() => handlePauseWorkflow(task.id)}
-                                  onResetWorkflow={() => handleResetWorkflow(task.id)}
-                                  onDelete={() => handleDeleteSequencedTask(task.id)}
-                                />
-                              ))
-                          ) : (
-                            <div style={{
-                              textAlign: 'center',
-                              padding: '60px 20px',
-                              color: '#86909c',
-                            }}>
-                              <Typography.Text>
-                                No workflows yet. Click &quot;Add Sequenced Task&quot; to create your first workflow.
-                              </Typography.Text>
-                            </div>
-                          )}
-                        </Space>
-                      </ErrorBoundary>
-                    )}
-
-                    {activeView === ViewType.Timeline && (
-                      <ErrorBoundary>
-                        <GanttChart
-                          tasks={tasks}
-                          sequencedTasks={sequencedTasks}
-                        />
-                      </ErrorBoundary>
-                    )}
-
-                    {activeView === ViewType.Schedule && (
-                      <ErrorBoundary>
-                        <MultiDayScheduleEditor
-                          visible={true}
-                          onClose={() => setActiveView(ViewType.Timeline)}
-                          onSave={() => {
-                            // Work patterns update reactively via storeConnector - no need to reload tasks
-                            // initializeData() wipes tasks and causes timeline to blank out
-                            setActiveView(ViewType.Timeline)
-                          }}
-                        />
-                      </ErrorBoundary>
-                    )}
-                  </>
-                )}
-              </div>
-            </Content>
-          </Layout>
-
-          <TaskForm
-            visible={taskFormVisible}
-            onClose={() => setTaskFormVisible(false)}
-          />
-
-          <SequencedTaskForm
-            visible={sequencedTaskFormVisible}
-            onClose={() => setSequencedTaskFormVisible(false)}
-            onSubmit={async (taskData) => {
-              // Task successfully created and added to store
-              await addSequencedTask(taskData)
-            }}
-          />
-
-          {/* Chat Sidebar */}
-          <ChatSidebar onNavigateToView={setActiveView} />
-
-          <TaskCreationFlow
-            visible={taskCreationFlowVisible}
-            onClose={handleTaskCreationComplete}
-            extractedTasks={extractedTasks}
-          />
-
-          <WorkScheduleModal
-            visible={showWorkSchedule}
-            onClose={() => setShowWorkSchedule(false)}
-            onSave={(): void => {
-              // Refresh any data if needed
-              setShowWorkSchedule(false)
-            }}
-          />
-
-          <WorkLoggerDual
-            visible={showWorkLoggerDual}
-            onClose={() => setShowWorkLoggerDual(false)}
-          />
-
-          <TaskSlideshow
-            visible={showTaskSlideshow}
-            onClose={() => setShowTaskSlideshow(false)}
-          />
-
-          <SessionManager
-            visible={showSessionManager}
-            onClose={() => setShowSessionManager(false)}
-            onSessionChange={(): void => {
-              // Reload data when session changes
-              initializeData()
-            }}
-          />
-
-          {/* Settings Modal */}
-          <Modal
-            title="Settings"
-            visible={showTaskTypeManager}
-            onCancel={() => setShowTaskTypeManager(false)}
-            footer={null}
-            style={{ width: 700 }}
-          >
-            <Tabs defaultActiveTab="taskTypes">
-              <Tabs.TabPane key="taskTypes" title="Task Types">
-                <TaskTypeManager embedded onTypesChange={() => {
-                  // Types update reactively via store - no need to reload
-                }} />
-              </Tabs.TabPane>
-              <Tabs.TabPane key="timeSinks" title="Time Sinks">
-                <TimeSinkManager />
-              </Tabs.TabPane>
+            {/* Horizontal Navigation Tabs - hide text on mobile */}
+            <Tabs
+              activeTab={activeView}
+              onChange={(key) => setActiveView(key as ViewType)}
+              type="line"
+              style={{ flex: 1, minWidth: 0 }}
+            >
+              <Tabs.TabPane
+                key={ViewType.Timeline}
+                title={
+                  <Space>
+                    <IconSchedule />
+                    {!isMobile && <span>Timeline</span>}
+                  </Space>
+                }
+              />
+              <Tabs.TabPane
+                key={ViewType.Schedule}
+                title={
+                  <Space>
+                    <IconCalendar />
+                    {!isMobile && <span>Schedule</span>}
+                  </Space>
+                }
+              />
+              <Tabs.TabPane
+                key={ViewType.Workflows}
+                title={
+                  <Space>
+                    <IconBranch />
+                    {!isMobile && <span>Workflows</span>}
+                    {activeWorkflows > 0 && <Badge count={activeWorkflows} dot />}
+                  </Space>
+                }
+              />
+              <Tabs.TabPane
+                key={ViewType.Tasks}
+                title={
+                  <Space>
+                    <IconList />
+                    {!isMobile && <span>Tasks</span>}
+                    {incompleteTasks > 0 && <Badge count={incompleteTasks} dot />}
+                  </Space>
+                }
+              />
+              <Tabs.TabPane
+                key={ViewType.Sprint}
+                title={
+                  <Space>
+                    <IconApps />
+                    {!isMobile && <span>Sprint</span>}
+                  </Space>
+                }
+              />
+              <Tabs.TabPane
+                key={ViewType.Endeavors}
+                title={
+                  <Space>
+                    <IconStar />
+                    {!isMobile && <span>Endeavors</span>}
+                  </Space>
+                }
+              />
+              <Tabs.TabPane
+                key={ViewType.DeepWork}
+                title={
+                  <Space>
+                    <IconMindMapping />
+                    {!isMobile && <span>Deep Work</span>}
+                  </Space>
+                }
+              />
+              <Tabs.TabPane
+                key={ViewType.Calendar}
+                title={
+                  <Space>
+                    <IconCalendar />
+                    {!isMobile && <span>Calendar</span>}
+                  </Space>
+                }
+              />
+              <Tabs.TabPane
+                key={ViewType.Matrix}
+                title={
+                  <Space>
+                    <IconApps />
+                    {!isMobile && <span>Matrix</span>}
+                  </Space>
+                }
+              />
             </Tabs>
-          </Modal>
-          <DevTools
-            visible={showDevTools}
-            onClose={() => setShowDevTools(false)}
-          />
 
-          {/* Task Creation Forms */}
-          <TaskForm
-            visible={taskFormVisible}
-            onClose={() => setTaskFormVisible(false)}
-          />
+            {/* Action Buttons - responsive overflow menu ensures all buttons accessible */}
+            <ActionButtonOverflowMenu
+              buttons={[
+                {
+                  key: 'chat',
+                  icon: <IconMessage />,
+                  label: 'Chat',
+                  onClick: toggleSidebar,
+                  priority: 1,
+                  isActive: sidebarOpen,
+                  title: 'AI Chat',
+                },
+                {
+                  key: 'logwork',
+                  icon: <IconClockCircle />,
+                  label: 'Log Work',
+                  onClick: () => setShowWorkLoggerDual(true),
+                  priority: 1,
+                  buttonType: 'primary',
+                  title: 'Log Work',
+                },
+                {
+                  key: 'tournament',
+                  icon: <IconEye />,
+                  label: 'Tournament',
+                  onClick: () => setShowTaskSlideshow(true),
+                  priority: 2,
+                  title: 'Task Tournament',
+                },
+                {
+                  key: 'settings',
+                  icon: <IconSettings />,
+                  label: 'Settings',
+                  onClick: () => setShowTaskTypeManager(true),
+                  priority: 3,
+                  title: 'Settings',
+                },
+                {
+                  key: 'sessions',
+                  icon: <IconUserGroup />,
+                  label: 'Sessions',
+                  onClick: () => setShowSessionManager(true),
+                  priority: 3,
+                  title: 'Session Manager',
+                },
+              ] satisfies ActionButtonConfig[]
+              } />
+          </Header>
 
+          <Content style={{
+            padding: isFullCanvasMode ? 0 : (screenWidth < 768 ? 12 : 24),
+            background: '#F7F8FA',
+            overflow: isFullCanvasMode ? 'hidden' : 'auto',
+            minWidth: 320, // CRITICAL FIX: Prevent extreme narrowing causing text breaking
+            flex: 1, // Take remaining space
+            maxWidth: '100%',
+          }}>
+            {error && (
+              <Alert
+                type="error"
+                title="Error"
+                content={error}
+                style={{ marginBottom: 16, maxWidth: contentMaxWidth, margin: '0 auto 16px auto' }}
+                showIcon
+              />
+            )}
+
+            <div style={isFullCanvasMode ? { height: '100%' } : { maxWidth: contentMaxWidth, margin: '0 auto' }}>
+              {isLoading ? (
+                <div style={{ textAlign: 'center', padding: '60px 0' }}>
+                  <Spin size={40} />
+                  <div style={{ marginTop: 16 }}>
+                    <Typography.Text type="secondary">Loading data...</Typography.Text>
+                  </div>
+                </div>
+              ) : (
+                <>
+                  {activeView === ViewType.Tasks && (
+                    <ErrorBoundary>
+                      <TaskList onAddTask={() => setTaskFormVisible(true)} />
+                    </ErrorBoundary>
+                  )}
+
+                  {activeView === ViewType.Matrix && (
+                    <ErrorBoundary>
+                      <EisenhowerMatrix onAddTask={() => setTaskFormVisible(true)} />
+                    </ErrorBoundary>
+                  )}
+
+                  {activeView === ViewType.Sprint && (
+                    <ErrorBoundary>
+                      <SprintBoard />
+                    </ErrorBoundary>
+                  )}
+
+                  {activeView === ViewType.Endeavors && (
+                    <ErrorBoundary>
+                      {selectedEndeavorId ? (
+                        <EndeavorDetail
+                          endeavorId={selectedEndeavorId}
+                          onBack={() => setSelectedEndeavorId(null)}
+                          onOpenInWhiteboard={handleOpenEndeavorInWhiteboard}
+                        />
+                      ) : endeavorViewMode === 'graph' ? (
+                        <EndeavorGraphView
+                          onBackToList={() => setEndeavorViewMode('list')}
+                          onSelectEndeavor={(id) => setSelectedEndeavorId(id)}
+                          onOpenInWhiteboard={handleOpenEndeavorInWhiteboard}
+                        />
+                      ) : (
+                        <EndeavorList
+                          onSelectEndeavor={(id) => setSelectedEndeavorId(id)}
+                          onToggleGraph={() => setEndeavorViewMode('graph')}
+                          onOpenInWhiteboard={handleOpenEndeavorInWhiteboard}
+                        />
+                      )}
+                    </ErrorBoundary>
+                  )}
+
+                  {activeView === ViewType.DeepWork && (
+                    <ErrorBoundary>
+                      <DeepWorkBoardView />
+                    </ErrorBoundary>
+                  )}
+
+                  {activeView === ViewType.Calendar && (
+                    <ErrorBoundary>
+                      <WeeklyCalendar />
+                    </ErrorBoundary>
+                  )}
+
+                  {activeView === ViewType.Workflows && (
+                    <ErrorBoundary>
+                      <Space direction="vertical" style={{ width: '100%' }} size="large">
+                        {/* Header with Add Button */}
+                        <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <Typography.Title heading={5}>
+                            {sequencedTasks.length > 0 ? `Your Workflows (${sequencedTasks.length})` : 'Workflows'}
+                          </Typography.Title>
+                          <Space>
+                            <Button
+                              type="primary"
+                              onClick={() => setSequencedTaskFormVisible(true)}
+                            >
+                              Add Sequenced Task
+                            </Button>
+                            {process.env.NODE_ENV === 'development' && sequencedTasks.length > 0 && (
+                              <Popconfirm
+                                title="Delete All Workflows?"
+                                content="This will permanently delete all workflows and their steps. This action cannot be undone."
+                                onOk={handleDeleteAllSequencedTasks}
+                                okText="Delete All"
+                                cancelText="Cancel"
+                                okButtonProps={{ status: 'danger' }}
+                              >
+                                <Button
+                                  type="text"
+                                  size="small"
+                                  status="danger"
+                                  icon={<IconDelete />}
+                                >
+                                  Delete All Workflows
+                                </Button>
+                              </Popconfirm>
+                            )}
+                          </Space>
+                        </div>
+
+                        {/* User's Created Workflows */}
+                        {sequencedTasks.length > 0 ? (
+                          sequencedTasks
+                            .sort((a, b) => {
+                              // Sort by priority (importance * urgency) descending
+                              const priorityA = a.importance * a.urgency
+                              const priorityB = b.importance * b.urgency
+                              return priorityB - priorityA
+                            })
+                            .map(task => (
+                              <SequencedTaskView
+                                key={task.id}
+                                task={task}
+                                onUpdateStep={handleUpdateStep}
+                                onStartWorkflow={() => handleStartWorkflow(task.id)}
+                                onPauseWorkflow={() => handlePauseWorkflow(task.id)}
+                                onResetWorkflow={() => handleResetWorkflow(task.id)}
+                                onDelete={() => handleDeleteSequencedTask(task.id)}
+                              />
+                            ))
+                        ) : (
+                          <div style={{
+                            textAlign: 'center',
+                            padding: '60px 20px',
+                            color: '#86909c',
+                          }}>
+                            <Typography.Text>
+                              No workflows yet. Click &quot;Add Sequenced Task&quot; to create your first workflow.
+                            </Typography.Text>
+                          </div>
+                        )}
+                      </Space>
+                    </ErrorBoundary>
+                  )}
+
+                  {activeView === ViewType.Timeline && (
+                    <ErrorBoundary>
+                      <GanttChart
+                        tasks={tasks}
+                        sequencedTasks={sequencedTasks}
+                      />
+                    </ErrorBoundary>
+                  )}
+
+                  {activeView === ViewType.Schedule && (
+                    <ErrorBoundary>
+                      <MultiDayScheduleEditor
+                        visible={true}
+                        onClose={() => setActiveView(ViewType.Timeline)}
+                        onSave={() => {
+                          // Work patterns update reactively via storeConnector - no need to reload tasks
+                          // initializeData() wipes tasks and causes timeline to blank out
+                          setActiveView(ViewType.Timeline)
+                        }}
+                      />
+                    </ErrorBoundary>
+                  )}
+                </>
+              )}
+            </div>
+          </Content>
         </Layout>
+
+        <TaskForm
+          visible={taskFormVisible}
+          onClose={() => setTaskFormVisible(false)}
+        />
+
+        <SequencedTaskForm
+          visible={sequencedTaskFormVisible}
+          onClose={() => setSequencedTaskFormVisible(false)}
+          onSubmit={async (taskData) => {
+            // Task successfully created and added to store
+            await addSequencedTask(taskData)
+          }}
+        />
+
+        {/* Chat Sidebar */}
+        <ChatSidebar onNavigateToView={setActiveView} />
+
+        <TaskCreationFlow
+          visible={taskCreationFlowVisible}
+          onClose={handleTaskCreationComplete}
+          extractedTasks={extractedTasks}
+        />
+
+        <WorkScheduleModal
+          visible={showWorkSchedule}
+          onClose={() => setShowWorkSchedule(false)}
+          onSave={(): void => {
+            // Refresh any data if needed
+            setShowWorkSchedule(false)
+          }}
+        />
+
+        <WorkLoggerDual
+          visible={showWorkLoggerDual}
+          onClose={() => setShowWorkLoggerDual(false)}
+        />
+
+        <TaskSlideshow
+          visible={showTaskSlideshow}
+          onClose={() => setShowTaskSlideshow(false)}
+        />
+
+        <SessionManager
+          visible={showSessionManager}
+          onClose={() => setShowSessionManager(false)}
+          onSessionChange={(): void => {
+            // Reload data when session changes
+            initializeData()
+          }}
+        />
+
+        {/* Settings Modal */}
+        <Modal
+          title="Settings"
+          visible={showTaskTypeManager}
+          onCancel={() => setShowTaskTypeManager(false)}
+          footer={null}
+          style={{ width: 700 }}
+        >
+          <Tabs defaultActiveTab="taskTypes">
+            <Tabs.TabPane key="taskTypes" title="Task Types">
+              <TaskTypeManager embedded onTypesChange={() => {
+                // Types update reactively via store - no need to reload
+              }} />
+            </Tabs.TabPane>
+            <Tabs.TabPane key="timeSinks" title="Time Sinks">
+              <TimeSinkManager />
+            </Tabs.TabPane>
+          </Tabs>
+        </Modal>
+        <DevTools
+          visible={showDevTools}
+          onClose={() => setShowDevTools(false)}
+        />
+
+        {/* Task Creation Forms */}
+        <TaskForm
+          visible={taskFormVisible}
+          onClose={() => setTaskFormVisible(false)}
+        />
+
+      </Layout>
     </ConfigProvider>
   )
 }
