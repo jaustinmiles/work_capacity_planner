@@ -22,7 +22,7 @@ export function TaskCompleteMidCycleModal({ visible, onClose }: TaskCompleteMidC
   const { switchTaskWithinCycle, endCycle, dismissPrompt } = usePomodoroStore()
 
   const incompleteTasks = tasks.filter(
-    (t) => t.overallStatus !== TaskStatus.Completed,
+    (t) => t.overallStatus !== TaskStatus.Completed && !t.archived,
   )
 
   const handleSelectTask = async (taskId: string): Promise<void> => {

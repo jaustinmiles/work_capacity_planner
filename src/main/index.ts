@@ -10,7 +10,7 @@
  * - App metadata handlers
  */
 
-import { app, ipcMain, IpcMainInvokeEvent } from 'electron'
+import { app, ipcMain, IpcMainInvokeEvent, Notification } from 'electron'
 import path from 'node:path'
 import { LogScope } from '../logger'
 import { getScopedLogger } from '../logger/scope-helper'
@@ -32,21 +32,12 @@ app.whenReady().then(() => {
 ipcMain.handle(
   'notification:show',
   async (_event: IpcMainInvokeEvent, payload: { title: string; body: string }) => {
-    // Electron's Notification class isn't in this project's type defs,
-    // so we access it dynamically from the electron module.
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
-    const electron = require('electron') as Record<string, unknown>
-    const NotificationClass = electron.Notification as {
-      isSupported: () => boolean
-      new (options: { title: string; body: string }): { show: () => void }
-    }
-
-    if (!NotificationClass?.isSupported()) {
+    if (!Notification.isSupported()) {
       mainLogger.warn('Desktop notifications not supported on this platform')
       return false
     }
 
-    const notification = new NotificationClass({
+    const notification = new Notification({
       title: payload.title,
       body: payload.body,
     })

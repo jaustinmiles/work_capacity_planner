@@ -19,6 +19,7 @@ import {
   extractTimeFromISO,
   formatDateStringForDisplay,
   safeParseDateString,
+  getLocalDateRange,
 } from '../time-utils'
 
 describe('time-utils', () => {
@@ -475,6 +476,41 @@ describe('time-utils', () => {
       expect(result?.getFullYear()).toBe(2025)
       expect(result?.getMonth()).toBe(0) // January
       expect(result?.getDate()).toBe(15)
+    })
+  })
+
+  describe('getLocalDateRange', () => {
+    it('should return start and end of day for a date string', () => {
+      const { startOfDay, endOfDay } = getLocalDateRange('2025-06-15')
+      expect(startOfDay.getFullYear()).toBe(2025)
+      expect(startOfDay.getMonth()).toBe(5) // June is 0-indexed
+      expect(startOfDay.getDate()).toBe(15)
+      expect(startOfDay.getHours()).toBe(0)
+      expect(startOfDay.getMinutes()).toBe(0)
+      expect(startOfDay.getSeconds()).toBe(0)
+      expect(startOfDay.getMilliseconds()).toBe(0)
+
+      expect(endOfDay.getFullYear()).toBe(2025)
+      expect(endOfDay.getMonth()).toBe(5)
+      expect(endOfDay.getDate()).toBe(15)
+      expect(endOfDay.getHours()).toBe(23)
+      expect(endOfDay.getMinutes()).toBe(59)
+      expect(endOfDay.getSeconds()).toBe(59)
+      expect(endOfDay.getMilliseconds()).toBe(999)
+    })
+
+    it('should handle year boundaries', () => {
+      const { startOfDay, endOfDay } = getLocalDateRange('2025-01-01')
+      expect(startOfDay.getFullYear()).toBe(2025)
+      expect(startOfDay.getMonth()).toBe(0)
+      expect(startOfDay.getDate()).toBe(1)
+      expect(endOfDay.getDate()).toBe(1)
+    })
+
+    it('should handle end-of-month dates', () => {
+      const { startOfDay } = getLocalDateRange('2025-02-28')
+      expect(startOfDay.getMonth()).toBe(1)
+      expect(startOfDay.getDate()).toBe(28)
     })
   })
 })

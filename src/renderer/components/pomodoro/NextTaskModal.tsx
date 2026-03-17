@@ -22,9 +22,9 @@ export function NextTaskModal({ visible, onClose }: NextTaskModalProps) {
   const timerState = usePomodoroTimer()
   const { transitionToWork, endCycle, dismissPrompt } = usePomodoroStore()
 
-  // Filter to incomplete tasks
+  // Filter to incomplete, non-archived tasks
   const incompleteTasks = tasks.filter(
-    (t) => t.overallStatus !== TaskStatus.Completed,
+    (t) => t.overallStatus !== TaskStatus.Completed && !t.archived,
   )
 
   const handleSelectTask = async (taskId: string): Promise<void> => {

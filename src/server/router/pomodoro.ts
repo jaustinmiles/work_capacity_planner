@@ -9,7 +9,7 @@ import { z } from 'zod'
 import { router, sessionProcedure, protectedProcedure } from '../trpc'
 import { generateUniqueId } from '../../shared/step-id-utils'
 import { getCurrentTime } from '../../shared/time-provider'
-import { parseDateString } from '../../shared/time-utils'
+import { getLocalDateRange } from '../../shared/time-utils'
 import { PomodoroPhase } from '../../shared/enums'
 import { POMODORO_DEFAULTS } from '../../shared/constants'
 import { getBreakDurationMinutes } from '../../shared/pomodoro-types'
@@ -57,12 +57,6 @@ const getCycleWithSessionsInput = z.object({
 // Helpers
 // ============================================================================
 
-function getLocalDateRange(dateString: string): { startOfDay: Date; endOfDay: Date } {
-  const [year, month, day] = parseDateString(dateString)
-  const startOfDay = new Date(year, month - 1, day, 0, 0, 0, 0)
-  const endOfDay = new Date(year, month - 1, day, 23, 59, 59, 999)
-  return { startOfDay, endOfDay }
-}
 
 // ============================================================================
 // Router

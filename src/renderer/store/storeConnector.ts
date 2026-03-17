@@ -219,8 +219,12 @@ export const connectStores = () => {
     { equalityFn: shallow },
   )
 
-  // Connect task completion to Pomodoro store
-  // When the active Pomodoro task is completed externally, prompt for next task
+  // Pomodoro ↔ Task Store reactive bridge:
+  // When a user completes a task (via task list, deep work board, or any other UI)
+  // while a Pomodoro work phase is running on that task, this subscription detects
+  // the status change and sets pendingPrompt = TaskComplete on the Pomodoro store.
+  // This triggers the TaskCompleteMidCycleModal, letting the user pick a new task
+  // to continue the Pomodoro cycle without interrupting the timer.
   const unsubPomodoro = useTaskStore.subscribe(
     (state) => state.tasks,
     (tasks) => {

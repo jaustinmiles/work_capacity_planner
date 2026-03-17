@@ -610,8 +610,8 @@ model PomodoroCycle {
   sessionId            String
   cycleNumber          Int           // 1-based cycle count within the day
   status               String        @default("work") // PomodoroPhase enum value
-  workDurationMinutes  Int           // Snapshot of duration at cycle start
-  breakDurationMinutes Int           // Snapshot of break duration at cycle start
+  workDurationMinutes  Int           // Config snapshot at cycle creation (NOT a running total — e.g., 25 for standard Pomodoro)
+  breakDurationMinutes Int           // Config snapshot at cycle creation (NOT a running total — e.g., 5 for short break)
   phaseStartTime       DateTime      // When the current phase (work or break) started
   startTime            DateTime      // When the overall cycle started
   endTime              DateTime?     // When the cycle ended (null = in progress)

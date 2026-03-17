@@ -273,6 +273,17 @@ export function formatDateStringForDisplay(dateStr: string, locale?: string): st
  * @param dateStr - Date string to parse (ISO format, YYYY-MM-DD, or other Date-parseable format)
  * @returns Date object or undefined if parsing fails
  */
+/**
+ * Convert a YYYY-MM-DD date string into local-time start/end-of-day boundaries.
+ * Useful for database queries that need to scope results to a single calendar day.
+ */
+export function getLocalDateRange(dateString: string): { startOfDay: Date; endOfDay: Date } {
+  const [year, month, day] = parseDateString(dateString)
+  const startOfDay = new Date(year, month - 1, day, 0, 0, 0, 0)
+  const endOfDay = new Date(year, month - 1, day, 23, 59, 59, 999)
+  return { startOfDay, endOfDay }
+}
+
 export function safeParseDateString(dateStr: string | undefined): Date | undefined {
   if (!dateStr) return undefined
   try {

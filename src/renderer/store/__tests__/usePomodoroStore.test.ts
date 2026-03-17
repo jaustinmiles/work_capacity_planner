@@ -37,9 +37,7 @@ const mockWorkTrackingService = {
 }
 
 const mockTaskStoreState = {
-  startWorkOnTask: vi.fn().mockResolvedValue(undefined),
-  startWorkOnStep: vi.fn().mockResolvedValue(undefined),
-  notifyWorkSessionsChanged: vi.fn(),
+  startWork: vi.fn().mockResolvedValue(undefined),
   activeWorkSessions: new Map(),
   tasks: [
     { id: 'task-1', name: 'Build feature', overallStatus: 'in_progress' },
@@ -61,6 +59,16 @@ vi.mock('../useTimeSinkStore', () => ({
       activeSinkSession: null,
       startSession: vi.fn().mockResolvedValue(undefined),
       stopSession: vi.fn().mockResolvedValue(undefined),
+    })),
+  },
+}))
+
+// Mock NotificationService
+vi.mock('@/renderer/services/notificationService', () => ({
+  NotificationService: {
+    getInstance: vi.fn(() => ({
+      send: vi.fn().mockResolvedValue(undefined),
+      sendPomodoroPhaseComplete: vi.fn().mockResolvedValue(undefined),
     })),
   },
 }))
@@ -228,13 +236,21 @@ describe('usePomodoroStore', () => {
       expect(state.isLoading).toBe(false)
 
       expect(mockDbApi.startPomodoroCycle).toHaveBeenCalledOnce()
-      expect(mockTaskStoreState.startWorkOnTask).toHaveBeenCalledWith('task-1')
+      expect(mockTaskStoreState.startWork).toHaveBeenCalledWith({
+        isSimpleTask: true,
+        stepId: 'task-1',
+        taskId: 'task-1',
+      })
     })
 
     it('should start work on a specific step when stepId provided', async () => {
       await usePomodoroStore.getState().startPomodoro('task-1', 'step-1')
 
-      expect(mockTaskStoreState.startWorkOnStep).toHaveBeenCalledWith('task-1', 'step-1')
+      expect(mockTaskStoreState.startWork).toHaveBeenCalledWith({
+        isSimpleTask: false,
+        stepId: 'step-1',
+        taskId: 'task-1',
+      })
     })
 
     it('should not start if cycle already active', async () => {
@@ -259,12 +275,11 @@ describe('usePomodoroStore', () => {
       })
     })
 
-    it('should handle start errors', async () => {
+    it('should handle start errors gracefully', async () => {
       mockDbApi.startPomodoroCycle.mockRejectedValueOnce(new Error('Start failed'))
 
-      await expect(
-        usePomodoroStore.getState().startPomodoro('task-1'),
-      ).rejects.toThrow('Start failed')
+      // startPomodoro catches errors internally (withStoreLogging + .catch)
+      await usePomodoroStore.getState().startPomodoro('task-1')
 
       expect(usePomodoroStore.getState().isLoading).toBe(false)
       expect(usePomodoroStore.getState().activeCycle).toBeNull()
@@ -355,7 +370,11 @@ describe('usePomodoroStore', () => {
       expect(state.timerState.currentTaskName).toBe('Fix bug')
       expect(state.timerState.remainingSeconds).toBe(25 * 60)
 
-      expect(mockTaskStoreState.startWorkOnTask).toHaveBeenCalledWith('task-2')
+      expect(mockTaskStoreState.startWork).toHaveBeenCalledWith({
+        isSimpleTask: true,
+        stepId: 'task-2',
+        taskId: 'task-2',
+      })
     })
 
     it('should stop TimeSink session if active', async () => {
@@ -399,7 +418,11 @@ describe('usePomodoroStore', () => {
       await usePomodoroStore.getState().switchTaskWithinCycle('task-2')
 
       expect(mockWorkTrackingService.pauseWorkSession).toHaveBeenCalledWith('ws-old')
-      expect(mockTaskStoreState.startWorkOnTask).toHaveBeenCalledWith('task-2')
+      expect(mockTaskStoreState.startWork).toHaveBeenCalledWith({
+        isSimpleTask: true,
+        stepId: 'task-2',
+        taskId: 'task-2',
+      })
     })
 
     it('should link new session to same cycle', async () => {
@@ -424,7 +447,7 @@ describe('usePomodoroStore', () => {
 
       await usePomodoroStore.getState().switchTaskWithinCycle('task-2')
 
-      expect(mockTaskStoreState.startWorkOnTask).not.toHaveBeenCalled()
+      expect(mockTaskStoreState.startWork).not.toHaveBeenCalled()
     })
   })
 

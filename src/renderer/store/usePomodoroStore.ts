@@ -40,7 +40,7 @@ import type {
 } from '@shared/pomodoro-types'
 import { getCurrentTime } from '@shared/time-provider'
 import { logger } from '@/logger'
-import { sendPomodoroNotification } from '@/renderer/utils/pomodoroNotifications'
+import { NotificationService } from '@/renderer/services/notificationService'
 import { getDatabase } from '@/renderer/services/database'
 import { useTaskStore, getWorkTrackingServiceInstance } from './useTaskStore'
 import { useTimeSinkStore } from './useTimeSinkStore'
@@ -94,7 +94,7 @@ interface PomodoroStoreState {
 }
 
 // ============================================================================
-// Helper: Get effective settings with defaults
+// Helpers
 // ============================================================================
 
 function getEffectiveSettings(settings: PomodoroSettings | null): PomodoroSettings {
@@ -103,9 +103,57 @@ function getEffectiveSettings(settings: PomodoroSettings | null): PomodoroSettin
     id: '',
     sessionId: '',
     ...DEFAULT_POMODORO_SETTINGS,
-    createdAt: new Date(),
-    updatedAt: new Date(),
+    createdAt: getCurrentTime(),
+    updatedAt: getCurrentTime(),
   }
+}
+
+/**
+ * Wraps an async store action with structured logging (entry on success, error on failure).
+ * Eliminates repetitive try/catch/logger.ui.error boilerplate across store actions.
+ */
+function withStoreLogging<TArgs extends unknown[], TResult>(
+  actionName: string,
+  fn: (...args: TArgs) => Promise<TResult>,
+  getContext?: (...args: TArgs) => Record<string, unknown>,
+): (...args: TArgs) => Promise<TResult> {
+  return async (...args: TArgs): Promise<TResult> => {
+    try {
+      const result = await fn(...args)
+      const context = getContext ? getContext(...args) : {}
+      logger.ui.info(`Pomodoro: ${actionName}`, context, `pomodoro-${actionName}`)
+      return result
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : String(error)
+      const context = getContext ? getContext(...args) : {}
+      logger.ui.error(`Pomodoro: ${actionName} failed`, { error: msg, ...context }, `pomodoro-${actionName}-error`)
+      throw error
+    }
+  }
+}
+
+/** Start work on a task or step using the unified startWork() dispatcher */
+async function startWorkItem(taskId: string, stepId?: string): Promise<void> {
+  await useTaskStore.getState().startWork({
+    isSimpleTask: !stepId,
+    stepId: stepId ?? taskId,
+    taskId,
+  })
+}
+
+/** Link the currently active work session to a Pomodoro cycle */
+async function linkActiveSessionToCycle(taskId: string, stepId: string | undefined, cycleId: string): Promise<void> {
+  const activeWorkSessions = useTaskStore.getState().activeWorkSessions
+  const activeSession = activeWorkSessions.get(taskId) ?? activeWorkSessions.get(stepId ?? '')
+  if (activeSession?.id) {
+    await getDatabase().updateWorkSession(activeSession.id, { pomodoroCycleId: cycleId })
+  }
+}
+
+/** Get a task's display name by ID */
+function getTaskName(taskId: string): string | null {
+  const task = useTaskStore.getState().tasks.find(t => t.id === taskId)
+  return task?.name ?? null
 }
 
 // ============================================================================
@@ -132,27 +180,22 @@ export const usePomodoroStore = create<PomodoroStoreState>()(
         const raw = await getDatabase().getPomodoroSettings()
         const settings = raw ? fromDatabasePomodoroSettings(raw) : null
         set({ settings })
-        logger.ui.info('Pomodoro settings loaded', {
-          hasSettings: !!settings,
-        }, 'pomodoro-settings-loaded')
+        logger.ui.info('Pomodoro settings loaded', { hasSettings: !!settings }, 'pomodoro-settings-loaded')
       } catch (error) {
         const msg = error instanceof Error ? error.message : String(error)
         logger.ui.error('Failed to load pomodoro settings', { error: msg }, 'pomodoro-settings-error')
       }
     },
 
-    updateSettings: async (updates): Promise<void> => {
-      try {
+    updateSettings: withStoreLogging(
+      'settings-updated',
+      async (updates: UpdatePomodoroSettingsInput): Promise<void> => {
         const raw = await getDatabase().updatePomodoroSettings(updates)
         const settings = fromDatabasePomodoroSettings(raw)
         set({ settings })
-        logger.ui.info('Pomodoro settings updated', { updates }, 'pomodoro-settings-updated')
-      } catch (error) {
-        const msg = error instanceof Error ? error.message : String(error)
-        logger.ui.error('Failed to update pomodoro settings', { error: msg }, 'pomodoro-settings-update-error')
-        throw error
-      }
-    },
+      },
+      (updates) => ({ updates }),
+    ),
 
     // ==========================================================================
     // Cycle Lifecycle
@@ -169,86 +212,66 @@ export const usePomodoroStore = create<PomodoroStoreState>()(
 
       set({ isLoading: true })
 
-      try {
-        const effectiveSettings = getEffectiveSettings(get().settings)
+      await withStoreLogging(
+        'started',
+        async () => {
+          const effectiveSettings = getEffectiveSettings(get().settings)
 
-        // 1. Create PomodoroCycle via tRPC
-        const raw = await getDatabase().startPomodoroCycle({
-          workDurationMinutes: effectiveSettings.workDurationMinutes,
-          breakDurationMinutes: getBreakDurationMinutes(1, effectiveSettings),
-        })
-        const cycle = fromDatabasePomodoroCycle(raw)
-
-        // 2. Start WorkSession via task store (handles mutual exclusivity)
-        if (stepId) {
-          await useTaskStore.getState().startWorkOnStep(taskId, stepId)
-        } else {
-          await useTaskStore.getState().startWorkOnTask(taskId)
-        }
-
-        // 3. Link the WorkSession to the cycle
-        const activeWorkSessions = useTaskStore.getState().activeWorkSessions
-        const activeSession = activeWorkSessions.get(taskId) ?? activeWorkSessions.get(stepId ?? '')
-        if (activeSession?.id) {
-          await getDatabase().updateWorkSession(activeSession.id, {
-            pomodoroCycleId: cycle.id,
+          // 1. Create PomodoroCycle via tRPC
+          const raw = await getDatabase().startPomodoroCycle({
+            workDurationMinutes: effectiveSettings.workDurationMinutes,
+            breakDurationMinutes: getBreakDurationMinutes(1, effectiveSettings),
           })
-        }
+          const cycle = fromDatabasePomodoroCycle(raw)
 
-        // 4. Get task name for timer display
-        const tasks = useTaskStore.getState().tasks
-        const task = tasks.find(t => t.id === taskId)
+          // 2. Start WorkSession via unified dispatcher
+          await startWorkItem(taskId, stepId)
 
-        // 5. Update store state
-        set({
-          activeCycle: cycle,
-          timerState: {
-            isActive: true,
-            currentPhase: PomodoroPhase.Work,
-            currentCycleId: cycle.id,
-            cycleNumber: cycle.cycleNumber,
-            remainingSeconds: phaseDurationToSeconds(cycle.workDurationMinutes),
-            totalSeconds: phaseDurationToSeconds(cycle.workDurationMinutes),
-            currentTaskId: taskId,
-            currentTaskName: task?.name ?? null,
-          },
-          pendingPrompt: null,
-          isLoading: false,
-        })
+          // 3. Link WorkSession to cycle
+          await linkActiveSessionToCycle(taskId, stepId, cycle.id)
 
-        // 6. Start timer tick
-        _startTick()
+          // 4. Update store state
+          set({
+            activeCycle: cycle,
+            timerState: {
+              isActive: true,
+              currentPhase: PomodoroPhase.Work,
+              currentCycleId: cycle.id,
+              cycleNumber: cycle.cycleNumber,
+              remainingSeconds: phaseDurationToSeconds(cycle.workDurationMinutes),
+              totalSeconds: phaseDurationToSeconds(cycle.workDurationMinutes),
+              currentTaskId: taskId,
+              currentTaskName: getTaskName(taskId),
+            },
+            pendingPrompt: null,
+            isLoading: false,
+          })
 
-        logger.ui.info('Pomodoro started', {
-          cycleId: cycle.id,
-          cycleNumber: cycle.cycleNumber,
-          taskId,
-          workMinutes: cycle.workDurationMinutes,
-        }, 'pomodoro-started')
-      } catch (error) {
+          // 5. Start timer tick
+          _startTick()
+        },
+        () => ({ taskId, stepId }),
+      )().catch(() => {
         set({ isLoading: false })
-        const msg = error instanceof Error ? error.message : String(error)
-        logger.ui.error('Failed to start pomodoro', { error: msg, taskId }, 'pomodoro-start-error')
-        throw error
-      }
+      })
     },
 
-    transitionToBreak: async (sinkId): Promise<void> => {
-      const { activeCycle, _startTick, _stopTick } = get()
-      if (!activeCycle) return
+    transitionToBreak: withStoreLogging(
+      'break-started',
+      async (sinkId?: string): Promise<void> => {
+        const { activeCycle, _startTick, _stopTick } = usePomodoroStore.getState()
+        if (!activeCycle) return
 
-      _stopTick()
+        _stopTick()
 
-      try {
         const now = getCurrentTime()
-        const effectiveSettings = getEffectiveSettings(get().settings)
+        const effectiveSettings = getEffectiveSettings(usePomodoroStore.getState().settings)
 
         // 1. Stop the active work session
         const workService = getWorkTrackingServiceInstance()
         const activeSession = workService.getCurrentActiveSession()
         if (activeSession?.id) {
           await workService.pauseWorkSession(activeSession.id)
-          useTaskStore.getState().notifyWorkSessionsChanged()
         }
 
         // 2. Determine break type
@@ -270,17 +293,10 @@ export const usePomodoroStore = create<PomodoroStoreState>()(
         }
 
         // 5. Update local state
-        const updatedCycle: PomodoroCycle = {
-          ...activeCycle,
-          status: breakPhase,
-          phaseStartTime: now,
-          breakTimeSinkId: sinkId ?? null,
-        }
-
-        set({
-          activeCycle: updatedCycle,
+        usePomodoroStore.setState({
+          activeCycle: { ...activeCycle, status: breakPhase, phaseStartTime: now, breakTimeSinkId: sinkId ?? null },
           timerState: {
-            ...get().timerState,
+            ...usePomodoroStore.getState().timerState,
             currentPhase: breakPhase,
             remainingSeconds: phaseDurationToSeconds(activeCycle.breakDurationMinutes),
             totalSeconds: phaseDurationToSeconds(activeCycle.breakDurationMinutes),
@@ -292,27 +308,18 @@ export const usePomodoroStore = create<PomodoroStoreState>()(
 
         // 6. Restart timer for break phase
         _startTick()
+      },
+      (sinkId) => ({ sinkId }),
+    ),
 
-        logger.ui.info('Pomodoro transitioned to break', {
-          cycleId: activeCycle.id,
-          breakPhase,
-          sinkId,
-          breakMinutes: activeCycle.breakDurationMinutes,
-        }, 'pomodoro-break-started')
-      } catch (error) {
-        const msg = error instanceof Error ? error.message : String(error)
-        logger.ui.error('Failed to transition to break', { error: msg }, 'pomodoro-break-error')
-        throw error
-      }
-    },
+    transitionToWork: withStoreLogging(
+      'work-started',
+      async (taskId: string, stepId?: string): Promise<void> => {
+        const { activeCycle, _startTick, _stopTick } = usePomodoroStore.getState()
+        if (!activeCycle) return
 
-    transitionToWork: async (taskId, stepId): Promise<void> => {
-      const { activeCycle, _startTick, _stopTick } = get()
-      if (!activeCycle) return
+        _stopTick()
 
-      _stopTick()
-
-      try {
         const now = getCurrentTime()
 
         // 1. Stop the break TimeSinkSession (if any)
@@ -328,122 +335,72 @@ export const usePomodoroStore = create<PomodoroStoreState>()(
           phaseStartTime: now,
         })
 
-        // 3. Start new WorkSession for the selected task
-        if (stepId) {
-          await useTaskStore.getState().startWorkOnStep(taskId, stepId)
-        } else {
-          await useTaskStore.getState().startWorkOnTask(taskId)
-        }
+        // 3. Start new WorkSession via unified dispatcher
+        await startWorkItem(taskId, stepId)
 
         // 4. Link new WorkSession to cycle
-        const activeWorkSessions = useTaskStore.getState().activeWorkSessions
-        const activeSession = activeWorkSessions.get(taskId) ?? activeWorkSessions.get(stepId ?? '')
-        if (activeSession?.id) {
-          await getDatabase().updateWorkSession(activeSession.id, {
-            pomodoroCycleId: activeCycle.id,
-          })
-        }
+        await linkActiveSessionToCycle(taskId, stepId, activeCycle.id)
 
-        // 5. Get task name
-        const tasks = useTaskStore.getState().tasks
-        const task = tasks.find(t => t.id === taskId)
-
-        // 6. Update local state
-        const updatedCycle: PomodoroCycle = {
-          ...activeCycle,
-          status: PomodoroPhase.Work,
-          phaseStartTime: now,
-        }
-
-        set({
-          activeCycle: updatedCycle,
+        // 5. Update local state
+        usePomodoroStore.setState({
+          activeCycle: { ...activeCycle, status: PomodoroPhase.Work, phaseStartTime: now },
           timerState: {
-            ...get().timerState,
+            ...usePomodoroStore.getState().timerState,
             currentPhase: PomodoroPhase.Work,
             remainingSeconds: phaseDurationToSeconds(activeCycle.workDurationMinutes),
             totalSeconds: phaseDurationToSeconds(activeCycle.workDurationMinutes),
             currentTaskId: taskId,
-            currentTaskName: task?.name ?? null,
+            currentTaskName: getTaskName(taskId),
           },
           pendingPrompt: null,
         })
 
-        // 7. Restart timer for work phase
+        // 6. Restart timer for work phase
         _startTick()
+      },
+      (taskId) => ({ taskId }),
+    ),
 
-        logger.ui.info('Pomodoro transitioned to work', {
-          cycleId: activeCycle.id,
-          taskId,
-          workMinutes: activeCycle.workDurationMinutes,
-        }, 'pomodoro-work-started')
-      } catch (error) {
-        const msg = error instanceof Error ? error.message : String(error)
-        logger.ui.error('Failed to transition to work', { error: msg }, 'pomodoro-work-error')
-        throw error
-      }
-    },
+    switchTaskWithinCycle: withStoreLogging(
+      'task-switched',
+      async (newTaskId: string, stepId?: string): Promise<void> => {
+        const { activeCycle } = usePomodoroStore.getState()
+        if (!activeCycle || activeCycle.status !== PomodoroPhase.Work) return
 
-    switchTaskWithinCycle: async (newTaskId, stepId): Promise<void> => {
-      const { activeCycle } = get()
-      if (!activeCycle || activeCycle.status !== PomodoroPhase.Work) return
-
-      try {
-        // 1. Stop current work session (records its time)
+        // 1. Stop current work session
         const workService = getWorkTrackingServiceInstance()
         const activeSession = workService.getCurrentActiveSession()
         if (activeSession?.id) {
           await workService.pauseWorkSession(activeSession.id)
         }
 
-        // 2. Start new work session for the new task
-        if (stepId) {
-          await useTaskStore.getState().startWorkOnStep(newTaskId, stepId)
-        } else {
-          await useTaskStore.getState().startWorkOnTask(newTaskId)
-        }
+        // 2. Start new work session via unified dispatcher
+        await startWorkItem(newTaskId, stepId)
 
         // 3. Link to same cycle
-        const activeWorkSessions = useTaskStore.getState().activeWorkSessions
-        const newSession = activeWorkSessions.get(newTaskId) ?? activeWorkSessions.get(stepId ?? '')
-        if (newSession?.id) {
-          await getDatabase().updateWorkSession(newSession.id, {
-            pomodoroCycleId: activeCycle.id,
-          })
-        }
+        await linkActiveSessionToCycle(newTaskId, stepId, activeCycle.id)
 
         // 4. Update timer state (task info only — no timer reset!)
-        const tasks = useTaskStore.getState().tasks
-        const task = tasks.find(t => t.id === newTaskId)
-
-        set({
+        usePomodoroStore.setState({
           timerState: {
-            ...get().timerState,
+            ...usePomodoroStore.getState().timerState,
             currentTaskId: newTaskId,
-            currentTaskName: task?.name ?? null,
+            currentTaskName: getTaskName(newTaskId),
           },
           pendingPrompt: null,
         })
+      },
+      (newTaskId) => ({ newTaskId }),
+    ),
 
-        useTaskStore.getState().notifyWorkSessionsChanged()
+    pauseCycle: withStoreLogging(
+      'paused',
+      async (): Promise<void> => {
+        const { activeCycle, _stopTick } = usePomodoroStore.getState()
+        if (!activeCycle) return
 
-        logger.ui.info('Pomodoro task switched within cycle', {
-          cycleId: activeCycle.id,
-          newTaskId,
-        }, 'pomodoro-task-switched')
-      } catch (error) {
-        const msg = error instanceof Error ? error.message : String(error)
-        logger.ui.error('Failed to switch task within cycle', { error: msg }, 'pomodoro-switch-error')
-        throw error
-      }
-    },
+        _stopTick()
 
-    pauseCycle: async (): Promise<void> => {
-      const { activeCycle, _stopTick } = get()
-      if (!activeCycle) return
-
-      _stopTick()
-
-      try {
         const now = getCurrentTime()
 
         // Capture remaining time before pausing
@@ -458,39 +415,30 @@ export const usePomodoroStore = create<PomodoroStoreState>()(
         await getDatabase().updatePomodoroCyclePhase({
           cycleId: activeCycle.id,
           status: PomodoroPhase.Paused,
-          phaseStartTime: activeCycle.phaseStartTime, // Keep original
+          phaseStartTime: activeCycle.phaseStartTime,
         })
 
-        set({
+        usePomodoroStore.setState({
           activeCycle: { ...activeCycle, status: PomodoroPhase.Paused },
           timerState: {
-            ...get().timerState,
+            ...usePomodoroStore.getState().timerState,
             isActive: false,
             currentPhase: PomodoroPhase.Paused,
             remainingSeconds: remaining,
           },
         })
+      },
+    ),
 
-        logger.ui.info('Pomodoro paused', {
-          cycleId: activeCycle.id,
-          remainingSeconds: remaining,
-        }, 'pomodoro-paused')
-      } catch (error) {
-        const msg = error instanceof Error ? error.message : String(error)
-        logger.ui.error('Failed to pause pomodoro', { error: msg }, 'pomodoro-pause-error')
-        throw error
-      }
-    },
+    resumeCycle: withStoreLogging(
+      'resumed',
+      async (): Promise<void> => {
+        const { activeCycle, timerState, _startTick } = usePomodoroStore.getState()
+        if (!activeCycle || activeCycle.status !== PomodoroPhase.Paused) return
 
-    resumeCycle: async (): Promise<void> => {
-      const { activeCycle, timerState, _startTick } = get()
-      if (!activeCycle || activeCycle.status !== PomodoroPhase.Paused) return
-
-      try {
         const now = getCurrentTime()
 
         // Compute new phaseStartTime so that remaining seconds are preserved
-        // If there were 300s remaining, set phaseStartTime so that now + 300s = expiry
         const durationMinutes = timerState.totalSeconds / 60
         const remainingMs = timerState.remainingSeconds * 1000
         const newPhaseStartTime = new Date(now.getTime() - (durationMinutes * 60 * 1000 - remainingMs))
@@ -498,7 +446,7 @@ export const usePomodoroStore = create<PomodoroStoreState>()(
         // Restore the previous phase (work or break) — determine from totalSeconds
         const previousPhase = timerState.totalSeconds === phaseDurationToSeconds(activeCycle.workDurationMinutes)
           ? PomodoroPhase.Work
-          : (activeCycle.cycleNumber % getEffectiveSettings(get().settings).cyclesBeforeLongBreak === 0
+          : (activeCycle.cycleNumber % getEffectiveSettings(usePomodoroStore.getState().settings).cyclesBeforeLongBreak === 0
             ? PomodoroPhase.LongBreak
             : PomodoroPhase.ShortBreak)
 
@@ -508,39 +456,23 @@ export const usePomodoroStore = create<PomodoroStoreState>()(
           phaseStartTime: newPhaseStartTime,
         })
 
-        set({
-          activeCycle: {
-            ...activeCycle,
-            status: previousPhase,
-            phaseStartTime: newPhaseStartTime,
-          },
-          timerState: {
-            ...timerState,
-            isActive: true,
-            currentPhase: previousPhase,
-          },
+        usePomodoroStore.setState({
+          activeCycle: { ...activeCycle, status: previousPhase, phaseStartTime: newPhaseStartTime },
+          timerState: { ...timerState, isActive: true, currentPhase: previousPhase },
         })
 
         _startTick()
+      },
+    ),
 
-        logger.ui.info('Pomodoro resumed', {
-          cycleId: activeCycle.id,
-          remainingSeconds: timerState.remainingSeconds,
-        }, 'pomodoro-resumed')
-      } catch (error) {
-        const msg = error instanceof Error ? error.message : String(error)
-        logger.ui.error('Failed to resume pomodoro', { error: msg }, 'pomodoro-resume-error')
-        throw error
-      }
-    },
+    endCycle: withStoreLogging(
+      'ended',
+      async (): Promise<void> => {
+        const { activeCycle, _stopTick } = usePomodoroStore.getState()
+        if (!activeCycle) return
 
-    endCycle: async (): Promise<void> => {
-      const { activeCycle, _stopTick } = get()
-      if (!activeCycle) return
+        _stopTick()
 
-      _stopTick()
-
-      try {
         // 1. Stop any active work session
         const workService = getWorkTrackingServiceInstance()
         const activeSession = workService.getCurrentActiveSession()
@@ -557,26 +489,14 @@ export const usePomodoroStore = create<PomodoroStoreState>()(
         // 3. End the cycle in database
         await getDatabase().endPomodoroCycle(activeCycle.id)
 
-        // 4. Notify task store of session changes
-        useTaskStore.getState().notifyWorkSessionsChanged()
-
-        // 5. Reset store
-        set({
+        // 4. Reset store
+        usePomodoroStore.setState({
           activeCycle: null,
           timerState: createInitialTimerState(),
           pendingPrompt: null,
         })
-
-        logger.ui.info('Pomodoro cycle ended', {
-          cycleId: activeCycle.id,
-          cycleNumber: activeCycle.cycleNumber,
-        }, 'pomodoro-ended')
-      } catch (error) {
-        const msg = error instanceof Error ? error.message : String(error)
-        logger.ui.error('Failed to end pomodoro', { error: msg }, 'pomodoro-end-error')
-        throw error
-      }
-    },
+      },
+    ),
 
     // ==========================================================================
     // Prompt Actions
@@ -627,9 +547,7 @@ export const usePomodoroStore = create<PomodoroStoreState>()(
         }
 
         set({ isInitialized: true })
-        logger.ui.info('Pomodoro store initialized', {
-          hasActiveCycle: !!raw,
-        }, 'pomodoro-initialized')
+        logger.ui.info('Pomodoro store initialized', { hasActiveCycle: !!raw }, 'pomodoro-initialized')
       } catch (error) {
         set({ isInitialized: true })
         const msg = error instanceof Error ? error.message : String(error)
@@ -673,15 +591,8 @@ export const usePomodoroStore = create<PomodoroStoreState>()(
           getCurrentTime(),
         )
 
-        // Update remaining seconds
-        set({
-          timerState: {
-            ...timerState,
-            remainingSeconds: remaining,
-          },
-        })
+        set({ timerState: { ...timerState, remainingSeconds: remaining } })
 
-        // Check for expiry
         if (remaining === 0) {
           get()._onTimerExpired()
         }
@@ -704,52 +615,21 @@ export const usePomodoroStore = create<PomodoroStoreState>()(
 
       _stopTick()
 
-      const effectiveSettings = getEffectiveSettings(get().settings)
-
       if (activeCycle.status === PomodoroPhase.Work) {
-        // Work phase ended — prompt for break activity
-        logger.ui.info('Pomodoro work phase expired', {
-          cycleId: activeCycle.id,
-        }, 'pomodoro-work-expired')
-
         set({
-          timerState: {
-            ...get().timerState,
-            isActive: false,
-            remainingSeconds: 0,
-          },
+          timerState: { ...get().timerState, isActive: false, remainingSeconds: 0 },
           pendingPrompt: PomodoroPromptType.BreakActivity,
         })
-
-        // Desktop notification
-        sendPomodoroNotification(PomodoroPhase.Work, get().timerState.currentTaskName)
-
-        // Auto-start break if configured
-        if (effectiveSettings.autoStartBreak) {
-          // Still show prompt but auto-transition after a brief moment
-          // The UI can handle this — if pendingPrompt is set AND autoStartBreak, auto-dismiss
-        }
+        NotificationService.getInstance().sendPomodoroPhaseComplete(PomodoroPhase.Work, get().timerState.currentTaskName)
       } else if (
         activeCycle.status === PomodoroPhase.ShortBreak ||
         activeCycle.status === PomodoroPhase.LongBreak
       ) {
-        // Break phase ended — prompt for next task
-        logger.ui.info('Pomodoro break phase expired', {
-          cycleId: activeCycle.id,
-          breakType: activeCycle.status,
-        }, 'pomodoro-break-expired')
-
         set({
-          timerState: {
-            ...get().timerState,
-            isActive: false,
-            remainingSeconds: 0,
-          },
+          timerState: { ...get().timerState, isActive: false, remainingSeconds: 0 },
           pendingPrompt: PomodoroPromptType.NextTask,
         })
-
-        // Desktop notification
-        sendPomodoroNotification(activeCycle.status)
+        NotificationService.getInstance().sendPomodoroPhaseComplete(activeCycle.status)
       }
     },
   })),
