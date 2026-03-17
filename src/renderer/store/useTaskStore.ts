@@ -287,9 +287,34 @@ export const useTaskStore = create<TaskStore>()(
         // Sync any restored active session to task store
         const restoredSession = getWorkTrackingService().getCurrentActiveSession()
         if (restoredSession) {
-          const sessionKey = restoredSession.workflowId || restoredSession.taskId
+          // Mirror Pomodoro restore behavior: recover display names if missing so
+          // widgets don't render "Working on: Unknown" after app reload.
+          const hydratedSession: UnifiedWorkSession = { ...restoredSession }
+
+          if (!hydratedSession.taskName) {
+            if (hydratedSession.stepId) {
+              const workflow = await getDatabase().getWorkflowByStepId(hydratedSession.stepId)
+              if (workflow) {
+                hydratedSession.taskName = workflow.name
+                const step = workflow.steps.find((s) => s.id === hydratedSession.stepId)
+                if (step) {
+                  hydratedSession.stepName = step.name
+                }
+              }
+            }
+
+            // Fallback to task lookup if workflow/step metadata isn't available.
+            if (!hydratedSession.taskName && hydratedSession.taskId) {
+              const task = await getDatabase().getTaskById(hydratedSession.taskId)
+              if (task) {
+                hydratedSession.taskName = task.name
+              }
+            }
+          }
+
+          const sessionKey = hydratedSession.workflowId || hydratedSession.taskId
           const newSessions = new Map()
-          newSessions.set(sessionKey, restoredSession)
+          newSessions.set(sessionKey, hydratedSession)
           set({ activeWorkSessions: newSessions })
         }
       } catch (error) {

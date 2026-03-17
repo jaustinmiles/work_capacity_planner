@@ -498,6 +498,27 @@ export const usePomodoroStore = create<PomodoroStoreState>()(
             ? cycle.workDurationMinutes
             : cycle.breakDurationMinutes
           const remaining = computeRemainingSeconds(cycle.phaseStartTime, durationMinutes, getCurrentTime())
+          const activeWorkSession = await getDatabase().getActiveWorkSession()
+          const isLinkedToCycle = activeWorkSession?.pomodoroCycleId === cycle.id
+
+          let currentTaskId: string | null = isLinkedToCycle ? (activeWorkSession?.taskId ?? null) : null
+          let currentTaskName: string | null = isLinkedToCycle ? (activeWorkSession?.taskName ?? null) : null
+
+          // Restore a display name when session records don't contain denormalized taskName.
+          if (isLinkedToCycle && !currentTaskName) {
+            if (activeWorkSession?.stepId) {
+              const workflow = await getDatabase().getWorkflowByStepId(activeWorkSession.stepId)
+              if (workflow) {
+                currentTaskId = workflow.id
+                currentTaskName = workflow.name
+              }
+            } else if (activeWorkSession?.taskId) {
+              const task = await getDatabase().getTaskById(activeWorkSession.taskId)
+              if (task) {
+                currentTaskName = task.name
+              }
+            }
+          }
 
           set({
             activeCycle: cycle,
@@ -508,8 +529,8 @@ export const usePomodoroStore = create<PomodoroStoreState>()(
               cycleNumber: cycle.cycleNumber,
               remainingSeconds: remaining,
               totalSeconds: phaseDurationToSeconds(durationMinutes),
-              currentTaskId: null, // Will be populated from active work session
-              currentTaskName: null,
+              currentTaskId,
+              currentTaskName,
             },
           })
 
