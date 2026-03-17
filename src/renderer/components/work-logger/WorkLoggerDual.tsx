@@ -895,8 +895,8 @@ export function WorkLoggerDual({ visible, onClose }: WorkLoggerDualProps) {
       wrapClassName={isFullscreen ? 'fullscreen-modal' : undefined}
     >
       <Space direction="vertical" style={{ width: '100%' }} size="large">
-        {/* Pomodoro Timer Widget */}
-        {isPomodoroActive && <PomodoroTimer />}
+        {/* Pomodoro Timer — shows idle start button or active countdown */}
+        <PomodoroTimer />
 
         {/* Current Work Indicator for Dogfooding */}
         {(() => {

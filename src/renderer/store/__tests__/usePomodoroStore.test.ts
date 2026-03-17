@@ -38,6 +38,8 @@ const mockWorkTrackingService = {
 
 const mockTaskStoreState = {
   startWork: vi.fn().mockResolvedValue(undefined),
+  startWorkOnTask: vi.fn().mockResolvedValue(undefined),
+  startWorkOnStep: vi.fn().mockResolvedValue(undefined),
   activeWorkSessions: new Map(),
   tasks: [
     { id: 'task-1', name: 'Build feature', overallStatus: 'in_progress' },
@@ -221,75 +223,69 @@ describe('usePomodoroStore', () => {
   // ==========================================================================
 
   describe('startPomodoro', () => {
-    it('should create a cycle and start work', async () => {
-      await usePomodoroStore.getState().startPomodoro('task-1')
+    it('should create a cycle and start timer without task', async () => {
+      await usePomodoroStore.getState().startPomodoro()
 
       const state = usePomodoroStore.getState()
       expect(state.activeCycle).not.toBeNull()
       expect(state.activeCycle?.id).toBe('cycle-1')
       expect(state.timerState.isActive).toBe(true)
       expect(state.timerState.currentPhase).toBe(PomodoroPhase.Work)
-      expect(state.timerState.currentTaskId).toBe('task-1')
-      expect(state.timerState.currentTaskName).toBe('Build feature')
+      expect(state.timerState.currentTaskId).toBeNull()
+      expect(state.timerState.currentTaskName).toBeNull()
       expect(state.timerState.remainingSeconds).toBe(25 * 60)
       expect(state.timerState.totalSeconds).toBe(25 * 60)
       expect(state.isLoading).toBe(false)
 
       expect(mockDbApi.startPomodoroCycle).toHaveBeenCalledOnce()
-      expect(mockTaskStoreState.startWork).toHaveBeenCalledWith({
-        isSimpleTask: true,
-        stepId: 'task-1',
-        taskId: 'task-1',
-      })
-    })
-
-    it('should start work on a specific step when stepId provided', async () => {
-      await usePomodoroStore.getState().startPomodoro('task-1', 'step-1')
-
-      expect(mockTaskStoreState.startWork).toHaveBeenCalledWith({
-        isSimpleTask: false,
-        stepId: 'step-1',
-        taskId: 'task-1',
-      })
+      // startPomodoro no longer starts work — user does that via existing buttons
+      expect(mockTaskStoreState.startWork).not.toHaveBeenCalled()
     })
 
     it('should not start if cycle already active', async () => {
-      await usePomodoroStore.getState().startPomodoro('task-1')
+      await usePomodoroStore.getState().startPomodoro()
       vi.clearAllMocks()
 
-      await usePomodoroStore.getState().startPomodoro('task-2')
+      await usePomodoroStore.getState().startPomodoro()
 
       // Should not have called startPomodoroCycle again
       expect(mockDbApi.startPomodoroCycle).not.toHaveBeenCalled()
-    })
-
-    it('should link work session to cycle when session exists', async () => {
-      mockTaskStoreState.activeWorkSessions = new Map([
-        ['task-1', { id: 'ws-1', taskId: 'task-1' }],
-      ])
-
-      await usePomodoroStore.getState().startPomodoro('task-1')
-
-      expect(mockDbApi.updateWorkSession).toHaveBeenCalledWith('ws-1', {
-        pomodoroCycleId: 'cycle-1',
-      })
     })
 
     it('should handle start errors gracefully', async () => {
       mockDbApi.startPomodoroCycle.mockRejectedValueOnce(new Error('Start failed'))
 
       // startPomodoro catches errors internally (withStoreLogging + .catch)
-      await usePomodoroStore.getState().startPomodoro('task-1')
+      await usePomodoroStore.getState().startPomodoro()
 
       expect(usePomodoroStore.getState().isLoading).toBe(false)
       expect(usePomodoroStore.getState().activeCycle).toBeNull()
     })
   })
 
+  describe('setActiveTask', () => {
+    it('should update timer state with task info when cycle is active', async () => {
+      await usePomodoroStore.getState().startPomodoro()
+
+      usePomodoroStore.getState().setActiveTask('task-1', 'Build feature')
+
+      const { timerState } = usePomodoroStore.getState()
+      expect(timerState.currentTaskId).toBe('task-1')
+      expect(timerState.currentTaskName).toBe('Build feature')
+    })
+
+    it('should be a no-op when no cycle is active', () => {
+      usePomodoroStore.getState().setActiveTask('task-1', 'Build feature')
+
+      const { timerState } = usePomodoroStore.getState()
+      expect(timerState.currentTaskId).toBeNull()
+    })
+  })
+
   describe('transitionToBreak', () => {
     beforeEach(async () => {
       // Start a cycle first
-      await usePomodoroStore.getState().startPomodoro('task-1')
+      await usePomodoroStore.getState().startPomodoro()
       vi.clearAllMocks()
     })
 
@@ -344,7 +340,7 @@ describe('usePomodoroStore', () => {
   describe('transitionToWork', () => {
     beforeEach(async () => {
       // Start a cycle and transition to break
-      await usePomodoroStore.getState().startPomodoro('task-1')
+      await usePomodoroStore.getState().startPomodoro()
       vi.clearAllMocks()
 
       // Manually set break state (avoid full transition to simplify)
@@ -366,15 +362,11 @@ describe('usePomodoroStore', () => {
 
       const state = usePomodoroStore.getState()
       expect(state.timerState.currentPhase).toBe(PomodoroPhase.Work)
-      expect(state.timerState.currentTaskId).toBe('task-2')
-      expect(state.timerState.currentTaskName).toBe('Fix bug')
       expect(state.timerState.remainingSeconds).toBe(25 * 60)
 
-      expect(mockTaskStoreState.startWork).toHaveBeenCalledWith({
-        isSimpleTask: true,
-        stepId: 'task-2',
-        taskId: 'task-2',
-      })
+      // transitionToWork now starts work via useTaskStore (dynamic import)
+      // which goes through WorkTrackingService → auto-links to cycle
+      expect(mockTaskStoreState.startWorkOnTask).toHaveBeenCalledWith('task-2')
     })
 
     it('should stop TimeSink session if active', async () => {
@@ -394,15 +386,14 @@ describe('usePomodoroStore', () => {
 
   describe('switchTaskWithinCycle', () => {
     beforeEach(async () => {
-      await usePomodoroStore.getState().startPomodoro('task-1')
+      await usePomodoroStore.getState().startPomodoro()
       vi.clearAllMocks()
     })
 
-    it('should switch task without resetting timer', async () => {
-      // Simulate some time passing — remaining should stay the same (mocked getCurrentTime is fixed)
+    it('should update timer display without resetting timer', () => {
       const remainingBefore = usePomodoroStore.getState().timerState.remainingSeconds
 
-      await usePomodoroStore.getState().switchTaskWithinCycle('task-2')
+      usePomodoroStore.getState().switchTaskWithinCycle('task-2', 'Fix bug')
 
       const state = usePomodoroStore.getState()
       expect(state.timerState.currentTaskId).toBe('task-2')
@@ -412,32 +403,7 @@ describe('usePomodoroStore', () => {
       expect(state.pendingPrompt).toBeNull()
     })
 
-    it('should stop current work session and start new one', async () => {
-      mockWorkTrackingService.getCurrentActiveSession.mockReturnValue({ id: 'ws-old' })
-
-      await usePomodoroStore.getState().switchTaskWithinCycle('task-2')
-
-      expect(mockWorkTrackingService.pauseWorkSession).toHaveBeenCalledWith('ws-old')
-      expect(mockTaskStoreState.startWork).toHaveBeenCalledWith({
-        isSimpleTask: true,
-        stepId: 'task-2',
-        taskId: 'task-2',
-      })
-    })
-
-    it('should link new session to same cycle', async () => {
-      mockTaskStoreState.activeWorkSessions = new Map([
-        ['task-2', { id: 'ws-new', taskId: 'task-2' }],
-      ])
-
-      await usePomodoroStore.getState().switchTaskWithinCycle('task-2')
-
-      expect(mockDbApi.updateWorkSession).toHaveBeenCalledWith('ws-new', {
-        pomodoroCycleId: 'cycle-1',
-      })
-    })
-
-    it('should not switch if not in work phase', async () => {
+    it('should not update if not in work phase', () => {
       usePomodoroStore.setState({
         activeCycle: {
           ...usePomodoroStore.getState().activeCycle!,
@@ -445,9 +411,10 @@ describe('usePomodoroStore', () => {
         },
       })
 
-      await usePomodoroStore.getState().switchTaskWithinCycle('task-2')
+      usePomodoroStore.getState().switchTaskWithinCycle('task-2', 'Fix bug')
 
-      expect(mockTaskStoreState.startWork).not.toHaveBeenCalled()
+      // Should not have updated task info
+      expect(usePomodoroStore.getState().timerState.currentTaskId).not.toBe('task-2')
     })
   })
 
@@ -457,7 +424,7 @@ describe('usePomodoroStore', () => {
 
   describe('pauseCycle', () => {
     beforeEach(async () => {
-      await usePomodoroStore.getState().startPomodoro('task-1')
+      await usePomodoroStore.getState().startPomodoro()
       vi.clearAllMocks()
     })
 
@@ -488,7 +455,7 @@ describe('usePomodoroStore', () => {
 
   describe('resumeCycle', () => {
     beforeEach(async () => {
-      await usePomodoroStore.getState().startPomodoro('task-1')
+      await usePomodoroStore.getState().startPomodoro()
       await usePomodoroStore.getState().pauseCycle()
       vi.clearAllMocks()
     })
@@ -520,7 +487,7 @@ describe('usePomodoroStore', () => {
 
   describe('endCycle', () => {
     beforeEach(async () => {
-      await usePomodoroStore.getState().startPomodoro('task-1')
+      await usePomodoroStore.getState().startPomodoro()
       vi.clearAllMocks()
     })
 
@@ -574,7 +541,7 @@ describe('usePomodoroStore', () => {
 
   describe('timer engine', () => {
     it('should tick and update remaining seconds', async () => {
-      await usePomodoroStore.getState().startPomodoro('task-1')
+      await usePomodoroStore.getState().startPomodoro()
 
       // Advance time by 5 seconds — mock getCurrentTime to return later time
       const fiveSecondsLater = new Date(mockNow.getTime() + 5000)
@@ -591,7 +558,7 @@ describe('usePomodoroStore', () => {
     })
 
     it('should trigger break prompt when work timer expires', async () => {
-      await usePomodoroStore.getState().startPomodoro('task-1')
+      await usePomodoroStore.getState().startPomodoro()
 
       // Jump to expiry
       const expired = new Date(mockNow.getTime() + 25 * 60 * 1000)
@@ -610,7 +577,7 @@ describe('usePomodoroStore', () => {
 
     it('should trigger next task prompt when break timer expires', async () => {
       // Start and manually set up break state
-      await usePomodoroStore.getState().startPomodoro('task-1')
+      await usePomodoroStore.getState().startPomodoro()
 
       const breakStart = new Date(mockNow.getTime() + 25 * 60 * 1000)
       vi.mocked(getCurrentTime).mockReturnValue(breakStart)
@@ -723,7 +690,7 @@ describe('usePomodoroStore', () => {
 
   describe('reset', () => {
     it('should clear all state', async () => {
-      await usePomodoroStore.getState().startPomodoro('task-1')
+      await usePomodoroStore.getState().startPomodoro()
 
       usePomodoroStore.getState().reset()
 

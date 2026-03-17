@@ -42,7 +42,7 @@ import { getCurrentTime } from '@shared/time-provider'
 import { logger } from '@/logger'
 import { NotificationService } from '@/renderer/services/notificationService'
 import { getDatabase } from '@/renderer/services/database'
-import { useTaskStore, getWorkTrackingServiceInstance } from './useTaskStore'
+import { getWorkTrackingServiceInstance } from './useTaskStore'
 import { useTimeSinkStore } from './useTimeSinkStore'
 
 // ============================================================================
@@ -71,10 +71,11 @@ interface PomodoroStoreState {
   updateSettings: (updates: UpdatePomodoroSettingsInput) => Promise<void>
 
   // ---- Cycle Lifecycle Actions ----
-  startPomodoro: (taskId: string, stepId?: string) => Promise<void>
+  startPomodoro: () => Promise<void>
+  setActiveTask: (taskId: string, taskName: string | null) => void
   transitionToBreak: (sinkId?: string) => Promise<void>
   transitionToWork: (taskId: string, stepId?: string) => Promise<void>
-  switchTaskWithinCycle: (newTaskId: string, stepId?: string) => Promise<void>
+  switchTaskWithinCycle: (newTaskId: string, taskName: string | null) => void
   pauseCycle: () => Promise<void>
   resumeCycle: () => Promise<void>
   endCycle: () => Promise<void>
@@ -135,29 +136,6 @@ function withStoreLogging<TArgs extends unknown[], TResult>(
   }
 }
 
-/** Start work on a task or step using the unified startWork() dispatcher */
-async function startWorkItem(taskId: string, stepId?: string): Promise<void> {
-  await useTaskStore.getState().startWork({
-    isSimpleTask: !stepId,
-    stepId: stepId ?? taskId,
-    taskId,
-  })
-}
-
-/** Link the currently active work session to a Pomodoro cycle */
-async function linkActiveSessionToCycle(taskId: string, stepId: string | undefined, cycleId: string): Promise<void> {
-  const activeWorkSessions = useTaskStore.getState().activeWorkSessions
-  const activeSession = activeWorkSessions.get(taskId) ?? activeWorkSessions.get(stepId ?? '')
-  if (activeSession?.id) {
-    await getDatabase().updateWorkSession(activeSession.id, { pomodoroCycleId: cycleId })
-  }
-}
-
-/** Get a task's display name by ID */
-function getTaskName(taskId: string): string | null {
-  const task = useTaskStore.getState().tasks.find(t => t.id === taskId)
-  return task?.name ?? null
-}
 
 // ============================================================================
 // Store
@@ -204,7 +182,7 @@ export const usePomodoroStore = create<PomodoroStoreState>()(
     // Cycle Lifecycle
     // ==========================================================================
 
-    startPomodoro: async (taskId, stepId): Promise<void> => {
+    startPomodoro: async (): Promise<void> => {
       const { activeCycle, _startTick } = get()
       if (activeCycle) {
         logger.ui.warn('Cannot start pomodoro: cycle already active', {
@@ -220,20 +198,14 @@ export const usePomodoroStore = create<PomodoroStoreState>()(
         async () => {
           const effectiveSettings = getEffectiveSettings(get().settings)
 
-          // 1. Create PomodoroCycle via tRPC
+          // Create PomodoroCycle via tRPC — no task yet, user will start work separately
           const raw = await getDatabase().startPomodoroCycle({
             workDurationMinutes: effectiveSettings.workDurationMinutes,
             breakDurationMinutes: getBreakDurationMinutes(1, effectiveSettings),
           })
           const cycle = fromDatabasePomodoroCycle(raw)
 
-          // 2. Start WorkSession via unified dispatcher
-          await startWorkItem(taskId, stepId)
-
-          // 3. Link WorkSession to cycle
-          await linkActiveSessionToCycle(taskId, stepId, cycle.id)
-
-          // 4. Update store state
+          // Update store state — timer starts, but no task assigned yet
           set({
             activeCycle: cycle,
             timerState: {
@@ -243,19 +215,30 @@ export const usePomodoroStore = create<PomodoroStoreState>()(
               cycleNumber: cycle.cycleNumber,
               remainingSeconds: phaseDurationToSeconds(cycle.workDurationMinutes),
               totalSeconds: phaseDurationToSeconds(cycle.workDurationMinutes),
-              currentTaskId: taskId,
-              currentTaskName: getTaskName(taskId),
+              currentTaskId: null,
+              currentTaskName: null,
             },
             pendingPrompt: null,
             isLoading: false,
           })
 
-          // 5. Start timer tick
           _startTick()
         },
-        () => ({ taskId, stepId }),
+        () => ({}),
       )().catch(() => {
         set({ isLoading: false })
+      })
+    },
+
+    setActiveTask: (taskId: string, taskName: string | null): void => {
+      const { timerState } = get()
+      if (!timerState.isActive) return
+      set({
+        timerState: {
+          ...timerState,
+          currentTaskId: taskId,
+          currentTaskName: taskName,
+        },
       })
     },
 
@@ -338,13 +321,16 @@ export const usePomodoroStore = create<PomodoroStoreState>()(
           phaseStartTime: now,
         })
 
-        // 3. Start new WorkSession via unified dispatcher
-        await startWorkItem(taskId, stepId)
+        // 3. Start work via task store — WorkTrackingService will auto-link to this cycle
+        const { useTaskStore } = await import('./useTaskStore')
+        if (stepId) {
+          await useTaskStore.getState().startWorkOnStep(stepId, taskId)
+        } else {
+          await useTaskStore.getState().startWorkOnTask(taskId)
+        }
 
-        // 4. Link new WorkSession to cycle
-        await linkActiveSessionToCycle(taskId, stepId, activeCycle.id)
-
-        // 5. Update local state
+        // 4. Update local state — task info is set by setActiveTask() via WorkTrackingService auto-link,
+        //    but we still need to update the phase/timer
         usePomodoroStore.setState({
           activeCycle: { ...activeCycle, status: PomodoroPhase.Work, phaseStartTime: now },
           timerState: {
@@ -352,49 +338,33 @@ export const usePomodoroStore = create<PomodoroStoreState>()(
             currentPhase: PomodoroPhase.Work,
             remainingSeconds: phaseDurationToSeconds(activeCycle.workDurationMinutes),
             totalSeconds: phaseDurationToSeconds(activeCycle.workDurationMinutes),
-            currentTaskId: taskId,
-            currentTaskName: getTaskName(taskId),
           },
           pendingPrompt: null,
         })
 
-        // 6. Restart timer for work phase
+        // 5. Restart timer for work phase
         _startTick()
       },
       (taskId) => ({ taskId }),
     ),
 
-    switchTaskWithinCycle: withStoreLogging(
-      'task-switched',
-      async (newTaskId: string, stepId?: string): Promise<void> => {
-        const { activeCycle } = usePomodoroStore.getState()
-        if (!activeCycle || activeCycle.status !== PomodoroPhase.Work) return
+    // Updates timer display when the user switches tasks mid-cycle.
+    // Session management (stop old, start new, link to cycle) is handled by WorkTrackingService.
+    switchTaskWithinCycle: (newTaskId: string, taskName: string | null): void => {
+      const { activeCycle } = usePomodoroStore.getState()
+      if (!activeCycle || activeCycle.status !== PomodoroPhase.Work) return
 
-        // 1. Stop current work session
-        const workService = getWorkTrackingServiceInstance()
-        const activeSession = workService.getCurrentActiveSession()
-        if (activeSession?.id) {
-          await workService.pauseWorkSession(activeSession.id)
-        }
+      usePomodoroStore.setState({
+        timerState: {
+          ...usePomodoroStore.getState().timerState,
+          currentTaskId: newTaskId,
+          currentTaskName: taskName,
+        },
+        pendingPrompt: null,
+      })
 
-        // 2. Start new work session via unified dispatcher
-        await startWorkItem(newTaskId, stepId)
-
-        // 3. Link to same cycle
-        await linkActiveSessionToCycle(newTaskId, stepId, activeCycle.id)
-
-        // 4. Update timer state (task info only — no timer reset!)
-        usePomodoroStore.setState({
-          timerState: {
-            ...usePomodoroStore.getState().timerState,
-            currentTaskId: newTaskId,
-            currentTaskName: getTaskName(newTaskId),
-          },
-          pendingPrompt: null,
-        })
-      },
-      (newTaskId) => ({ newTaskId }),
-    ),
+      logger.ui.info('Pomodoro: task-switched', { newTaskId }, 'pomodoro-task-switched')
+    },
 
     pauseCycle: withStoreLogging(
       'paused',

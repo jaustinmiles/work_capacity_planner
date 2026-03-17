@@ -1,18 +1,22 @@
 /**
- * PomodoroTimer — Circular countdown timer widget
+ * PomodoroTimer — Circular countdown timer widget with idle start state
  *
- * Displays the current Pomodoro phase, remaining time, cycle progress,
- * and provides pause/resume/skip/end controls.
+ * Three states:
+ * 1. **Idle** — No active cycle. Shows a "Start Pomodoro" button.
+ * 2. **Active (no task)** — Cycle running, no task started yet. Timer + hint.
+ * 3. **Active (with task)** — Cycle running with linked task. Timer + task name.
  *
  * Reads reactive state from usePomodoroTimer() — re-renders every second
  * via the store's tick engine (no local setInterval needed).
  */
 
+import { useState } from 'react'
 import { Space, Button, Tag, Typography, Progress } from '@arco-design/web-react'
 import { IconPause, IconPlayArrow, IconSkipNext, IconClose } from '@arco-design/web-react/icon'
 import { PomodoroPhase } from '@shared/enums'
 import { formatPomodoroTime } from '@shared/pomodoro-types'
 import { usePomodoroStore, usePomodoroTimer, usePomodoroSettings } from '../../store/usePomodoroStore'
+import { logger } from '@/logger'
 
 const { Text } = Typography
 
@@ -33,13 +37,56 @@ const PHASE_CONFIG: Record<string, PhaseStyle> = {
   [PomodoroPhase.Completed]: { label: 'Completed', color: '#8c8c8c', bgColor: '#f7f8fa', borderColor: '#d9d9d9' },
 }
 
+const IDLE_STYLE: PhaseStyle = { label: 'Pomodoro', color: '#e8453c', bgColor: '#fff2f0', borderColor: '#ffccc7' }
+
 export function PomodoroTimer() {
   const timerState = usePomodoroTimer()
   const settings = usePomodoroSettings()
-  const { pauseCycle, resumeCycle, endCycle, dismissPrompt } = usePomodoroStore()
+  const startPomodoro = usePomodoroStore((s) => s.startPomodoro)
+  const pauseCycle = usePomodoroStore((s) => s.pauseCycle)
+  const resumeCycle = usePomodoroStore((s) => s.resumeCycle)
+  const endCycle = usePomodoroStore((s) => s.endCycle)
+  const dismissPrompt = usePomodoroStore((s) => s.dismissPrompt)
+  const [isStarting, setIsStarting] = useState(false)
 
-  if (!timerState.currentCycleId) return null
+  // ── Idle state: no active cycle ──
+  if (!timerState.currentCycleId) {
+    const handleStart = async (): Promise<void> => {
+      try {
+        setIsStarting(true)
+        await startPomodoro()
+      } catch (error) {
+        logger.ui.error('Failed to start Pomodoro', {
+          error: error instanceof Error ? error.message : String(error),
+        })
+      } finally {
+        setIsStarting(false)
+      }
+    }
 
+    return (
+      <div
+        style={{
+          background: IDLE_STYLE.bgColor,
+          border: `1px solid ${IDLE_STYLE.borderColor}`,
+          borderRadius: 8,
+          padding: '12px 16px',
+        }}
+      >
+        <Button
+          long
+          type="primary"
+          style={{ background: IDLE_STYLE.color, borderColor: IDLE_STYLE.color }}
+          loading={isStarting}
+          onClick={handleStart}
+        >
+          🍅 Start Pomodoro
+        </Button>
+      </div>
+    )
+  }
+
+  // ── Active state ──
   const phase = PHASE_CONFIG[timerState.currentPhase] ?? DEFAULT_PHASE_STYLE
   const progressPercent = timerState.totalSeconds > 0
     ? Math.round((1 - timerState.remainingSeconds / timerState.totalSeconds) * 100)
@@ -54,11 +101,12 @@ export function PomodoroTimer() {
   }
 
   const handleSkip = (): void => {
-    // Dismiss current prompt and let the store's _onTimerExpired logic trigger
-    // by ending the current phase early
     dismissPrompt()
     usePomodoroStore.getState()._onTimerExpired()
   }
+
+  const hasTask = !!timerState.currentTaskName
+  const isWorkPhase = timerState.currentPhase === PomodoroPhase.Work
 
   return (
     <div
@@ -73,17 +121,24 @@ export function PomodoroTimer() {
         {/* Phase label + cycle indicator */}
         <Space style={{ width: '100%', justifyContent: 'space-between' }}>
           <Space>
-            <Tag color={phase.color} style={{ fontWeight: 600 }}>{phase.label}</Tag>
+            <Tag color={phase.color} style={{ fontWeight: 600 }}>🍅 {phase.label}</Tag>
             <Text type="secondary" style={{ fontSize: 12 }}>
               Cycle {timerState.cycleNumber} of {settings.cyclesBeforeLongBreak}
             </Text>
           </Space>
-          {timerState.currentTaskName && (
+          {hasTask && (
             <Text style={{ fontSize: 13, fontWeight: 500 }} ellipsis>
               {timerState.currentTaskName}
             </Text>
           )}
         </Space>
+
+        {/* Hint when work phase active but no task started yet */}
+        {isWorkPhase && !hasTask && (
+          <Text type="secondary" style={{ fontSize: 12, fontStyle: 'italic' }}>
+            Start any task to link it to this cycle
+          </Text>
+        )}
 
         {/* Timer display + progress */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
