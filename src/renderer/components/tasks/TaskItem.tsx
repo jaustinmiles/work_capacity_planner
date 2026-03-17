@@ -310,6 +310,7 @@ export function TaskItem({ task, showUnarchive = false, matchedStepIds }: TaskIt
                 />
               </Tooltip>
 
+
               <Tooltip content="Log time">
                 <Button
                   type="text"

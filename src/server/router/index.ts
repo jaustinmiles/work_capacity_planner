@@ -23,6 +23,7 @@ import { aiRouter } from './ai'
 import { endeavorRouter } from './endeavor'
 import { deepWorkBoardRouter } from './deepWorkBoard'
 import { feedbackRouter } from './feedback'
+import { pomodoroRouter } from './pomodoro'
 
 /**
  * Main application router
@@ -64,6 +65,7 @@ export const appRouter = router({
   endeavor: endeavorRouter,
   deepWorkBoard: deepWorkBoardRouter,
   feedback: feedbackRouter,
+  pomodoro: pomodoroRouter,
 })
 
 /**

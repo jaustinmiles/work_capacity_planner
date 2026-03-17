@@ -6,6 +6,7 @@ import { StartNextTaskWidget } from './StartNextTaskWidget'
 import { PlannedVsLoggedWidget } from './PlannedVsLoggedWidget'
 import { useResponsive } from '../../providers/ResponsiveProvider'
 import { useTaskStore } from '../../store/useTaskStore'
+import { PomodoroTimer } from '../pomodoro'
 import { useWorkPatternStore } from '../../store/useWorkPatternStore'
 import { useSortedUserTaskTypes } from '../../store/useUserTaskTypeStore'
 import { useSortedTimeSinks } from '../../store/useTimeSinkStore'
@@ -31,7 +32,6 @@ interface DailyPattern {
  */
 export function WorkStatusWidget(): React.ReactElement {
   const { isCompact } = useResponsive()
-
   // Store subscriptions for data that child widgets don't need
   const activeWorkSessions = useTaskStore(state => state.activeWorkSessions)
   const workPatterns = useWorkPatternStore(state => state.workPatterns)
@@ -158,6 +158,9 @@ export function WorkStatusWidget(): React.ReactElement {
   return (
     <Card>
       <Space direction="vertical" style={{ width: '100%' }} size="medium">
+        {/* Pomodoro Timer — shows idle start button or active countdown */}
+        <PomodoroTimer />
+
         {/* Start Next Task Widget */}
         <StartNextTaskWidget />
 

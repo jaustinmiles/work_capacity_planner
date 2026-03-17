@@ -47,7 +47,7 @@ import {
   AmendmentCard,
 } from '../shared/conversation-types'
 import { ChatMessageRole } from '../shared/enums'
-import { timeStringToMinutes, parseDateString, dateToYYYYMMDD, calculateMinutesBetweenDates } from '../shared/time-utils'
+import { timeStringToMinutes, dateToYYYYMMDD, calculateMinutesBetweenDates, getLocalDateRange } from '../shared/time-utils'
 import * as crypto from 'crypto'
 import { LogScope } from '../logger'
 import { getScopedLogger } from '../logger/scope-helper'
@@ -186,15 +186,6 @@ export class DatabaseService {
     return DatabaseService.instance
   }
 
-  // Utility function to parse date string and create local date range
-  private getLocalDateRange(dateString: string): { startOfDay: Date; endOfDay: Date } {
-    const [year, month, day] = parseDateString(dateString)
-
-    const startOfDay = new Date(year, month - 1, day, 0, 0, 0, 0)
-    const endOfDay = new Date(year, month - 1, day, 23, 59, 59, 999)
-
-    return { startOfDay, endOfDay }
-  }
 
   // Session management
   private activeSessionId: string | null = null
@@ -2568,7 +2559,7 @@ export class DatabaseService {
    * Returns a map of typeId -> minutes, plus a total.
    */
   async getTodayAccumulated(date: string): Promise<AccumulatedTimeResult> {
-    const { startOfDay, endOfDay } = this.getLocalDateRange(date)
+    const { startOfDay, endOfDay } = getLocalDateRange(date)
 
     const workSessions = await this.client.workSession.findMany({
       where: {
@@ -3234,7 +3225,7 @@ export class DatabaseService {
     // Get work sessions for the given date, filtered by current session
     // Session isolation: Only return work sessions for tasks belonging to current session
     const sessionId = await this.getActiveSession()
-    const { startOfDay, endOfDay } = this.getLocalDateRange(date)
+    const { startOfDay, endOfDay } = getLocalDateRange(date)
 
     const sessions = await this.client.workSession.findMany({
       where: {

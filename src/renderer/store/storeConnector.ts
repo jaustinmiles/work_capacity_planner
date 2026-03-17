@@ -9,12 +9,14 @@ import { useTaskStore } from './useTaskStore'
 import { useSchedulerStore } from './useSchedulerStore'
 import { useWorkPatternStore } from './useWorkPatternStore'
 import { useDeepWorkBoardStore } from './useDeepWorkBoardStore'
+import { usePomodoroStore } from './usePomodoroStore'
 import { logger } from '@/logger'
 import { shallow } from 'zustand/shallow'
 import type { Task } from '@shared/types'
 import type { SequencedTask } from '@shared/sequencing-types'
 import type { WorkSettings } from '@shared/work-settings-types'
 import type { UnifiedWorkSession } from '@shared/unified-work-session-types'
+import { TaskStatus, PomodoroPhase, PomodoroPromptType } from '@shared/enums'
 import { SCHEDULING_CONSTANTS } from '@shared/constants/scheduling'
 import {
   haveTasksChanged,
@@ -217,6 +219,38 @@ export const connectStores = () => {
     { equalityFn: shallow },
   )
 
+  // Pomodoro ↔ Task Store reactive bridge:
+  // When a user completes a task (via task list, deep work board, or any other UI)
+  // while a Pomodoro work phase is running on that task, this subscription detects
+  // the status change and sets pendingPrompt = TaskComplete on the Pomodoro store.
+  // This triggers the TaskCompleteMidCycleModal, letting the user pick a new task
+  // to continue the Pomodoro cycle without interrupting the timer.
+  const unsubPomodoro = useTaskStore.subscribe(
+    (state) => state.tasks,
+    (tasks) => {
+      const pomodoroState = usePomodoroStore.getState()
+      const { activeCycle, timerState, pendingPrompt } = pomodoroState
+
+      // Only act during an active work phase with no existing prompt
+      if (!activeCycle || pendingPrompt) return
+      if (timerState.currentPhase !== PomodoroPhase.Work) return
+
+      const currentTaskId = timerState.currentTaskId
+      if (!currentTaskId) return
+
+      // Check if the current task was just completed
+      const task = tasks.find((t) => t.id === currentTaskId)
+      if (task && task.overallStatus === TaskStatus.Completed) {
+        logger.ui.info('Pomodoro task completed externally, prompting for next task', {
+          taskId: currentTaskId,
+          cycleId: activeCycle.id,
+        }, 'pomodoro-task-completed')
+
+        usePomodoroStore.setState({ pendingPrompt: PomodoroPromptType.TaskComplete })
+      }
+    },
+  )
+
   isConnected = true
 
   logger.ui.info('Store connections established', {}, 'store-connector')
@@ -233,6 +267,7 @@ export const connectStores = () => {
     unsubTaskStore()
     unsubPatternStore()
     unsubDwb()
+    unsubPomodoro()
     isConnected = false
   }
 }

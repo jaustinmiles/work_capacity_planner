@@ -48,6 +48,9 @@ export interface UnifiedWorkSession {
   blockId?: string | undefined     // Work block this session belongs to
   blockName?: string | undefined   // Computed: block type display name (not persisted)
 
+  // Pomodoro association (optional — sessions work without cycles)
+  pomodoroCycleId?: string | undefined  // Pomodoro cycle this session belongs to
+
   // Metadata (from database)
   createdAt?: Date
   updatedAt?: Date
@@ -107,6 +110,7 @@ export function fromDatabaseWorkSession(dbSession: any): UnifiedWorkSession {
   if (dbSession.workflowId !== undefined && dbSession.workflowId !== null) result.workflowId = dbSession.workflowId
   if (dbSession.taskName !== undefined && dbSession.taskName !== null) result.taskName = dbSession.taskName
   if (dbSession.stepName !== undefined && dbSession.stepName !== null) result.stepName = dbSession.stepName
+  if (dbSession.pomodoroCycleId !== undefined && dbSession.pomodoroCycleId !== null) result.pomodoroCycleId = dbSession.pomodoroCycleId
 
   return result
 }
@@ -158,6 +162,7 @@ export function toDatabaseWorkSession(session: UnifiedWorkSession): any {
     plannedMinutes: session.plannedMinutes,
     actualMinutes: session.actualMinutes || null,
     notes: session.notes || null,
+    pomodoroCycleId: session.pomodoroCycleId || null,
     // createdAt/updatedAt handled by database
   }
 }

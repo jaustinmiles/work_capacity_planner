@@ -10,7 +10,7 @@
  * - App metadata handlers
  */
 
-import { app, ipcMain, IpcMainInvokeEvent } from 'electron'
+import { app, ipcMain, IpcMainInvokeEvent, Notification } from 'electron'
 import path from 'node:path'
 import { LogScope } from '../logger'
 import { getScopedLogger } from '../logger/scope-helper'
@@ -23,6 +23,28 @@ app.whenReady().then(() => {
   mainLogger.info('Main process initialized (tRPC mode)')
   mainLogger.info('Server URL', { url: process.env.TASK_PLANNER_SERVER_URL || 'http://localhost:3001' })
 })
+
+// ============================================================================
+// Desktop Notification Handlers
+// Used by Pomodoro timer and other features that need OS-level notifications
+// ============================================================================
+
+ipcMain.handle(
+  'notification:show',
+  async (_event: IpcMainInvokeEvent, payload: { title: string; body: string }) => {
+    if (!Notification.isSupported()) {
+      mainLogger.warn('Desktop notifications not supported on this platform')
+      return false
+    }
+
+    const notification = new Notification({
+      title: payload.title,
+      body: payload.body,
+    })
+    notification.show()
+    return true
+  },
+)
 
 // ============================================================================
 // Feedback Handlers (File-based, Development Only)

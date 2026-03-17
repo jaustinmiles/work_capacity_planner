@@ -9,7 +9,7 @@ import { z } from 'zod'
 import { router, sessionProcedure, protectedProcedure } from '../trpc'
 import { generateUniqueId } from '../../shared/step-id-utils'
 import { getCurrentTime, getLocalDateString } from '../../shared/time-provider'
-import { parseDateString, calculateMinutesBetweenDates } from '../../shared/time-utils'
+import { getLocalDateRange, calculateMinutesBetweenDates } from '../../shared/time-utils'
 
 /**
  * Schema for creating a work session
@@ -24,6 +24,7 @@ const createSessionInput = z.object({
   notes: z.string().nullable().optional(),
   blockId: z.string().nullable().optional(),
   patternId: z.string().nullable().optional(),
+  pomodoroCycleId: z.string().nullable().optional(),
 })
 
 /**
@@ -39,17 +40,9 @@ const updateSessionInput = z.object({
   taskId: z.string().optional(),
   stepId: z.string().nullable().optional(),
   blockId: z.string().nullable().optional(),
+  pomodoroCycleId: z.string().nullable().optional(),
 })
 
-/**
- * Get local date range for a date string
- */
-function getLocalDateRange(dateString: string): { startOfDay: Date; endOfDay: Date } {
-  const [year, month, day] = parseDateString(dateString)
-  const startOfDay = new Date(year, month - 1, day, 0, 0, 0, 0)
-  const endOfDay = new Date(year, month - 1, day, 23, 59, 59, 999)
-  return { startOfDay, endOfDay }
-}
 
 export const workSessionRouter = router({
   /**
@@ -113,6 +106,7 @@ export const workSessionRouter = router({
         notes: input.notes ?? null,
         blockId: blockId ?? null,
         patternId: input.patternId ?? null,
+        pomodoroCycleId: input.pomodoroCycleId ?? null,
       },
       include: {
         Task: true,

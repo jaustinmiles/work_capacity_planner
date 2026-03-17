@@ -148,6 +148,22 @@ export class WorkTrackingService {
       const sessionKey = this.getSessionKey(workSession)
       this.activeSessions.set(sessionKey, workSession)
 
+      // Auto-link to active Pomodoro cycle (if any)
+      // Uses dynamic import to avoid circular dependency
+      const { usePomodoroStore } = await import('../store/usePomodoroStore')
+      const pomodoroState = usePomodoroStore.getState()
+      if (pomodoroState.activeCycle) {
+        await this.database.updateWorkSession(workSession.id, {
+          pomodoroCycleId: pomodoroState.activeCycle.id,
+        })
+        const displayName = stepName ?? taskName ?? null
+        pomodoroState.setActiveTask(dbTaskId, displayName)
+        logger.system.info('Linked work session to active Pomodoro cycle', {
+          sessionId: workSession.id,
+          cycleId: pomodoroState.activeCycle.id,
+        }, 'pomodoro-session-linked')
+      }
+
       return workSession
     } catch (error) {
       this.handleSessionError(error as Error, 'starting work session')

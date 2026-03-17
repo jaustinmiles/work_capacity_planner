@@ -40,7 +40,8 @@ import { WorkBlock } from '@shared/work-blocks-types'
 import { ClockTimePicker } from '../common/ClockTimePicker'
 import { useResponsive } from '../../providers/ResponsiveProvider'
 import { useLayoutStore } from '../../store/useLayoutStore'
-import { WorkLoggerLayoutMode, TaskStatus } from '@shared/enums'
+import { usePomodoroStore, useIsPomodoroActive, usePomodoroPrompt } from '../../store/usePomodoroStore'
+import { PomodoroPromptType, WorkLoggerLayoutMode, TaskStatus } from '@shared/enums'
 import { ULTRA_WIDE_DEFAULTS } from '@shared/constants'
 import {
   WorkSessionData,
@@ -52,6 +53,13 @@ import {
   getTypeEmojiDisplay,
 } from './SessionState'
 import { useTodaySnapshot } from '../../store/useScheduleSnapshotStore'
+import {
+  PomodoroTimer,
+  BreakActivityModal,
+  NextTaskModal,
+  TaskCompleteMidCycleModal,
+  PomodoroSettingsModal,
+} from '../pomodoro'
 
 const { Text } = Typography
 const { Row, Col } = Grid
@@ -97,6 +105,11 @@ export function WorkLoggerDual({ visible, onClose }: WorkLoggerDualProps) {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [showPlannedOverlay, setShowPlannedOverlay] = useState(false)
   const [taskSearchQuery, setTaskSearchQuery] = useState('')
+  const [showPomodoroSettings, setShowPomodoroSettings] = useState(false)
+
+  // Pomodoro state
+  const isPomodoroActive = useIsPomodoroActive()
+  const pomodoroPrompt = usePomodoroPrompt()
 
   // Get today's frozen schedule snapshot
   const todaySnapshot = useTodaySnapshot()
@@ -848,6 +861,13 @@ export function WorkLoggerDual({ visible, onClose }: WorkLoggerDualProps) {
           <Space>
             <Button
               type="text"
+              icon={<IconClockCircle />}
+              onClick={() => setShowPomodoroSettings(true)}
+              title="Pomodoro Settings"
+              style={{ color: isPomodoroActive ? '#1890ff' : undefined }}
+            />
+            <Button
+              type="text"
               icon={<IconSettings />}
               onClick={() => setShowCircadianSettings(true)}
               title="Circadian Settings"
@@ -875,6 +895,9 @@ export function WorkLoggerDual({ visible, onClose }: WorkLoggerDualProps) {
       wrapClassName={isFullscreen ? 'fullscreen-modal' : undefined}
     >
       <Space direction="vertical" style={{ width: '100%' }} size="large">
+        {/* Pomodoro Timer — shows idle start button or active countdown */}
+        <PomodoroTimer />
+
         {/* Current Work Indicator for Dogfooding */}
         {(() => {
           // Find any active work session that is not paused
@@ -1639,6 +1662,24 @@ export function WorkLoggerDual({ visible, onClose }: WorkLoggerDualProps) {
           </Text>
         )}
       </Modal>
+
+      {/* Pomodoro Modals */}
+      <BreakActivityModal
+        visible={pomodoroPrompt === PomodoroPromptType.BreakActivity}
+        onClose={() => usePomodoroStore.getState().dismissPrompt()}
+      />
+      <NextTaskModal
+        visible={pomodoroPrompt === PomodoroPromptType.NextTask}
+        onClose={() => usePomodoroStore.getState().dismissPrompt()}
+      />
+      <TaskCompleteMidCycleModal
+        visible={pomodoroPrompt === PomodoroPromptType.TaskComplete}
+        onClose={() => usePomodoroStore.getState().dismissPrompt()}
+      />
+      <PomodoroSettingsModal
+        visible={showPomodoroSettings}
+        onClose={() => setShowPomodoroSettings(false)}
+      />
     </Modal>
   )
 }

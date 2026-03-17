@@ -9,7 +9,7 @@ import { z } from 'zod'
 import { router, sessionProcedure, protectedProcedure } from '../trpc'
 import { generateUniqueId } from '../../shared/step-id-utils'
 import { getCurrentTime } from '../../shared/time-provider'
-import { parseDateString, calculateMinutesBetweenDates } from '../../shared/time-utils'
+import { getLocalDateRange, calculateMinutesBetweenDates } from '../../shared/time-utils'
 
 /**
  * Schema for creating a time sink
@@ -45,15 +45,6 @@ const createTimeSinkSessionInput = z.object({
   notes: z.string().nullable().optional(),
 })
 
-/**
- * Get local date range for a date string
- */
-function getLocalDateRange(dateString: string): { startOfDay: Date; endOfDay: Date } {
-  const [year, month, day] = parseDateString(dateString)
-  const startOfDay = new Date(year, month - 1, day, 0, 0, 0, 0)
-  const endOfDay = new Date(year, month - 1, day, 23, 59, 59, 999)
-  return { startOfDay, endOfDay }
-}
 
 export const timeSinkRouter = router({
   // ============================================================================
