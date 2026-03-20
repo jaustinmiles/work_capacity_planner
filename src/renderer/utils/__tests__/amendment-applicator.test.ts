@@ -66,9 +66,11 @@ describe('Amendment Applicator', () => {
     // Reset all mocks
     vi.clearAllMocks()
     Object.values(mockDatabase).forEach(fn => fn.mockReset())
-    // Re-set default return values for getTasks and getSequencedTasks after reset
+    // Re-set default return values after reset
     mockDatabase.getTasks.mockResolvedValue([])
     mockDatabase.getSequencedTasks.mockResolvedValue([])
+    // Default getTaskById returns a task with no async wait (processor will complete immediately)
+    mockDatabase.getTaskById.mockResolvedValue({ id: 'default', name: 'Task', asyncWaitTime: 0, notes: '' })
   })
 
   describe('Status Updates', () => {
@@ -88,10 +90,10 @@ describe('Amendment Applicator', () => {
 
       await applyAmendments([amendment])
 
-      expect(mockDatabase.updateTask).toHaveBeenCalledWith('task-1', {
+      expect(mockDatabase.updateTask).toHaveBeenCalledWith('task-1', expect.objectContaining({
         completed: true,
         overallStatus: 'completed',
-      })
+      }))
       expect(Message.success).toHaveBeenCalledWith('Applied 1 amendment')
     })
 
@@ -144,9 +146,9 @@ describe('Amendment Applicator', () => {
       await applyAmendments([amendment])
 
       expect(mockDatabase.getSequencedTaskById).toHaveBeenCalledWith('wf-1')
-      expect(mockDatabase.updateTaskStepProgress).toHaveBeenCalledWith('step-2', {
+      expect(mockDatabase.updateTaskStepProgress).toHaveBeenCalledWith('step-2', expect.objectContaining({
         status: 'completed',
-      })
+      }))
       expect(Message.success).toHaveBeenCalledWith('Applied 1 amendment')
     })
 
@@ -688,9 +690,9 @@ describe('Amendment Applicator', () => {
 
       // Verify each step was updated exactly once
       expect(mockDatabase.updateTaskStepProgress).toHaveBeenCalledTimes(3)
-      expect(mockDatabase.updateTaskStepProgress).toHaveBeenCalledWith('step-1', { status: 'completed' })
-      expect(mockDatabase.updateTaskStepProgress).toHaveBeenCalledWith('step-2', { status: 'completed' })
-      expect(mockDatabase.updateTaskStepProgress).toHaveBeenCalledWith('step-3', { status: 'completed' })
+      expect(mockDatabase.updateTaskStepProgress).toHaveBeenCalledWith('step-1', expect.objectContaining({ status: 'completed' }))
+      expect(mockDatabase.updateTaskStepProgress).toHaveBeenCalledWith('step-2', expect.objectContaining({ status: 'completed' }))
+      expect(mockDatabase.updateTaskStepProgress).toHaveBeenCalledWith('step-3', expect.objectContaining({ status: 'completed' }))
 
       // Verify the entire workflow was NOT marked as completed
       expect(mockDatabase.updateSequencedTask).not.toHaveBeenCalled()
@@ -784,7 +786,7 @@ describe('Amendment Applicator', () => {
 
       await applyAmendments([amendment])
 
-      expect(mockDatabase.updateTaskStepProgress).toHaveBeenCalledWith('step-2', { status: 'completed' })
+      expect(mockDatabase.updateTaskStepProgress).toHaveBeenCalledWith('step-2', expect.objectContaining({ status: 'completed' }))
       expect(Message.success).toHaveBeenCalledWith('Applied 1 amendment')
     })
 
