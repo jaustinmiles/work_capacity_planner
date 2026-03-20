@@ -1,8 +1,7 @@
 import { useState, useEffect, useMemo, useCallback } from 'react'
-import { Layout, Typography, ConfigProvider, Button, Space, Badge, Spin, Alert, Popconfirm, Tabs, Modal } from '@arco-design/web-react'
-import { IconApps, IconCalendar, IconList, IconBranch, IconSchedule, IconDelete, IconUserGroup, IconClockCircle, IconMenuFold, IconMenuUnfold, IconEye, IconSettings, IconMessage, IconStar, IconMindMapping } from '@arco-design/web-react/icon'
-import { ActionButtonOverflowMenu, FloatingSidebarButton } from './components/layout'
-import type { ActionButtonConfig } from './components/layout'
+import { Layout, Typography, ConfigProvider, Button, Space, Badge, Spin, Alert, Popconfirm, Tabs, Modal, Dropdown, Menu } from '@arco-design/web-react'
+import { IconApps, IconCalendar, IconList, IconBranch, IconSchedule, IconDelete, IconUserGroup, IconClockCircle, IconMenuFold, IconMenuUnfold, IconSettings, IconStar, IconMindMapping } from '@arco-design/web-react/icon'
+import { FloatingChatButton, FloatingSidebarButton } from './components/layout'
 import { MOBILE_LAYOUT } from '@shared/constants'
 import enUS from '@arco-design/web-react/es/locale/en-US'
 import { Message } from './components/common/Message'
@@ -648,53 +647,33 @@ function AppContent() {
                 />
               </Tabs>
 
-              {/* Action Buttons - responsive overflow menu ensures all buttons accessible */}
-              <ActionButtonOverflowMenu
-                buttons={[
-                  {
-                    key: 'chat',
-                    icon: <IconMessage />,
-                    label: 'Chat',
-                    onClick: toggleSidebar,
-                    priority: 1,
-                    isActive: sidebarOpen,
-                    title: 'AI Chat',
-                  },
-                  {
-                    key: 'logwork',
-                    icon: <IconClockCircle />,
-                    label: 'Log Work',
-                    onClick: () => setShowWorkLoggerDual(true),
-                    priority: 1,
-                    buttonType: 'primary',
-                    title: 'Log Work',
-                  },
-                  {
-                    key: 'tournament',
-                    icon: <IconEye />,
-                    label: 'Tournament',
-                    onClick: () => setShowTaskSlideshow(true),
-                    priority: 2,
-                    title: 'Task Tournament',
-                  },
-                  {
-                    key: 'settings',
-                    icon: <IconSettings />,
-                    label: 'Settings',
-                    onClick: () => setShowTaskTypeManager(true),
-                    priority: 3,
-                    title: 'Settings',
-                  },
-                  {
-                    key: 'sessions',
-                    icon: <IconUserGroup />,
-                    label: 'Sessions',
-                    onClick: () => setShowSessionManager(true),
-                    priority: 3,
-                    title: 'Session Manager',
-                  },
-                ] satisfies ActionButtonConfig[]
-              }/>
+              {/* Action Buttons: Log Work + Settings dropdown */}
+              <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexShrink: 0 }}>
+                <Button
+                  type="primary"
+                  icon={<IconClockCircle />}
+                  onClick={() => setShowWorkLoggerDual(true)}
+                  title="Log Work"
+                >
+                  {!isMobile && 'Log Work'}
+                </Button>
+                <Dropdown
+                  droplist={
+                    <Menu>
+                      <Menu.Item key="settings" onClick={() => setShowTaskTypeManager(true)}>
+                        <Space size="small"><IconSettings /> Settings</Space>
+                      </Menu.Item>
+                      <Menu.Item key="sessions" onClick={() => setShowSessionManager(true)}>
+                        <Space size="small"><IconUserGroup /> Sessions</Space>
+                      </Menu.Item>
+                    </Menu>
+                  }
+                  position="br"
+                  trigger="click"
+                >
+                  <Button type="text" icon={<IconSettings />} title="Settings" />
+                </Dropdown>
+              </div>
             </Header>
 
             <Content style={{
@@ -727,7 +706,7 @@ function AppContent() {
                   <>
                     {activeView === ViewType.Tasks && (
                       <ErrorBoundary>
-                        <TaskList onAddTask={() => setTaskFormVisible(true)} />
+                        <TaskList onAddTask={() => setTaskFormVisible(true)} onOpenTournament={() => setShowTaskSlideshow(true)} />
                       </ErrorBoundary>
                     )}
 
@@ -895,6 +874,9 @@ function AppContent() {
 
           {/* Chat Sidebar */}
           <ChatSidebar onNavigateToView={setActiveView} />
+
+          {/* Floating Chat Button - hidden when sidebar is open */}
+          <FloatingChatButton onClick={toggleSidebar} visible={!sidebarOpen} />
 
           <TaskCreationFlow
             visible={taskCreationFlowVisible}
