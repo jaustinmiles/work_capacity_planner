@@ -27,6 +27,8 @@ describe('Chat Context Provider', () => {
       timezone: 'America/New_York',
     },
     userTaskTypes: [],
+    endeavors: [],
+    sprintTaskIds: [],
     summary: {
       totalTasks: 0,
       completedTasks: 0,

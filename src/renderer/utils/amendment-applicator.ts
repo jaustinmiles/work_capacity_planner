@@ -306,11 +306,13 @@ export async function applyAmendments(amendments: Amendment[]): Promise<ApplyAme
         case AmendmentType.TaskTypeCreation:
           await handleTaskTypeCreation(amendment as TaskTypeCreation, ctx)
           if (!currentAmendmentFailed) successCount++
+          else errorCount++
           break
 
         case AmendmentType.SprintManagement:
           await handleSprintManagement(amendment as SprintManagement, ctx)
           if (!currentAmendmentFailed) successCount++
+          else errorCount++
           break
 
         case AmendmentType.EndeavorManagement:
