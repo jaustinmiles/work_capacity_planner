@@ -40,6 +40,7 @@ import { useTimeSinkStore } from './store/useTimeSinkStore'
 import { useScheduleSnapshotStore } from './store/useScheduleSnapshotStore'
 import { useUserTaskTypeStore } from './store/useUserTaskTypeStore'
 import { useDeepWorkBoardStore } from './store/useDeepWorkBoardStore'
+import { useSchedulerStore } from './store/useSchedulerStore'
 import { connectStores } from './store/storeConnector'
 import { getDatabase } from './services/database'
 import { logger } from '@/logger'
@@ -246,6 +247,17 @@ function AppContent() {
         const db = getDatabase()
         const sessionId = await db.ensureSession()
         logger.system.info('Session ensured', { sessionId }, 'app-session-init')
+
+        // Load scheduling preferences into scheduler store
+        const prefs = await db.getSchedulingPreferences(sessionId)
+        if (prefs) {
+          useSchedulerStore.getState().setInputs({
+            schedulingPreferences: {
+              taskSplittingEnabled: prefs.taskSplittingEnabled,
+              minimumSplitMinutes: prefs.minimumSplitMinutes,
+            },
+          })
+        }
 
         // Now safe to load data
         initializeData()
@@ -907,7 +919,23 @@ function AppContent() {
           <SessionManager
             visible={showSessionManager}
             onClose={() => setShowSessionManager(false)}
-            onSessionChange={(): void => {
+            onSessionChange={async (): Promise<void> => {
+              // Reload scheduling preferences for new session
+              try {
+                const db = getDatabase()
+                const session = await db.getCurrentSession()
+                if (session) {
+                  const prefs = await db.getSchedulingPreferences(session.id)
+                  if (prefs) {
+                    useSchedulerStore.getState().setInputs({
+                      schedulingPreferences: {
+                        taskSplittingEnabled: prefs.taskSplittingEnabled,
+                        minimumSplitMinutes: prefs.minimumSplitMinutes,
+                      },
+                    })
+                  }
+                }
+              } catch { /* preferences will use defaults */ }
               // Reload data when session changes
               initializeData()
             }}
