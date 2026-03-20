@@ -23,6 +23,7 @@ import { WorkScheduleModal } from './components/settings/WorkScheduleModal'
 import { MultiDayScheduleEditor } from './components/settings/MultiDayScheduleEditor'
 import { SessionManager } from './components/session/SessionManager'
 import { TaskTypeManager } from './components/settings/TaskTypeManager'
+import { SchedulingSettings } from './components/settings/SchedulingSettings'
 import { WorkLoggerDual } from './components/work-logger/WorkLoggerDual'
 import { TaskSlideshow } from './components/slideshow/TaskSlideshow'
 import { SprintBoard } from './components/sprint/SprintBoard'
@@ -928,6 +929,9 @@ function AppContent() {
               </Tabs.TabPane>
               <Tabs.TabPane key="timeSinks" title="Time Sinks">
                 <TimeSinkManager />
+              </Tabs.TabPane>
+              <Tabs.TabPane key="scheduling" title="Scheduling">
+                <SchedulingSettings />
               </Tabs.TabPane>
             </Tabs>
           </Modal>

@@ -350,6 +350,7 @@ export interface ScheduleConfig {
   endDate?: string | Date
   includeWeekends?: boolean
   allowTaskSplitting?: boolean
+  minimumSplitMinutes?: number // Minimum minutes per split part (default 30)
   respectMeetings?: boolean
   optimizationMode?: OptimizationMode
   debugMode?: boolean
@@ -794,7 +795,7 @@ export class UnifiedScheduler {
               }
             }
 
-            const splitItems = this.splitTaskAcrossDays(item, availableSlots)
+            const splitItems = this.splitTaskAcrossDays(item, availableSlots, config.minimumSplitMinutes)
 
             if (splitItems.length > 0) {
               // Schedule the first part
@@ -815,6 +816,21 @@ export class UnifiedScheduler {
               // Start over from the beginning since we modified the array
               break
             }
+          } else if (fitResult.canPartiallyFit && fitResult.block && config.allowTaskSplitting === false) {
+            // Splitting disabled: schedule the task truncated to the block's available capacity
+            const truncatedItem: UnifiedScheduleItem = {
+              ...item,
+              duration: fitResult.availableMinutes || item.duration,
+            }
+            const scheduledPart = this.scheduleItemInBlock(truncatedItem, fitResult, true)
+            scheduled.push(scheduledPart)
+
+            remaining.splice(itemIndex, 1)
+            scheduledItemsToday = true
+            madeProgress = true
+
+            this.updateBlockCapacity(fitResult.block, truncatedItem)
+            break
           }
         }
       }
@@ -866,8 +882,9 @@ export class UnifiedScheduler {
   splitTaskAcrossDays(
     task: UnifiedScheduleItem,
     availableSlots: { date: Date; duration: number }[],
+    minimumSplitMinutes: number = 30,
   ): UnifiedScheduleItem[] {
-    const MIN_SPLIT_DURATION = 30 // Minimum 30 minutes per split
+    const MIN_SPLIT_DURATION = minimumSplitMinutes
     const splitParts: UnifiedScheduleItem[] = []
 
     // Handle edge cases

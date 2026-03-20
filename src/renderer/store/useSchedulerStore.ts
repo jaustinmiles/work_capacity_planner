@@ -32,6 +32,11 @@ export interface NextScheduledItem {
   workflowName?: string
 }
 
+interface SchedulingPrefs {
+  taskSplittingEnabled: boolean
+  minimumSplitMinutes: number
+}
+
 interface SchedulerStoreState {
   // Inputs (will be set from other stores)
   tasks: Task[]
@@ -39,6 +44,7 @@ interface SchedulerStoreState {
   workPatterns: DailyWorkPattern[]
   workSettings: WorkSettings | null
   activeWorkSessions: Set<string>
+  schedulingPreferences: SchedulingPrefs
 
   // Computed schedule result
   scheduleResult: ScheduleResult | null
@@ -55,6 +61,7 @@ interface SchedulerStoreState {
     workPatterns?: DailyWorkPattern[]
     workSettings?: WorkSettings | null
     activeWorkSessions?: Set<string>
+    schedulingPreferences?: SchedulingPrefs
   }) => void
   setNextTaskSkipIndex: (index: number) => void
   recomputeSchedule: () => void
@@ -145,6 +152,7 @@ const computeSchedule = (
   sequencedTasks: SequencedTask[],
   workPatterns: DailyWorkPattern[],
   workSettings: WorkSettings | null,
+  schedulingPreferences: SchedulingPrefs = { taskSplittingEnabled: true, minimumSplitMinutes: 30 },
 ): ScheduleResult | null => {
   try {
     if (!workPatterns || workPatterns.length === 0) {
@@ -177,10 +185,11 @@ const computeSchedule = (
 
     const config = {
       startDate: currentTime,
-      allowTaskSplitting: true,
+      allowTaskSplitting: schedulingPreferences.taskSplittingEnabled,
+      minimumSplitMinutes: schedulingPreferences.minimumSplitMinutes,
       respectMeetings: true,
       optimizationMode: OptimizationMode.Realistic,
-      debugMode: false, // Disable verbose scheduler debug logs
+      debugMode: false,
     }
 
     const items = [...tasks, ...sequencedTasks]
@@ -310,6 +319,7 @@ export const useSchedulerStore = create<SchedulerStoreState>()(
     workPatterns: [],
     workSettings: null,
     activeWorkSessions: new Set(),
+    schedulingPreferences: { taskSplittingEnabled: true, minimumSplitMinutes: 30 },
     scheduleResult: null,
     scheduledItems: [],
     nextScheduledItem: null,
@@ -326,7 +336,8 @@ export const useSchedulerStore = create<SchedulerStoreState>()(
         inputs.tasks !== undefined ||
         inputs.sequencedTasks !== undefined ||
         inputs.workPatterns !== undefined ||
-        inputs.workSettings !== undefined
+        inputs.workSettings !== undefined ||
+        inputs.schedulingPreferences !== undefined
 
       if (needsScheduleRecompute) {
         // Defensive check: Detect rapid-fire recomputations (subscription storm)
@@ -364,6 +375,7 @@ export const useSchedulerStore = create<SchedulerStoreState>()(
           validWorkflows,
           newState.workPatterns,
           newState.workSettings,
+          newState.schedulingPreferences,
         )
 
         // Extract derived values and add colors
@@ -429,6 +441,7 @@ export const useSchedulerStore = create<SchedulerStoreState>()(
         state.sequencedTasks,
         state.workPatterns,
         state.workSettings,
+        state.schedulingPreferences,
       )
 
       const scheduledItems = scheduleResult ? addColorsToItems(scheduleResult.scheduled) : []

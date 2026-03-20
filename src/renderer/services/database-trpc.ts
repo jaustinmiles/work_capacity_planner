@@ -267,6 +267,8 @@ export class TrpcDatabaseService {
     asyncParallelizationBonus: number
     bedtimeHour: number
     wakeHour: number
+    taskSplittingEnabled: boolean
+    minimumSplitMinutes: number
   } | null> {
     const prefs = await this.client.session.getSchedulingPreferences.query({ sessionId })
     if (!prefs) return null
@@ -277,6 +279,8 @@ export class TrpcDatabaseService {
       asyncParallelizationBonus: prefs.asyncParallelizationBonus,
       bedtimeHour: prefs.bedtimeHour,
       wakeHour: prefs.wakeTimeHour,
+      taskSplittingEnabled: prefs.taskSplittingEnabled ?? true,
+      minimumSplitMinutes: prefs.minimumSplitMinutes ?? 30,
     }
   }
 

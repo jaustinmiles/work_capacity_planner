@@ -144,6 +144,10 @@ export interface SchedulingPreferences {
   weekendPenalty: number // 0-1, how much to avoid weekends
   contextSwitchPenalty: number // minutes lost per context switch
   asyncParallelizationBonus: number // priority bonus for async work
+  bedtimeHour: number // 0-23, for circadian rhythm
+  wakeTimeHour: number // 0-23, for circadian rhythm
+  taskSplittingEnabled: boolean // whether to split tasks across time blocks
+  minimumSplitMinutes: number // minimum minutes per split part (default 30)
   createdAt: Date
   updatedAt: Date
 }
