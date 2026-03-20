@@ -398,6 +398,150 @@ describe('UnifiedScheduler - Core Functionality', () => {
     })
   })
 
+  describe('minimumSplitMinutes config', () => {
+    it('should schedule a partial fit when block has >= minimumSplitMinutes remaining', () => {
+      // Scenario: 60-min task, block with only 10 min remaining, minimumSplitMinutes=5
+      const workPattern: DailyWorkPattern = {
+        date: '2025-01-15',
+        blocks: [
+          {
+            id: 'focus-block',
+            startTime: '09:00',
+            endTime: '09:10', // Only 10 minutes available
+            typeConfig: { kind: 'single', typeId: 'focused' },
+            capacity: { totalMinutes: 10 },
+          },
+        ],
+        accumulated: {},
+        meetings: [],
+      }
+
+      const task = createTestTask('task1', 60) // 60-min task
+
+      const config: ScheduleConfig = {
+        startDate: '2025-01-15',
+        allowTaskSplitting: true,
+        minimumSplitMinutes: 5, // User set to 5 min
+        debugMode: true,
+      }
+
+      const context: ScheduleContext = {
+        ...mockContext,
+        tasks: [task],
+        workPatterns: [workPattern],
+      }
+
+      const result = scheduler.scheduleForDisplay([task], context, config)
+
+      // With minimumSplitMinutes=5, a 10-min block should produce a partial schedule
+      expect(result.scheduled.length).toBeGreaterThan(0)
+      const scheduled = result.scheduled[0]
+      expect(scheduled).toBeDefined()
+      expect(scheduled!.duration).toBeLessThanOrEqual(10)
+    })
+
+    it('should NOT schedule a partial fit when block has less than minimumSplitMinutes', () => {
+      const workPattern: DailyWorkPattern = {
+        date: '2025-01-15',
+        blocks: [
+          {
+            id: 'focus-block',
+            startTime: '09:00',
+            endTime: '09:04', // Only 4 minutes available
+            typeConfig: { kind: 'single', typeId: 'focused' },
+            capacity: { totalMinutes: 4 },
+          },
+        ],
+        accumulated: {},
+        meetings: [],
+      }
+
+      const task = createTestTask('task1', 60)
+
+      const config: ScheduleConfig = {
+        startDate: '2025-01-15',
+        allowTaskSplitting: true,
+        minimumSplitMinutes: 5,
+        debugMode: true,
+      }
+
+      const context: ScheduleContext = {
+        ...mockContext,
+        tasks: [task],
+        workPatterns: [workPattern],
+      }
+
+      const result = scheduler.scheduleForDisplay([task], context, config)
+
+      // 4 min < 5 min minimum, should not schedule
+      expect(result.scheduled).toHaveLength(0)
+    })
+
+    it('should truncate task to block size when splitting is disabled', () => {
+      const workPattern: DailyWorkPattern = {
+        date: '2025-01-15',
+        blocks: [
+          {
+            id: 'focus-block',
+            startTime: '09:00',
+            endTime: '09:30', // 30 minutes available
+            typeConfig: { kind: 'single', typeId: 'focused' },
+            capacity: { totalMinutes: 30 },
+          },
+        ],
+        accumulated: {},
+        meetings: [],
+      }
+
+      const task = createTestTask('task1', 60) // 60-min task
+
+      const config: ScheduleConfig = {
+        startDate: '2025-01-15',
+        allowTaskSplitting: false,
+        debugMode: true,
+      }
+
+      const context: ScheduleContext = {
+        ...mockContext,
+        tasks: [task],
+        workPatterns: [workPattern],
+      }
+
+      const result = scheduler.scheduleForDisplay([task], context, config)
+
+      // Should be scheduled but truncated to 30 min
+      expect(result.scheduled.length).toBeGreaterThan(0)
+      const scheduled = result.scheduled[0]
+      expect(scheduled).toBeDefined()
+      expect(scheduled!.duration).toBe(30)
+      // Should NOT have split labels
+      expect(scheduled!.isSplit).toBeFalsy()
+    })
+
+    it('should respect custom minimumSplitMinutes in splitTaskAcrossDays', () => {
+      const largeTask: UnifiedScheduleItem = {
+        id: 'large-task',
+        name: 'Large Task',
+        duration: 60,
+        priority: 50,
+        originalItem: createTestTask('large-task', 60),
+      }
+
+      const availableSlots = [
+        { date: new Date('2025-01-15'), duration: 8 },  // Below 10 min default, but above 5 min custom
+        { date: new Date('2025-01-16'), duration: 52 },
+      ]
+
+      // With default (30), the 8-min slot would be skipped
+      const defaultSplit = scheduler.splitTaskAcrossDays(largeTask, availableSlots, 30)
+      expect(defaultSplit.length).toBe(1) // Only the 52-min slot used
+
+      // With custom (5), the 8-min slot should be used
+      const customSplit = scheduler.splitTaskAcrossDays(largeTask, availableSlots, 5)
+      expect(customSplit.length).toBe(2) // Both slots used
+    })
+  })
+
   describe('calculateCriticalPath', () => {
     it('should calculate the longest dependency chain', () => {
       const items: UnifiedScheduleItem[] = [

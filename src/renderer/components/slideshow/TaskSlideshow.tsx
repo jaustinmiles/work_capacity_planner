@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react'
-import { Modal, Button, Space, Typography, Tag, Card, Divider, Message, Table } from '@arco-design/web-react'
+import { Modal, Button, Space, Typography, Tag, Card, Divider, Message, Table, Switch } from '@arco-design/web-react'
 import { IconLeft, IconRight, IconClockCircle, IconCheck } from '@arco-design/web-react/icon'
 import { useTaskStore } from '../../store/useTaskStore'
 import { useResponsive } from '../../providers/ResponsiveProvider'
@@ -42,9 +42,22 @@ export function TaskSlideshow({ visible, onClose }: TaskSlideshowProps) {
   const [isShowingMissingPairs, setIsShowingMissingPairs] = useState(false)
   const [isComplete, setIsComplete] = useState(false)
   const [shuffledItems, setShuffledItems] = useState<SlideshowItem[]>([])
+  const [sprintOnly, setSprintOnly] = useState(false)
 
   // Build graph from comparisons using utility
   const graph = useMemo<ComparisonGraph>(() => buildComparisonGraph(comparisons), [comparisons])
+
+  // Reset tournament when scope changes
+  const handleSprintToggle = (checked: boolean) => {
+    setSprintOnly(checked)
+    setComparisons([])
+    setComparisonPairs([])
+    setShuffledItems([])
+    setCurrentPairIndex(0)
+    setIsComplete(false)
+    setIsShowingMissingPairs(false)
+    setCurrentQuestion(ComparisonType.Priority)
+  }
 
   // Fisher-Yates shuffle algorithm
   const shuffleArray = <T,>(array: T[]): T[] => {
@@ -64,6 +77,7 @@ export function TaskSlideshow({ visible, onClose }: TaskSlideshowProps) {
     // Filter out tasks that are also in workflows
     const taskItems: SlideshowItem[] = tasks
       .filter(t => !t.archived && !t.completed && !workflowIds.has(t.id))
+      .filter(t => !sprintOnly || t.inActiveSprint)
       .map(task => ({
         id: task.id,
         type: EntityType.Task,
@@ -72,6 +86,7 @@ export function TaskSlideshow({ visible, onClose }: TaskSlideshowProps) {
 
     const workflowItems: SlideshowItem[] = sequencedTasks
       .filter(w => !w.archived && !w.completed)
+      .filter(w => !sprintOnly || w.inActiveSprint)
       .map(workflow => ({
         id: workflow.id,
         type: EntityType.Workflow,
@@ -81,7 +96,7 @@ export function TaskSlideshow({ visible, onClose }: TaskSlideshowProps) {
     // Simply combine all items without sorting
     return [...taskItems, ...workflowItems]
 
-  }, [tasks, sequencedTasks])
+  }, [tasks, sequencedTasks, sprintOnly])
 
   // Initialize comparison pairs on first load
   useEffect(() => {
@@ -378,17 +393,31 @@ export function TaskSlideshow({ visible, onClose }: TaskSlideshowProps) {
     }
   }, [visible, comparisonPairs.length, isComplete])
 
+  const sprintScopeToggle = (
+    <Space size={12}>
+      <Space size={4}>
+        <Text style={{ fontSize: 13 }}>Sprint only</Text>
+        <Switch
+          size="small"
+          checked={sprintOnly}
+          onChange={handleSprintToggle}
+        />
+      </Space>
+      <Tag color="gray">{items.length} items</Tag>
+    </Space>
+  )
+
   if (items.length === 0) {
     return (
       <Modal
-        title="Task & Workflow Slideshow"
+        title={<Space style={{ width: '100%', justifyContent: 'space-between' }}><span>Task & Workflow Comparison</span>{sprintScopeToggle}</Space>}
         visible={visible}
         onCancel={onClose}
         footer={null}
         style={{ width: 800 }}
       >
         <div style={{ textAlign: 'center', padding: '40px 0' }}>
-          <Text type="secondary">No tasks or workflows to display</Text>
+          <Text type="secondary">{sprintOnly ? 'No sprint tasks to compare' : 'No tasks or workflows to display'}</Text>
         </div>
       </Modal>
     )
@@ -397,14 +426,14 @@ export function TaskSlideshow({ visible, onClose }: TaskSlideshowProps) {
   if (items.length < 2) {
     return (
       <Modal
-        title="Task & Workflow Comparison"
+        title={<Space style={{ width: '100%', justifyContent: 'space-between' }}><span>Task & Workflow Comparison</span>{sprintScopeToggle}</Space>}
         visible={visible}
         onCancel={onClose}
         footer={null}
         style={{ width: 800 }}
       >
         <div style={{ textAlign: 'center', padding: '40px 0' }}>
-          <Text type="secondary">Need at least 2 items to compare</Text>
+          <Text type="secondary">{sprintOnly ? 'Need at least 2 sprint items to compare' : 'Need at least 2 items to compare'}</Text>
         </div>
       </Modal>
     )
@@ -655,9 +684,12 @@ export function TaskSlideshow({ visible, onClose }: TaskSlideshowProps) {
       title={
         <Space style={{ width: '100%', justifyContent: 'space-between' }}>
           <span>Task & Workflow Comparison</span>
-          <Tag color={isShowingMissingPairs ? 'orange' : 'blue'}>
-            {`Pair ${currentPairIndex + 1} of ${comparisonPairs.length}`}
-          </Tag>
+          <Space size={12}>
+            {sprintScopeToggle}
+            <Tag color={isShowingMissingPairs ? 'orange' : 'blue'}>
+              {`Pair ${currentPairIndex + 1} of ${comparisonPairs.length}`}
+            </Tag>
+          </Space>
         </Space>
       }
       visible={visible}

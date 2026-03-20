@@ -22,15 +22,16 @@ import {
   type DragStartEvent,
   type DragEndEvent,
 } from '@dnd-kit/core'
-import { Typography, Space, Switch, Alert } from '@arco-design/web-react'
+import { Typography, Space, Switch, Alert, Select } from '@arco-design/web-react'
 import { IconThunderbolt } from '@arco-design/web-react/icon'
 import { SprintColumn, type SprintColumnId } from './SprintColumn'
 import { SprintTaskCard } from './SprintTaskCard'
 import { useTaskStore } from '../../store/useTaskStore'
+import { useEndeavorStore } from '../../store/useEndeavorStore'
 import { useResponsive } from '../../providers/ResponsiveProvider'
 import { Message } from '../common/Message'
 import { logger } from '@/logger'
-import type { Task } from '@shared/types'
+import type { Task, Endeavor } from '@shared/types'
 
 const { Title, Text } = Typography
 
@@ -45,6 +46,33 @@ export function SprintBoard(): React.ReactElement {
     removeTaskFromSprint,
     toggleTaskComplete,
   } = useTaskStore()
+
+  // Endeavor data for filtering and tags
+  const endeavors = useEndeavorStore(s => s.endeavors)
+  const [endeavorFilter, setEndeavorFilter] = useState<string | null>(null)
+
+  // Build reverse lookup: task ID → endeavors it belongs to
+  const taskEndeavorMap = useMemo(() => {
+    const map = new Map<string, Endeavor[]>()
+    for (const endeavor of endeavors) {
+      for (const item of endeavor.items) {
+        const existing = map.get(item.task.id) || []
+        existing.push(endeavor)
+        map.set(item.task.id, existing)
+      }
+    }
+    return map
+  }, [endeavors])
+
+  // Set of task IDs that belong to any endeavor (for "has endeavor" filter)
+  const taskIdsInEndeavors = useMemo(() => {
+    if (!endeavorFilter) return null // No filter active
+    if (endeavorFilter === 'any') return new Set(taskEndeavorMap.keys())
+    // Specific endeavor filter
+    const endeavor = endeavors.find(e => e.id === endeavorFilter)
+    if (!endeavor) return null
+    return new Set(endeavor.items.map(item => item.task.id))
+  }, [endeavorFilter, endeavors, taskEndeavorMap])
 
   // Active drag state
   const [activeId, setActiveId] = useState<string | null>(null)
@@ -71,6 +99,9 @@ export function SprintBoard(): React.ReactElement {
     for (const task of tasks) {
       if (task.archived) continue // Skip archived tasks
 
+      // Apply endeavor filter
+      if (taskIdsInEndeavors && !taskIdsInEndeavors.has(task.id)) continue
+
       if (task.completed) {
         completed.push(task)
       } else if (task.inActiveSprint) {
@@ -96,7 +127,7 @@ export function SprintBoard(): React.ReactElement {
     logger.ui.info(`SprintBoard categorized: backlog=${backlog.length}, sprint=${sprint.length}, completed=${completed.length}`, {}, 'sprint-board-render')
 
     return { backlogTasks: backlog, sprintTasks: sprint, completedTasks: completed.slice(0, 10) }
-  }, [tasks])
+  }, [tasks, taskIdsInEndeavors])
 
   // Use tasks directly for lookups (removed allItems indirection)
   const allItems = tasks
@@ -238,14 +269,34 @@ export function SprintBoard(): React.ReactElement {
           </Text>
         </div>
 
-        <Space>
-          <Text>Sprint Mode:</Text>
-          <Switch
-            checked={sprintModeEnabled}
-            onChange={setSprintModeEnabled}
-            checkedText="On"
-            uncheckedText="Off"
-          />
+        <Space size={16}>
+          {endeavors.length > 0 && (
+            <Select
+              placeholder="All Tasks"
+              value={endeavorFilter ?? undefined}
+              onChange={(val) => setEndeavorFilter(val ?? null)}
+              allowClear
+              style={{ width: 180 }}
+              size="small"
+            >
+              <Select.Option value="any">Has Endeavor</Select.Option>
+              {endeavors.map(e => (
+                <Select.Option key={e.id} value={e.id}>
+                  {e.color && <span style={{ display: 'inline-block', width: 8, height: 8, borderRadius: '50%', background: e.color, marginRight: 6 }} />}
+                  {e.name}
+                </Select.Option>
+              ))}
+            </Select>
+          )}
+          <Space>
+            <Text>Sprint Mode:</Text>
+            <Switch
+              checked={sprintModeEnabled}
+              onChange={setSprintModeEnabled}
+              checkedText="On"
+              uncheckedText="Off"
+            />
+          </Space>
         </Space>
       </div>
 
@@ -280,25 +331,28 @@ export function SprintBoard(): React.ReactElement {
             title="Backlog"
             tasks={backlogTasks}
             activeId={activeId}
+            taskEndeavorMap={taskEndeavorMap}
           />
           <SprintColumn
             id="sprint"
             title="Sprint"
             tasks={sprintTasks}
             activeId={activeId}
+            taskEndeavorMap={taskEndeavorMap}
           />
           <SprintColumn
             id="completed"
             title="Completed"
             tasks={completedTasks}
             activeId={activeId}
+            taskEndeavorMap={taskEndeavorMap}
           />
         </div>
 
         {/* Drag overlay - shows the card being dragged */}
         <DragOverlay>
           {activeTask ? (
-            <SprintTaskCard task={activeTask} isDragging />
+            <SprintTaskCard task={activeTask} isDragging endeavors={taskEndeavorMap.get(activeTask.id)} />
           ) : null}
         </DragOverlay>
       </DndContext>

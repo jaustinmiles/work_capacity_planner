@@ -350,6 +350,7 @@ export interface ScheduleConfig {
   endDate?: string | Date
   includeWeekends?: boolean
   allowTaskSplitting?: boolean
+  minimumSplitMinutes?: number // Minimum minutes per split part (default 30)
   respectMeetings?: boolean
   optimizationMode?: OptimizationMode
   debugMode?: boolean
@@ -692,7 +693,7 @@ export class UnifiedScheduler {
           // This prevents using "now" when scheduling future days
           const currentTimeToUse = (dayIndex === 0 && config.currentTime) ? config.currentTime : undefined
 
-          const fitResult = this.findBestBlockForItem(item, dayBlocks, scheduled, currentTimeToUse)
+          const fitResult = this.findBestBlockForItem(item, dayBlocks, scheduled, currentTimeToUse, config.minimumSplitMinutes)
 
           if (fitResult.canFit && fitResult.block) {
             // Schedule the full item
@@ -794,7 +795,7 @@ export class UnifiedScheduler {
               }
             }
 
-            const splitItems = this.splitTaskAcrossDays(item, availableSlots)
+            const splitItems = this.splitTaskAcrossDays(item, availableSlots, config.minimumSplitMinutes)
 
             if (splitItems.length > 0) {
               // Schedule the first part
@@ -815,6 +816,21 @@ export class UnifiedScheduler {
               // Start over from the beginning since we modified the array
               break
             }
+          } else if (fitResult.canPartiallyFit && fitResult.block && config.allowTaskSplitting === false) {
+            // Splitting disabled: schedule the task truncated to the block's available capacity
+            const truncatedItem: UnifiedScheduleItem = {
+              ...item,
+              duration: fitResult.availableMinutes || item.duration,
+            }
+            const scheduledPart = this.scheduleItemInBlock(truncatedItem, fitResult, true)
+            scheduled.push(scheduledPart)
+
+            remaining.splice(itemIndex, 1)
+            scheduledItemsToday = true
+            madeProgress = true
+
+            this.updateBlockCapacity(fitResult.block, truncatedItem)
+            break
           }
         }
       }
@@ -866,8 +882,9 @@ export class UnifiedScheduler {
   splitTaskAcrossDays(
     task: UnifiedScheduleItem,
     availableSlots: { date: Date; duration: number }[],
+    minimumSplitMinutes: number = 30,
   ): UnifiedScheduleItem[] {
-    const MIN_SPLIT_DURATION = 30 // Minimum 30 minutes per split
+    const MIN_SPLIT_DURATION = minimumSplitMinutes
     const splitParts: UnifiedScheduleItem[] = []
 
     // Handle edge cases
@@ -1342,12 +1359,13 @@ export class UnifiedScheduler {
     blocks: SchedulerBlockCapacity[],
     scheduled: UnifiedScheduleItem[],
     currentTime?: Date,
+    minimumSplitMinutes?: number,
   ): FitResult {
     // Score all candidate blocks
     const scoredBlocks: BlockScoreResult[] = []
 
     for (const block of blocks) {
-      const scoreResult = this.scoreBlockForItem(item, block, scheduled, currentTime)
+      const scoreResult = this.scoreBlockForItem(item, block, scheduled, currentTime, minimumSplitMinutes)
       if (scoreResult) {
         scoredBlocks.push(scoreResult)
       }
@@ -1394,6 +1412,7 @@ export class UnifiedScheduler {
     block: SchedulerBlockCapacity,
     scheduled: UnifiedScheduleItem[],
     currentTime?: Date,
+    minimumSplitMinutes?: number,
   ): FitResult {
     const taskTypeId = item.taskTypeId
 
@@ -1514,7 +1533,7 @@ export class UnifiedScheduler {
         availableMinutes: availableCapacity,
         startTime: potentialStartTime,
       }
-    } else if (availableCapacity > MINIMUM_SPLIT_SIZE) {
+    } else if (availableCapacity >= (minimumSplitMinutes ?? MINIMUM_SPLIT_SIZE)) {
       return {
         canFit: false,
         canPartiallyFit: true,
@@ -1540,9 +1559,10 @@ export class UnifiedScheduler {
     block: SchedulerBlockCapacity,
     scheduled: UnifiedScheduleItem[],
     currentTime?: Date,
+    minimumSplitMinutes?: number,
   ): BlockScoreResult | null {
     // First check if block can accommodate item at all
-    const fitResult = this.canFitInBlock(item, block, scheduled, currentTime)
+    const fitResult = this.canFitInBlock(item, block, scheduled, currentTime, minimumSplitMinutes)
 
     if (!fitResult.canFit && !fitResult.canPartiallyFit) {
       return null  // Block cannot be used

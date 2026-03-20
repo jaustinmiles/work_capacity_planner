@@ -7,6 +7,7 @@ import { useSchedulerStore } from '../../store/useSchedulerStore'
 import { useWorkPatternStore } from '../../store/useWorkPatternStore'
 import { formatMinutes } from '@shared/time-utils'
 import { TaskStatus, NotificationType } from '@shared/enums'
+import { processCompletion } from '@shared/task-completion-processor'
 import { logger } from '@/logger'
 
 const { Text } = Typography
@@ -36,6 +37,7 @@ export function StartNextTaskWidget(): ReactElement {
   const pauseWorkOnTask = useTaskStore(state => state.pauseWorkOnTask)
   const pauseWorkOnStep = useTaskStore(state => state.pauseWorkOnStep)
   const completeStep = useTaskStore(state => state.completeStep)
+  const tasks = useTaskStore(state => state.tasks)
   const updateTask = useTaskStore(state => state.updateTask)
   const getWorkSessionProgress = useTaskStore(state => state.getWorkSessionProgress)
   const incrementNextTaskSkipIndex = useTaskStore(state => state.incrementNextTaskSkipIndex)
@@ -137,11 +139,16 @@ export function StartNextTaskWidget(): ReactElement {
           await pauseWorkOnTask(activeSession.taskId)
         }
 
-        // Mark task as completed
-        await updateTask(activeSession.taskId, {
-          completed: true,
-          overallStatus: TaskStatus.Completed,
-        })
+        // Route through completion processor for timer handling
+        const task = tasks.find(t => t.id === activeSession.taskId)
+        if (task) {
+          const result = processCompletion({ entityType: 'task', entityId: task.id, task })
+          await updateTask(activeSession.taskId, {
+            completed: result.finalStatus === TaskStatus.Completed,
+            completedAt: result.completedAt,
+            overallStatus: result.finalStatus,
+          })
+        }
 
         showNotification(`Completed task: ${activeSession.taskName || 'Task'}`, NotificationType.Success)
       }

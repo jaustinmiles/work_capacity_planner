@@ -1,5 +1,5 @@
 import { Card, List, Typography, Empty, Space, Tag, Button, Progress, Popconfirm, Select, Radio, Pagination, Switch, Input } from '@arco-design/web-react'
-import { IconPlus, IconCheckCircle, IconClockCircle, IconDelete, IconCalendarClock, IconEdit, IconFilter, IconList, IconApps, IconEye, IconEyeInvisible, IconSearch } from '@arco-design/web-react/icon'
+import { IconPlus, IconCheckCircle, IconClockCircle, IconDelete, IconCalendarClock, IconEdit, IconFilter, IconList, IconApps, IconEye, IconEyeInvisible, IconSearch, IconTrophy } from '@arco-design/web-react/icon'
 import { useTaskStore } from '../../store/useTaskStore'
 import { TaskItem } from './TaskItem'
 import { TaskGridView } from './TaskGridView'
@@ -17,9 +17,10 @@ const { Title, Text } = Typography
 
 interface TaskListProps {
   onAddTask: () => void
+  onOpenTournament?: () => void
 }
 
-export function TaskList({ onAddTask }: TaskListProps) {
+export function TaskList({ onAddTask, onOpenTournament }: TaskListProps) {
   const { tasks, loadTasks, sequencedTasks } = useTaskStore()
   const userTypes = useSortedUserTaskTypes()
   const [scheduleGeneratorVisible, setScheduleGeneratorVisible] = useState(false)
@@ -231,6 +232,15 @@ export function TaskList({ onAddTask }: TaskListProps) {
               Active Tasks {taskTypeFilter !== 'all' && `(${taskTypeFilter === 'work' ? 'Work Items' : taskTypeFilter})`}
             </Title>
             <Space>
+              <Button
+                size="small"
+                icon={<IconTrophy />}
+                onClick={onOpenTournament}
+                disabled={!onOpenTournament || incompleteTasks.length < 2}
+                title="Task Tournament - compare and rank tasks"
+              >
+                Tournament
+              </Button>
               <Button
                 size="small"
                 icon={<IconEdit />}

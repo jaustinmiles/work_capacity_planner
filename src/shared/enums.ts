@@ -87,6 +87,8 @@ export enum AmendmentType {
   ArchiveToggle = 'archive_toggle',
   QueryResponse = 'query_response',
   TaskTypeCreation = 'task_type_creation',
+  SprintManagement = 'sprint_management',
+  EndeavorManagement = 'endeavor_management',
 }
 
 // Work pattern modification operations
