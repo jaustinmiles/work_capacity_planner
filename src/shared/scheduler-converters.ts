@@ -12,7 +12,7 @@
 import { Task, TaskStep } from './types'
 import { SequencedTask } from './sequencing-types'
 import { UnifiedScheduleItem } from './unified-scheduler'
-import { StepStatus, UnifiedScheduleItemType } from './enums'
+import { StepStatus, TaskStatus, UnifiedScheduleItemType } from './enums'
 
 /**
  * Special marker for tasks without explicit type.
@@ -256,6 +256,18 @@ function processTaskOrStep(
   }
   if (workflowId) {
     unifiedItem.workflowId = workflowId
+  }
+
+  // Handle waiting tasks (async timer running) — same pattern as waiting steps
+  const isWaiting = 'overallStatus' in item && item.overallStatus === TaskStatus.Waiting
+  if (isWaiting && !isCompleted) {
+    completedItemIds.add(item.id) // Unblock dependents
+    unifiedItem.isWaitingOnAsync = true
+    if ('completedAt' in item && item.completedAt) {
+      unifiedItem.completedAt = item.completedAt
+    }
+    unified.push(unifiedItem)
+    return
   }
 
   // Add to appropriate collection

@@ -15,6 +15,7 @@ import type {
 } from '@shared/amendment-types'
 import { EntityType, TaskStatus } from '@shared/amendment-types'
 import { getCurrentTime } from '@shared/time-provider'
+import { processCompletion } from '@shared/task-completion-processor'
 import { dateToYYYYMMDD, safeParseDateString } from '@shared/time-utils'
 import type { Task, TaskStep } from '@shared/types'
 import type { HandlerContext } from './types'
@@ -34,16 +35,12 @@ export async function handleStatusUpdate(
       if (workflow && workflow.steps) {
         const step = findStepByName(workflow.steps, amendment.stepName)
         if (step) {
-          // Handle async wait time: if completing a step with asyncWaitTime,
-          // transition to 'waiting' status instead of 'completed'
-          if (
-            amendment.newStatus === TaskStatus.Completed &&
-            step.asyncWaitTime &&
-            step.asyncWaitTime > 0
-          ) {
+          if (amendment.newStatus === TaskStatus.Completed) {
+            // Route through completion processor for timer handling
+            const result = processCompletion({ entityType: 'step', entityId: step.id, step })
             await ctx.db.updateTaskStepProgress(step.id, {
-              status: 'waiting',
-              completedAt: getCurrentTime(),
+              status: result.finalStatus,
+              completedAt: result.completedAt,
             })
           } else {
             await ctx.db.updateTaskStepProgress(step.id, {
@@ -62,11 +59,23 @@ export async function handleStatusUpdate(
         overallStatus: amendment.newStatus,
       })
     } else {
-      // Update task status
-      await ctx.db.updateTask(amendment.target.id, {
-        completed: amendment.newStatus === TaskStatus.Completed,
-        overallStatus: amendment.newStatus,
-      })
+      // Update task status — route completions through processor for timer handling
+      if (amendment.newStatus === TaskStatus.Completed) {
+        const task = await ctx.db.getTaskById(amendment.target.id)
+        if (task) {
+          const result = processCompletion({ entityType: 'task', entityId: amendment.target.id, task })
+          await ctx.db.updateTask(amendment.target.id, {
+            completed: result.finalStatus === TaskStatus.Completed,
+            completedAt: result.completedAt,
+            overallStatus: result.finalStatus,
+          })
+        }
+      } else {
+        await ctx.db.updateTask(amendment.target.id, {
+          completed: false,
+          overallStatus: amendment.newStatus,
+        })
+      }
     }
   } else {
     ctx.markFailed(`Cannot update "${amendment.target.name}" - target not found in database`)
