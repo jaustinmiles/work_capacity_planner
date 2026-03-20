@@ -9,7 +9,7 @@ import React from 'react'
 import { useDroppable } from '@dnd-kit/core'
 import { Typography, Card } from '@arco-design/web-react'
 import { SprintTaskCard } from './SprintTaskCard'
-import type { Task } from '@shared/types'
+import type { Task, Endeavor } from '@shared/types'
 
 const { Title, Text } = Typography
 
@@ -20,6 +20,7 @@ interface SprintColumnProps {
   title: string
   tasks: Task[]
   activeId: string | null
+  taskEndeavorMap?: Map<string, Endeavor[]>
 }
 
 // Column header colors
@@ -29,7 +30,7 @@ const columnColors: Record<SprintColumnId, string> = {
   completed: '#00B42A', // Green
 }
 
-export function SprintColumn({ id, title, tasks, activeId }: SprintColumnProps): React.ReactElement {
+export function SprintColumn({ id, title, tasks, activeId, taskEndeavorMap }: SprintColumnProps): React.ReactElement {
   const { isOver, setNodeRef } = useDroppable({ id })
 
   // Calculate total hours for the column
@@ -89,6 +90,7 @@ export function SprintColumn({ id, title, tasks, activeId }: SprintColumnProps):
               key={task.id}
               task={task}
               isDragging={activeId === task.id}
+              endeavors={taskEndeavorMap?.get(task.id)}
             />
           ))
         )}
