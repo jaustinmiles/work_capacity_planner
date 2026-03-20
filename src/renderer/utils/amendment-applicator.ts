@@ -21,6 +21,8 @@ import {
   WorkPatternModification,
   WorkSessionEdit,
   TaskTypeCreation,
+  SprintManagement,
+  EndeavorManagement,
 } from '@shared/amendment-types'
 import { assertNever } from '@shared/enums'
 import { extractTimeFromISO } from '@shared/time-utils'
@@ -50,6 +52,8 @@ import {
   handleWorkPatternModification,
   handleWorkSessionEdit,
   handleTaskTypeCreation,
+  handleSprintManagement,
+  handleEndeavorManagement,
 } from './amendment-handlers'
 
 /**
@@ -129,6 +133,10 @@ function getAmendmentDescription(amendment: Amendment): string {
       return 'Query response (no changes)'
     case AmendmentType.TaskTypeCreation:
       return `Create task type "${amendment.name}"`
+    case AmendmentType.SprintManagement:
+      return `${amendment.operation === 'add' ? 'Add' : 'Remove'} ${amendment.target.name} ${amendment.operation === 'add' ? 'to' : 'from'} sprint`
+    case AmendmentType.EndeavorManagement:
+      return `${amendment.operation === 'add_task' ? 'Add' : 'Remove'} ${amendment.target.name} ${amendment.operation === 'add_task' ? 'to' : 'from'} endeavor "${amendment.endeavorName}"`
   }
 }
 
@@ -297,6 +305,16 @@ export async function applyAmendments(amendments: Amendment[]): Promise<ApplyAme
 
         case AmendmentType.TaskTypeCreation:
           await handleTaskTypeCreation(amendment as TaskTypeCreation, ctx)
+          if (!currentAmendmentFailed) successCount++
+          break
+
+        case AmendmentType.SprintManagement:
+          await handleSprintManagement(amendment as SprintManagement, ctx)
+          if (!currentAmendmentFailed) successCount++
+          break
+
+        case AmendmentType.EndeavorManagement:
+          await handleEndeavorManagement(amendment as EndeavorManagement, ctx)
           if (!currentAmendmentFailed) successCount++
           else errorCount++
           break

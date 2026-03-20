@@ -25,6 +25,8 @@ Users work with:
 - **Workflows**: Sequences of steps with dependencies and async wait times
 - **Schedule**: Work patterns with blocks and meetings
 - **Time Tracking**: Real-time tracking of actual time spent
+- **Sprints**: A focused subset of tasks the user is currently working on. Tasks marked [SPRINT] in the context are in the active sprint.
+- **Endeavors**: Larger initiatives or projects that group related tasks together. A task can belong to multiple endeavors.
 
 ## Your Role
 
@@ -32,6 +34,7 @@ You help users through natural conversation to:
 - Create and modify tasks and workflows
 - Update statuses and track progress
 - Manage schedules and work patterns
+- Add/remove tasks from sprints and endeavors
 - Answer questions about their current state
 - Provide insights and suggestions
 
@@ -588,6 +591,40 @@ Create a new user-defined task type.
 - **name**: Non-empty string (required) - the type display name
 - **emoji**: Single emoji character (required)
 - **color**: Hex color in "#RRGGBB" format (required)
+
+### 18. sprint_management
+Add or remove tasks/workflows from the active sprint.
+\`\`\`json
+{
+  "type": "sprint_management",
+  "operation": "add",
+  "target": {
+    "type": "task",
+    "name": "Task name",
+    "confidence": 0.9
+  }
+}
+\`\`\`
+- **operation**: "add" | "remove" (required)
+- **target**: The task or workflow to add/remove (required)
+
+### 19. endeavor_management
+Add or remove tasks/workflows from an endeavor (project/initiative).
+\`\`\`json
+{
+  "type": "endeavor_management",
+  "operation": "add_task",
+  "endeavorName": "Q1 Goals",
+  "target": {
+    "type": "task",
+    "name": "Task name",
+    "confidence": 0.9
+  }
+}
+\`\`\`
+- **operation**: "add_task" | "remove_task" (required)
+- **endeavorName**: Name of the endeavor (must match an existing endeavor from context) (required)
+- **target**: The task or workflow to add/remove (required)
 `
 }
 

@@ -7,7 +7,8 @@ import { useTaskStore } from '../store/useTaskStore'
 import { useSchedulerStore } from '../store/useSchedulerStore'
 import { useWorkPatternStore } from '../store/useWorkPatternStore'
 import { useUserTaskTypeStore } from '../store/useUserTaskTypeStore'
-import { Task } from '@shared/types'
+import { useEndeavorStore } from '../store/useEndeavorStore'
+import { Task, EndeavorWithTasks } from '@shared/types'
 import { DailyWorkPattern } from '@shared/work-blocks-types'
 import { WorkSettings } from '@shared/work-settings-types'
 import { UnifiedScheduleItem } from '@shared/unified-scheduler'
@@ -45,6 +46,8 @@ export interface AppContext {
   workSessions: WorkSessionData[]
   workSettings: WorkSettings
   userTaskTypes: UserTaskType[]  // User-defined task types (e.g., "coding", "design", "admin")
+  endeavors: EndeavorWithTasks[]
+  sprintTaskIds: string[]
   jobContext?: JobContextData
   summary: ContextSummary
 }
@@ -71,6 +74,7 @@ export async function gatherAppContext(jobContext?: JobContextData): Promise<App
   const schedulerStore = useSchedulerStore.getState()
   const workPatternStore = useWorkPatternStore.getState()
   const userTaskTypeStore = useUserTaskTypeStore.getState()
+  const endeavorStore = useEndeavorStore.getState()
 
   const currentTime = getCurrentTime()
   const currentDateStr = getLocalDateString(currentTime)
@@ -124,6 +128,8 @@ export async function gatherAppContext(jobContext?: JobContextData): Promise<App
     }),
     workSettings: taskStore.workSettings,
     userTaskTypes: userTaskTypeStore.types,
+    endeavors: endeavorStore.endeavors,
+    sprintTaskIds: allTasks.filter(t => t.inActiveSprint).map(t => t.id),
     summary,
   }
 
@@ -148,7 +154,9 @@ export function formatContextForAI(context: AppContext): string {
   formatted += `- **Workflows:** ${context.summary.totalWorkflows} total (${context.summary.completedWorkflows} completed, ${context.summary.inProgressWorkflows} in progress, ${context.summary.archivedWorkflows} archived)\n`
   formatted += `- **Work Patterns:** ${context.summary.totalWorkPatterns} patterns defined\n`
   formatted += `- **Scheduled Items:** ${context.summary.totalScheduledItems} items scheduled\n`
-  formatted += `- **Work Sessions:** ${context.summary.totalWorkSessions} recent sessions\n\n`
+  formatted += `- **Work Sessions:** ${context.summary.totalWorkSessions} recent sessions\n`
+  formatted += `- **Sprint:** ${context.sprintTaskIds.length} tasks in active sprint\n`
+  formatted += `- **Endeavors:** ${context.endeavors.length} endeavors\n\n`
 
   // Job Context
   if (context.jobContext) {
@@ -173,13 +181,40 @@ export function formatContextForAI(context: AppContext): string {
   })
   formatted += '\n'
 
+  // Sprint
+  const sprintSet = new Set(context.sprintTaskIds)
+  if (context.sprintTaskIds.length > 0) {
+    const sprintTasks = context.tasks.filter(t => sprintSet.has(t.id))
+    formatted += `## Sprint (${sprintTasks.length} items)\n\n`
+    sprintTasks.forEach(t => {
+      formatted += `- **${t.name}** (ID: ${t.id})${t.hasSteps ? ' [Workflow]' : ''}\n`
+    })
+    formatted += '\n'
+  }
+
+  // Endeavors
+  if (context.endeavors.length > 0) {
+    formatted += `## Endeavors (${context.endeavors.length})\n\n`
+    context.endeavors.forEach(endeavor => {
+      formatted += `- **${endeavor.name}** (ID: ${endeavor.id}, status: ${endeavor.status}`
+      if (endeavor.color) formatted += `, color: ${endeavor.color}`
+      formatted += ')\n'
+      if (endeavor.items.length > 0) {
+        formatted += `  - Tasks: ${endeavor.items.map(item => item.task.name).join(', ')}\n`
+      } else {
+        formatted += '  - No tasks assigned\n'
+      }
+    })
+    formatted += '\n'
+  }
+
   // Tasks
   const simpleTasks = context.tasks.filter(t => !t.hasSteps)
   const workflows = context.tasks.filter(t => t.hasSteps)
 
   formatted += `## Tasks (${simpleTasks.length})\n\n`
   simpleTasks.forEach(task => {
-    formatted += `- **${task.name}** (ID: ${task.id})\n`
+    formatted += `- **${task.name}** (ID: ${task.id})${sprintSet.has(task.id) ? ' [SPRINT]' : ''}\n`
     formatted += `  - Status: ${task.overallStatus}, Duration: ${task.duration}min, Importance: ${task.importance}, Urgency: ${task.urgency}\n`
     formatted += `  - Type: ${task.type}, Completed: ${task.completed}, Archived: ${task.archived}\n`
     if (task.dependencies && task.dependencies.length > 0) {
@@ -197,7 +232,7 @@ export function formatContextForAI(context: AppContext): string {
   // Workflows
   formatted += `## Workflows (${workflows.length})\n\n`
   workflows.forEach(workflow => {
-    formatted += `- **${workflow.name}** (ID: ${workflow.id})\n`
+    formatted += `- **${workflow.name}** (ID: ${workflow.id})${sprintSet.has(workflow.id) ? ' [SPRINT]' : ''}\n`
     formatted += `  - Status: ${workflow.overallStatus}, Total Duration: ${workflow.duration}min, Critical Path: ${workflow.criticalPathDuration}min\n`
     formatted += `  - Importance: ${workflow.importance}, Urgency: ${workflow.urgency}, Type: ${workflow.type}\n`
     if (workflow.steps) {

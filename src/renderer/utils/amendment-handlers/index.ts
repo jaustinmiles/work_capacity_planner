@@ -40,3 +40,9 @@ export {
   handleWorkSessionEdit,
   handleTaskTypeCreation,
 } from './work-session-amendments'
+
+// Export sprint and endeavor amendment handlers
+export {
+  handleSprintManagement,
+  handleEndeavorManagement,
+} from './sprint-endeavor-amendments'

@@ -224,6 +224,19 @@ export interface TaskTypeCreation {
   color: string   // Hex color like "#RRGGBB" (required)
 }
 
+export interface SprintManagement {
+  type: AmendmentType.SprintManagement
+  operation: 'add' | 'remove'
+  target: AmendmentTarget
+}
+
+export interface EndeavorManagement {
+  type: AmendmentType.EndeavorManagement
+  operation: 'add_task' | 'remove_task'
+  endeavorName: string
+  target: AmendmentTarget
+}
+
 // ============================================================================
 // RAW TYPES - What AI returns (all date/time fields are ISO strings)
 // These are used immediately after JSON.parse() before transformation
@@ -347,6 +360,8 @@ export type Amendment =
   | ArchiveToggle
   | QueryResponse
   | TaskTypeCreation
+  | SprintManagement
+  | EndeavorManagement
 
 export interface AmendmentResult {
   amendments: Amendment[]
