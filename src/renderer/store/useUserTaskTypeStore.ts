@@ -51,6 +51,9 @@ interface UserTaskTypeStoreState {
   hasTypes: () => boolean
 }
 
+// Deduplication: if loadTypes is already in-flight, return the same promise
+const pending = { inflight: null as Promise<void> | null }
+
 export const useUserTaskTypeStore = create<UserTaskTypeStoreState>()(
   subscribeWithSelector((set, get) => ({
     // Initial state
@@ -63,26 +66,29 @@ export const useUserTaskTypeStore = create<UserTaskTypeStoreState>()(
      * Load all types for the current session from the database.
      */
     loadTypes: async () => {
-      set({ isLoading: true, error: null })
+      // Deduplicate concurrent calls — return in-flight promise if one exists
+      if (pending.inflight) return pending.inflight
 
-      try {
-        const types = await getDatabase().getUserTaskTypes()
-
-        set({
-          types,
-          isLoading: false,
-          isInitialized: true,
-        })
-
-        logger.ui.info('User task types loaded', {
-          count: types.length,
-          typeNames: types.map((t) => t.name),
-        }, 'user-task-types-loaded')
-      } catch (error) {
-        const errorMessage = error instanceof Error ? error.message : String(error)
-        set({ error: errorMessage, isLoading: false, isInitialized: true })
-        logger.ui.error('Failed to load user task types', { error: errorMessage }, 'user-task-types-error')
+      const doLoad = async () => {
+        set({ isLoading: true, error: null })
+        try {
+          const types = await getDatabase().getUserTaskTypes()
+          set({ types, isLoading: false, isInitialized: true })
+          logger.ui.info('User task types loaded', {
+            count: types.length,
+            typeNames: types.map((t) => t.name),
+          }, 'user-task-types-loaded')
+        } catch (error) {
+          const errorMessage = error instanceof Error ? error.message : String(error)
+          set({ error: errorMessage, isLoading: false, isInitialized: true })
+          logger.ui.error('Failed to load user task types', { error: errorMessage }, 'user-task-types-error')
+        } finally {
+          pending.inflight = null
+        }
       }
+
+      pending.inflight = doLoad()
+      return pending.inflight
     },
 
     /**

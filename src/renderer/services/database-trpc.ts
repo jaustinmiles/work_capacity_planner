@@ -125,9 +125,17 @@ export class TrpcDatabaseService {
   // Session Management
   // ============================================================================
 
+  private getSessionsInflight: Promise<Session[]> | null = null
+
   async getSessions(): Promise<Session[]> {
-    const sessions = await this.client.session.getAll.query()
-    return sessions.map((s) => nullToUndefined(s)) as Session[]
+    // Deduplicate concurrent calls
+    if (this.getSessionsInflight) return this.getSessionsInflight
+
+    this.getSessionsInflight = this.client.session.getAll.query()
+      .then(sessions => sessions.map((s) => nullToUndefined(s)) as Session[])
+      .finally(() => { this.getSessionsInflight = null })
+
+    return this.getSessionsInflight
   }
 
   async createSession(name: string, description?: string): Promise<Session> {
@@ -505,8 +513,15 @@ export class TrpcDatabaseService {
   // User Task Types
   // ============================================================================
 
+  private getUserTaskTypesInflight: Promise<UserTaskType[]> | null = null
+
   async getUserTaskTypes(): Promise<UserTaskType[]> {
-    return this.client.userTaskType.getAll.query()
+    if (this.getUserTaskTypesInflight) return this.getUserTaskTypesInflight
+
+    this.getUserTaskTypesInflight = this.client.userTaskType.getAll.query()
+      .finally(() => { this.getUserTaskTypesInflight = null })
+
+    return this.getUserTaskTypesInflight
   }
 
   async getUserTaskTypeById(id: string): Promise<UserTaskType | null> {
