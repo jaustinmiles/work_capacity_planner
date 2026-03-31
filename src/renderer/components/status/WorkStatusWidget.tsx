@@ -60,13 +60,9 @@ export function WorkStatusWidget(): React.ReactElement {
 
   // Load work data when patterns change
   useEffect(() => {
-    if (!workPatterns || workPatterns.length === 0) {
-      return
-    }
-
     const loadWorkData = async (): Promise<void> => {
       try {
-        const todayPattern = workPatterns.find(p => p.date === currentDate)
+        const todayPattern = workPatterns?.find(p => p.date === currentDate)
 
         if (todayPattern) {
           setPattern(todayPattern)
@@ -94,25 +90,21 @@ export function WorkStatusWidget(): React.ReactElement {
             return total + calculateDuration(meeting.startTime, meeting.endTime)
           }, 0) || 0
           setMeetingMinutes(totalMeetingMinutes)
-
-          // Load accumulated time (dynamic by type)
-          const accumulatedData = await getDatabase().getTodayAccumulated(currentDate)
-          setAccumulatedByType(accumulatedData.byType || {})
-          setAccumulatedTotal(accumulatedData.total || 0)
-
-          // Load accumulated time by time sink
-          const sinkAccumulatedData = await getDatabase().getTimeSinkAccumulated(currentDate, currentDate)
-          setAccumulatedBySink(sinkAccumulatedData.bySink || {})
         } else {
-          // No pattern for today
+          // No pattern for today — clear block/meeting info but still load accumulated data below
           setPattern(null)
           setCurrentBlock(null)
           setNextBlock(null)
           setMeetingMinutes(0)
-          setAccumulatedByType({})
-          setAccumulatedBySink({})
-          setAccumulatedTotal(0)
         }
+
+        // Always load accumulated time regardless of whether a pattern exists
+        const accumulatedData = await getDatabase().getTodayAccumulated(currentDate)
+        setAccumulatedByType(accumulatedData.byType || {})
+        setAccumulatedTotal(accumulatedData.total || 0)
+
+        const sinkAccumulatedData = await getDatabase().getTimeSinkAccumulated(currentDate, currentDate)
+        setAccumulatedBySink(sinkAccumulatedData.bySink || {})
       } catch (error) {
         logger.ui.error('Failed to load work data', { error })
       }
@@ -124,23 +116,20 @@ export function WorkStatusWidget(): React.ReactElement {
   // Refresh accumulated times when sessions change
   useEffect(() => {
     const handleDataChange = async (): Promise<void> => {
-      if (pattern) {
-        try {
-          const accumulatedData = await getDatabase().getTodayAccumulated(currentDate)
-          setAccumulatedByType(accumulatedData.byType || {})
-          setAccumulatedTotal(accumulatedData.total || 0)
+      try {
+        const accumulatedData = await getDatabase().getTodayAccumulated(currentDate)
+        setAccumulatedByType(accumulatedData.byType || {})
+        setAccumulatedTotal(accumulatedData.total || 0)
 
-          // Also refresh time sink accumulated data
-          const sinkAccumulatedData = await getDatabase().getTimeSinkAccumulated(currentDate, currentDate)
-          setAccumulatedBySink(sinkAccumulatedData.bySink || {})
-        } catch (error) {
-          logger.ui.error('Failed to refresh accumulated times', { error })
-        }
+        const sinkAccumulatedData = await getDatabase().getTimeSinkAccumulated(currentDate, currentDate)
+        setAccumulatedBySink(sinkAccumulatedData.bySink || {})
+      } catch (error) {
+        logger.ui.error('Failed to refresh accumulated times', { error })
       }
     }
 
     handleDataChange()
-  }, [pattern, currentDate, activeWorkSessions])
+  }, [currentDate, activeWorkSessions])
 
   // Calculate total capacity for the day using dynamic type system
   const capacityByType = useMemo(() => {
