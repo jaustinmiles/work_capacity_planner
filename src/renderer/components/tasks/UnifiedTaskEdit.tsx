@@ -38,7 +38,6 @@ import { StepSplitModal } from './StepSplitModal'
 import { StepWorkSessionsModal } from './StepWorkSessionsModal'
 import { DependencyEditor } from '../shared/DependencyEditor'
 import { Message } from '../common/Message'
-import { formatDependenciesForDisplay } from '../../utils/dependency-utils'
 import { getDatabase } from '../../services/database'
 import { logger } from '@/logger'
 
@@ -606,15 +605,21 @@ export function UnifiedTaskEdit({ task, onClose, startInEditMode = false }: Unif
                 description={
                   <Space direction="vertical">
                     <Text type="secondary">
-                      Duration: {step.duration} min | Type: {step.type} | Progress:{' '}
-                      {step.percentComplete}%
+                      Duration: {step.duration} min | Type: {(() => {
+                        const ut = userTaskTypes.find(t => t.id === step.type)
+                        return ut ? `${ut.emoji ? ut.emoji + ' ' : ''}${ut.name}` : step.type || 'None'
+                      })()} | Progress: {step.percentComplete}%
                     </Text>
                     {step.dependsOn && step.dependsOn.length > 0 && (
                       <Text type="secondary">
-                        Depends on: {formatDependenciesForDisplay(
-                          Array.isArray(step.dependsOn) ? step.dependsOn : JSON.parse(step.dependsOn),
-                          steps,
-                        )}
+                        Depends on: {(() => {
+                          const depIds = Array.isArray(step.dependsOn) ? step.dependsOn : JSON.parse(step.dependsOn)
+                          return depIds.map((id: string, i: number) => {
+                            const depStep = steps.find(s => s.id === id)
+                            if (depStep) return <span key={id}>{i > 0 ? ', ' : ''}{depStep.name}</span>
+                            return <span key={id} style={{ color: '#f53f3f' }}>{i > 0 ? ', ' : ''}(broken ref)</span>
+                          })
+                        })()}
                       </Text>
                     )}
                     {step.notes && <Text type="secondary">{step.notes}</Text>}

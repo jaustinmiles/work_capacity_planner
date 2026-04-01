@@ -500,6 +500,7 @@ export class TrpcDatabaseService {
       duration?: number
       type?: string
       cognitiveComplexity?: number | null
+      dependsOn?: string[]
     },
   ): Promise<unknown> {
     return this.client.workflow.updateStep.mutate({

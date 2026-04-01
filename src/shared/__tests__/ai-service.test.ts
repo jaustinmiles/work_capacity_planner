@@ -34,7 +34,7 @@ describe('AIService', () => {
       const result = await aiService.extractJargonTerms(contextText)
 
       expect(mockAnthropicClient.messages.create).toHaveBeenCalledWith({
-        model: 'claude-opus-4-1-20250805',
+        model: 'claude-opus-4-6',
         max_tokens: 1000,
         temperature: 0.3,
         messages: [{

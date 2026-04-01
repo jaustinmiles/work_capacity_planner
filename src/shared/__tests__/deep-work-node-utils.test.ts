@@ -10,9 +10,10 @@ import {
   getInitialFields,
   calculateGridPosition,
   pickRandomActionableNode,
+  findFirstUnblockedBlocker,
 } from '../deep-work-node-utils'
-import type { DeepWorkNodeWithData } from '../deep-work-board-types'
-import { DeepWorkNodeStatus } from '../deep-work-board-types'
+import type { DeepWorkNodeWithData, DeepWorkEdge } from '../deep-work-board-types'
+import { DeepWorkNodeStatus, DeepWorkEdgeType } from '../deep-work-board-types'
 import { StepStatus } from '../enums'
 import type { UnifiedWorkSession } from '../unified-work-session-types'
 
@@ -428,6 +429,87 @@ describe('calculateGridPosition', () => {
 })
 
 // =============================================================================
+// Edge helper
+// =============================================================================
+
+function makeEdge(sourceNodeId: string, targetNodeId: string): DeepWorkEdge {
+  return {
+    id: `edge-${sourceNodeId}-${targetNodeId}`,
+    sourceNodeId,
+    targetNodeId,
+    edgeType: DeepWorkEdgeType.IntraWorkflow,
+  }
+}
+
+// =============================================================================
+// findFirstUnblockedBlocker
+// =============================================================================
+
+describe('findFirstUnblockedBlocker', () => {
+  it('returns the immediate actionable blocker', () => {
+    // A (actionable) → B (blocked)
+    const nodeA = makeTaskNode('A')
+    const nodeB = makeTaskNode('B')
+    const nodes = new Map([['A', nodeA], ['B', nodeB]])
+    const edges = [makeEdge('A', 'B')]
+    const actionable = new Set(['A'])
+
+    const result = findFirstUnblockedBlocker('B', nodes, edges, actionable, new Set())
+    expect(result).toBe(nodeA)
+  })
+
+  it('traces through multiple blocked levels to find actionable ancestor', () => {
+    // A (actionable) → B (blocked) → C (blocked)
+    const nodeA = makeTaskNode('A')
+    const nodeB = makeTaskNode('B')
+    const nodeC = makeTaskNode('C')
+    const nodes = new Map([['A', nodeA], ['B', nodeB], ['C', nodeC]])
+    const edges = [makeEdge('A', 'B'), makeEdge('B', 'C')]
+    const actionable = new Set(['A'])
+
+    const result = findFirstUnblockedBlocker('C', nodes, edges, actionable, new Set())
+    expect(result).toBe(nodeA)
+  })
+
+  it('skips active session nodes when tracing', () => {
+    // A (actionable but active) → B (blocked)
+    const nodeA = makeTaskNode('A')
+    const nodeB = makeTaskNode('B')
+    const nodes = new Map([['A', nodeA], ['B', nodeB]])
+    const edges = [makeEdge('A', 'B')]
+    const actionable = new Set(['A'])
+    const activeSessions = new Set(['A'])
+
+    const result = findFirstUnblockedBlocker('B', nodes, edges, actionable, activeSessions)
+    expect(result).toBeNull()
+  })
+
+  it('returns null when no actionable blocker exists on the board', () => {
+    // B is blocked but its blocker is not on the board
+    const nodeB = makeTaskNode('B')
+    const nodes = new Map([['B', nodeB]])
+    const edges: DeepWorkEdge[] = [] // no edges on board
+
+    const result = findFirstUnblockedBlocker('B', nodes, edges, new Set(), new Set())
+    expect(result).toBeNull()
+  })
+
+  it('handles diamond dependencies (A→B, A→C, B→D, C→D)', () => {
+    // A is the bottleneck — it should be found from D
+    const nodeA = makeTaskNode('A')
+    const nodeB = makeTaskNode('B')
+    const nodeC = makeTaskNode('C')
+    const nodeD = makeTaskNode('D')
+    const nodes = new Map([['A', nodeA], ['B', nodeB], ['C', nodeC], ['D', nodeD]])
+    const edges = [makeEdge('A', 'B'), makeEdge('A', 'C'), makeEdge('B', 'D'), makeEdge('C', 'D')]
+    const actionable = new Set(['A'])
+
+    const result = findFirstUnblockedBlocker('D', nodes, edges, actionable, new Set())
+    expect(result).toBe(nodeA)
+  })
+})
+
+// =============================================================================
 // pickRandomActionableNode
 // =============================================================================
 
@@ -436,38 +518,102 @@ describe('pickRandomActionableNode', () => {
     vi.spyOn(Math, 'random').mockReturnValue(0) // always pick first
   })
 
-  it('returns null when no actionable nodes exist', () => {
-    const nodes = new Map([['n1', makeTaskNode('n1')]])
+  it('returns null when all nodes are completed', () => {
+    const node = makeTaskNode('n1', {
+      task: { ...makeTaskNode('n1').task!, completed: true },
+    })
+    const nodes = new Map([['n1', node]])
     const result = pickRandomActionableNode(nodes, new Set(), new Set())
     expect(result).toBeNull()
   })
 
-  it('picks from actionable nodes not in active sessions', () => {
+  it('picks actionable node directly when chosen', () => {
     const nodeA = makeTaskNode('n1')
     const nodeB = makeTaskNode('n2')
     const nodes = new Map([['n1', nodeA], ['n2', nodeB]])
     const actionable = new Set(['n1', 'n2'])
-    const activeSessions = new Set(['n1']) // n1 is already active
 
-    const result = pickRandomActionableNode(nodes, actionable, activeSessions)
-    expect(result).toBe(nodeB) // n2 is the only eligible candidate
+    // Math.random returns 0, picks first incomplete node
+    const result = pickRandomActionableNode(nodes, actionable, new Set())
+    expect(result).not.toBeNull()
+    expect(actionable.has(result!.id)).toBe(true)
   })
 
-  it('returns null when all actionable nodes have active sessions', () => {
+  it('returns null when all incomplete nodes have active sessions', () => {
     const nodes = new Map([['n1', makeTaskNode('n1')]])
     const result = pickRandomActionableNode(nodes, new Set(['n1']), new Set(['n1']))
     expect(result).toBeNull()
   })
 
-  it('picks randomly from multiple candidates', () => {
-    vi.spyOn(Math, 'random').mockReturnValue(0.5) // pick middle
+  it('traces to actionable blocker when blocked node is picked', () => {
+    // A (actionable) → B (blocked)
+    const nodeA = makeTaskNode('A')
+    const nodeB = makeTaskNode('B')
+    const nodes = new Map([['A', nodeA], ['B', nodeB]])
+    const edges = [makeEdge('A', 'B')]
+    const actionable = new Set(['A'])
+
+    // Force picking B (the blocked node) — Math.random = 0.99 picks last
+    vi.spyOn(Math, 'random').mockReturnValue(0.99)
+    const result = pickRandomActionableNode(nodes, actionable, new Set(), edges)
+
+    // Should trace to A (the actionable blocker)
+    expect(result).toBe(nodeA)
+  })
+
+  it('gives bottleneck nodes higher effective probability', () => {
+    // A (actionable) blocks B, C, D (all blocked)
+    // E (actionable) blocks nothing
+    // A should be selected ~3x more often than E because B,C,D all trace back to A
+    const nodeA = makeTaskNode('A')
+    const nodeB = makeTaskNode('B')
+    const nodeC = makeTaskNode('C')
+    const nodeD = makeTaskNode('D')
+    const nodeE = makeTaskNode('E')
     const nodes = new Map([
-      ['n1', makeTaskNode('n1')],
-      ['n2', makeTaskNode('n2')],
-      ['n3', makeTaskNode('n3')],
+      ['A', nodeA], ['B', nodeB], ['C', nodeC], ['D', nodeD], ['E', nodeE],
     ])
-    const actionable = new Set(['n1', 'n2', 'n3'])
+    const edges = [makeEdge('A', 'B'), makeEdge('A', 'C'), makeEdge('A', 'D')]
+    const actionable = new Set(['A', 'E'])
+
+    // Run 1000 trials
+    const counts = new Map<string, number>()
+    for (let i = 0; i < 1000; i++) {
+      vi.spyOn(Math, 'random').mockReturnValue(Math.random())
+      const result = pickRandomActionableNode(nodes, actionable, new Set(), edges)
+      if (result) {
+        counts.set(result.id, (counts.get(result.id) ?? 0) + 1)
+      }
+    }
+
+    // A should be picked significantly more than E
+    const aCount = counts.get('A') ?? 0
+    const eCount = counts.get('E') ?? 0
+    expect(aCount).toBeGreaterThan(eCount)
+  })
+
+  it('falls back to actionable nodes when chain tracing fails', () => {
+    // B is blocked but its blocker is not on the board; A is actionable
+    const nodeA = makeTaskNode('A')
+    const nodeB = makeTaskNode('B')
+    const nodes = new Map([['A', nodeA], ['B', nodeB]])
+    const edges: DeepWorkEdge[] = [] // B has no edges on board
+    const actionable = new Set(['A'])
+
+    // Force picking B
+    vi.spyOn(Math, 'random').mockReturnValue(0.99)
+    const result = pickRandomActionableNode(nodes, actionable, new Set(), edges)
+
+    // Should fall back to A
+    expect(result).toBe(nodeA)
+  })
+
+  it('backwards compatible — works without edges parameter', () => {
+    const nodeA = makeTaskNode('A')
+    const nodes = new Map([['A', nodeA]])
+    const actionable = new Set(['A'])
+
     const result = pickRandomActionableNode(nodes, actionable, new Set())
-    expect(result).not.toBeNull()
+    expect(result).toBe(nodeA)
   })
 })

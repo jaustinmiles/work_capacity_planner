@@ -43,6 +43,7 @@ const updateStepInput = z.object({
   duration: z.number().int().optional(),
   type: z.string().optional(),
   cognitiveComplexity: z.number().int().min(1).max(5).nullable().optional(),
+  dependsOn: z.array(z.string()).optional(),
 })
 
 /**
@@ -203,11 +204,16 @@ export const workflowRouter = router({
    * Update a task step
    */
   updateStep: protectedProcedure.input(updateStepInput).mutation(async ({ ctx, input }) => {
-    const { taskId, stepId, ...updates } = input
+    const { taskId, stepId, dependsOn, ...updates } = input
+
+    const data: Record<string, unknown> = { ...updates }
+    if (dependsOn !== undefined) {
+      data.dependsOn = JSON.stringify(dependsOn)
+    }
 
     const step = await ctx.prisma.taskStep.update({
       where: { id: stepId },
-      data: updates,
+      data,
     })
 
     // Update task's overallStatus if step status changed

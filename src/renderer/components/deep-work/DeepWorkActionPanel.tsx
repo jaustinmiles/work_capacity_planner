@@ -39,6 +39,7 @@ const { Title, Text } = Typography
 
 export function DeepWorkActionPanel() {
   const nodes = useDeepWorkBoardStore((s) => s.nodes)
+  const edges = useDeepWorkBoardStore((s) => s.edges)
   const actionableNodeIds = useDeepWorkBoardStore((s) => s.actionableNodeIds)
   const expandNode = useDeepWorkBoardStore((s) => s.expandNode)
   const expandedNodeId = useDeepWorkBoardStore((s) => s.expandedNodeId)
@@ -114,11 +115,11 @@ export function DeepWorkActionPanel() {
   const handleRandomize = useCallback(async () => {
     const boardSessions = findBoardSessions(nodes, activeWorkSessions)
     const activeNodeIds = new Set(boardSessions.map((s) => s.nodeId))
-    const picked = pickRandomActionableNode(nodes, actionableNodeIds, activeNodeIds)
+    const picked = pickRandomActionableNode(nodes, actionableNodeIds, activeNodeIds, edges)
     if (!picked) return
     await handleStartWork(picked)
     logger.ui.info('Randomizer picked node', { nodeId: picked.id, name: getNodeName(picked) }, 'dwb-randomize')
-  }, [nodes, actionableNodeIds, activeWorkSessions, handleStartWork])
+  }, [nodes, edges, actionableNodeIds, activeWorkSessions, handleStartWork])
 
   // If a node is expanded, show the detail panel instead
   if (expandedNodeId) {

@@ -249,7 +249,7 @@ async function callClaudeAPI(messages: ChatMessage[]): Promise<string> {
       role: m.role === ChatMessageRole.User ? ChatMessageRole.User : ChatMessageRole.Assistant,
       content: m.content,
     })),
-    model: 'claude-opus-4-5-20251101',
+    model: 'claude-opus-4-6',
   })
 
   return result.content

@@ -94,7 +94,7 @@ Be thorough but realistic. Break down complex items into manageable tasks. If so
 
     try {
       const response = await this.anthropic.messages.create({
-        model: 'claude-opus-4-1-20250805',
+        model: 'claude-opus-4-6',
         max_tokens: 4000,
         messages: [{
           role: 'user',
@@ -250,7 +250,7 @@ Focus on understanding the async nature described in natural language. Be realis
 
     try {
       const response = await this.anthropic.messages.create({
-        model: 'claude-opus-4-1-20250805',
+        model: 'claude-opus-4-6',
         max_tokens: 6000,
         messages: [{
           role: 'user',
@@ -386,7 +386,7 @@ Include acronyms, technical terms, tools, frameworks, and domain-specific concep
 Limit to the 15 most important/frequently mentioned terms.`
 
       const response = await this.anthropic.messages.create({
-        model: 'claude-opus-4-1-20250805',
+        model: 'claude-opus-4-6',
         max_tokens: 1000,
         temperature: 0.3,
         messages: [{
@@ -466,7 +466,7 @@ Make steps actionable and specific. Consider real-world constraints like review 
 
     try {
       const response = await this.anthropic.messages.create({
-        model: 'claude-opus-4-1-20250805',
+        model: 'claude-opus-4-6',
         max_tokens: 4000,
         messages: [{
           role: 'user',
@@ -542,7 +542,7 @@ Confidence is 0-100 based on how clear and specific the original task was.
 
     try {
       const response = await this.anthropic.messages.create({
-        model: 'claude-opus-4-1-20250805',
+        model: 'claude-opus-4-6',
         max_tokens: 2000,
         messages: [{
           role: 'user',
@@ -618,7 +618,7 @@ Make questions specific to their apparent work patterns. Prioritize questions th
 
     try {
       const response = await this.anthropic.messages.create({
-        model: 'claude-opus-4-1-20250805',
+        model: 'claude-opus-4-6',
         max_tokens: 2000,
         messages: [{
           role: 'user',
@@ -735,7 +735,7 @@ Important:
 
     try {
       const response = await this.anthropic.messages.create({
-        model: 'claude-opus-4-1-20250805',
+        model: 'claude-opus-4-6',
         max_tokens: 4000,
         messages: [{
           role: 'user',
@@ -873,7 +873,7 @@ Important:
 
     try {
       const response = await this.anthropic.messages.create({
-        model: 'claude-opus-4-1-20250805',
+        model: 'claude-opus-4-6',
         max_tokens: 2000,
         messages: [{
           role: 'user',
@@ -946,7 +946,7 @@ Make questions specific and actionable. Avoid generic questions.
 
     try {
       const response = await this.anthropic.messages.create({
-        model: 'claude-opus-4-1-20250805',
+        model: 'claude-opus-4-6',
         max_tokens: 1500,
         messages: [{
           role: 'user',
@@ -968,7 +968,7 @@ Make questions specific and actionable. Avoid generic questions.
    * Supports multi-turn conversations with system prompts
    */
   async callAI(options: AICallOptions): Promise<{ content: string }> {
-    const model = options.model || 'claude-sonnet-4-5-20250929'
+    const model = options.model || 'claude-opus-4-6'
     const maxTokens = options.maxTokens || 8000
 
     try {

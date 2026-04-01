@@ -7,7 +7,7 @@
 
 import { StepStatus } from './enums'
 import { DeepWorkNodeStatus } from './deep-work-board-types'
-import type { DeepWorkNodeWithData } from './deep-work-board-types'
+import type { DeepWorkNodeWithData, DeepWorkEdge } from './deep-work-board-types'
 import type { UnifiedWorkSession } from './unified-work-session-types'
 import { getCurrentTime } from './time-provider'
 
@@ -313,19 +313,104 @@ export function calculateGridPosition(
 // =============================================================================
 
 /**
- * Pick a random actionable node from the board.
- * Excludes nodes that already have active work sessions.
+ * Given a blocked node, trace up the dependency chain to find the first
+ * actionable (unblocked) ancestor that must be completed to unblock it.
+ * Returns null if no actionable blocker is found on the board.
+ */
+export function findFirstUnblockedBlocker(
+  nodeId: string,
+  nodes: Map<string, DeepWorkNodeWithData>,
+  edges: DeepWorkEdge[],
+  actionableNodeIds: Set<string>,
+  activeSessionNodeIds: Set<string>,
+): DeepWorkNodeWithData | null {
+  // Build reverse lookup: targetNodeId → sourceNodeIds (what blocks this node)
+  const blockersOf = new Map<string, string[]>()
+  for (const edge of edges) {
+    const existing = blockersOf.get(edge.targetNodeId) ?? []
+    existing.push(edge.sourceNodeId)
+    blockersOf.set(edge.targetNodeId, existing)
+  }
+
+  // BFS up the dependency chain
+  const visited = new Set<string>()
+  const queue = [nodeId]
+
+  while (queue.length > 0) {
+    const current = queue.shift()!
+    if (visited.has(current)) continue
+    visited.add(current)
+
+    const blockers = blockersOf.get(current) ?? []
+    for (const blockerId of blockers) {
+      if (visited.has(blockerId)) continue
+
+      // Is this blocker actionable and not already being worked on?
+      if (actionableNodeIds.has(blockerId) && !activeSessionNodeIds.has(blockerId)) {
+        const node = nodes.get(blockerId)
+        if (node) return node
+      }
+
+      // Not actionable — it's also blocked, so keep tracing upward
+      queue.push(blockerId)
+    }
+  }
+
+  return null
+}
+
+/**
+ * Pick a random node from the board using weighted-by-proxy selection.
+ *
+ * Randomizes over ALL incomplete nodes (including blocked ones), not just
+ * actionable ones. If the chosen node is blocked, traces up the dependency
+ * chain to find the first actionable ancestor — the node that must be
+ * completed to start unblocking the chain.
+ *
+ * This naturally gives bottleneck nodes higher selection probability
+ * proportional to how many nodes they block.
  */
 export function pickRandomActionableNode(
   nodes: Map<string, DeepWorkNodeWithData>,
   actionableNodeIds: Set<string>,
   activeSessionNodeIds: Set<string>,
+  edges: DeepWorkEdge[] = [],
 ): DeepWorkNodeWithData | null {
-  const candidates = Array.from(actionableNodeIds)
+  // Build pool of ALL incomplete nodes (actionable + blocked), excluding completed and active
+  const completedNodeIds = new Set<string>()
+  for (const [nodeId, node] of nodes) {
+    if (node.task && !node.task.hasSteps && node.task.completed) {
+      completedNodeIds.add(nodeId)
+    }
+    if (node.step && (node.step.status === StepStatus.Completed || node.step.status === StepStatus.Skipped)) {
+      completedNodeIds.add(nodeId)
+    }
+  }
+
+  const allIncomplete = Array.from(nodes.keys())
+    .filter((id) => !completedNodeIds.has(id) && !activeSessionNodeIds.has(id))
+
+  if (allIncomplete.length === 0) return null
+
+  // Pick a random incomplete node
+  const pickedId = allIncomplete[Math.floor(Math.random() * allIncomplete.length)]!
+
+  // If it's actionable, return it directly
+  if (actionableNodeIds.has(pickedId)) {
+    return nodes.get(pickedId) ?? null
+  }
+
+  // It's blocked — trace up to find the first actionable blocker
+  const unblocker = findFirstUnblockedBlocker(pickedId, nodes, edges, actionableNodeIds, activeSessionNodeIds)
+  if (unblocker) return unblocker
+
+  // Fallback: if chain tracing found nothing (e.g., all blockers are also active),
+  // fall back to picking from actionable nodes directly
+  const fallbackCandidates = Array.from(actionableNodeIds)
     .filter((id) => !activeSessionNodeIds.has(id))
     .map((id) => nodes.get(id))
     .filter((n): n is DeepWorkNodeWithData => n !== undefined)
 
-  if (candidates.length === 0) return null
-  return candidates[Math.floor(Math.random() * candidates.length)]!
+  if (fallbackCandidates.length === 0) return null
+  return fallbackCandidates[Math.floor(Math.random() * fallbackCandidates.length)]!
 }

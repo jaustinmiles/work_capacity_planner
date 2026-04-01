@@ -41,6 +41,7 @@ const createTaskInput = z.object({
   steps: z
     .array(
       z.object({
+        id: z.string().optional(), // Client-provided ID preserved for dependency references
         name: z.string(),
         duration: z.number().int(),
         type: z.string(),
@@ -225,7 +226,7 @@ export const taskRouter = router({
         TaskStep: input.steps
           ? {
               create: input.steps.map((step, index) => ({
-                id: generateUniqueId('step'),
+                id: step.id || generateUniqueId('step'),
                 name: step.name,
                 duration: step.duration,
                 type: step.type,
