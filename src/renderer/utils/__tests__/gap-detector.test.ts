@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { detectTimeGaps, TimeGap } from '../gap-detector'
+import { detectTimeGaps } from '../gap-detector'
 import { DailyWorkPattern } from '@shared/work-blocks-types'
 import { BlockConfigKind, WorkBlockType } from '@shared/enums'
 import { WorkSessionData } from '../../services/chat-context-provider'
