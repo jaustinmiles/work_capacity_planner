@@ -7,7 +7,9 @@ import { Amendment, RawAmendment } from '@shared/amendment-types'
 import { ChatMessageRole } from '@shared/enums'
 import { validateWithRetry, ValidationLoopResult, parseAIResponse, transformAmendments } from '@shared/amendment-validator'
 import { validateAmendments, formatValidationErrors } from '@shared/schema-generator'
-import { gatherAppContext, formatContextForAI, AppContext, JobContextData } from './chat-context-provider'
+import { gatherAppContext, formatContextForAI, AppContext, JobContextData, DateRange } from './chat-context-provider'
+import { getCurrentTime, getLocalDateString } from '@shared/time-provider'
+import { addDays } from '@shared/time-utils'
 import { generateSystemPrompt } from '../prompts/brainstorm-chat-system'
 import { getDatabase } from './database'
 import { logger } from '@/logger'
@@ -51,7 +53,8 @@ export async function sendChatMessage(options: SendMessageOptions): Promise<Send
   }, 'brainstorm-chat')
 
   onProgress?.('Gathering app context...')
-  const context = await gatherAppContext(jobContext)
+  const dateRange = detectGapFillingIntent(userMessage, conversationHistory)
+  const context = await gatherAppContext(jobContext, dateRange || undefined)
 
   onProgress?.('Generating response...')
   const messages = buildMessages(context, conversationHistory, userMessage, false)
@@ -168,8 +171,15 @@ function buildMessages(
     content: systemPrompt,
   })
 
-  // Add conversation history
-  messages.push(...conversationHistory)
+  // Add conversation history with amendments stripped from assistant messages.
+  // The AI receives fresh context each turn via gatherAppContext(), so it doesn't
+  // need to see old amendment JSON — and including it causes duplicate amendments.
+  messages.push(...conversationHistory.map(msg => {
+    if (msg.role === ChatMessageRole.Assistant) {
+      return { ...msg, content: stripAmendmentTags(msg.content) }
+    }
+    return msg
+  }))
 
   // Add current message or retry feedback
   if (userMessageOrRetry) {
@@ -253,6 +263,111 @@ async function callClaudeAPI(messages: ChatMessage[]): Promise<string> {
   })
 
   return result.content
+}
+
+/**
+ * Check if gap-filling is already active in the conversation.
+ * Scans assistant messages for gap-related language that indicates
+ * the conversation is mid-flow through a gap-filling session.
+ * Returns the last 2 days as the date range to keep context flowing.
+ */
+function detectActiveGapFilling(conversationHistory?: ChatMessage[]): DateRange | null {
+  if (!conversationHistory || conversationHistory.length === 0) return null
+
+  // Look for gap-filling signals in recent assistant messages
+  const gapSignals = [
+    'gap', 'gaps', 'backfill', 'gap analysis', 'gap filling',
+    'what were you up to between', 'what were you doing from',
+    'filled in', 'next gap', 'remaining gap',
+  ]
+
+  const recentMessages = conversationHistory.slice(-10) // only check recent context
+  const hasActiveGapSession = recentMessages.some(msg => {
+    if (msg.role !== ChatMessageRole.Assistant) return false
+    const content = msg.content.toLowerCase()
+    return gapSignals.some(signal => content.includes(signal))
+  })
+
+  if (!hasActiveGapSession) return null
+
+  // Re-derive the date range — use last 7 days as a safe window
+  // The actual gap detection will only find gaps where patterns exist
+  const now = getCurrentTime()
+  const today = getLocalDateString(now)
+  const startDate = getLocalDateString(addDays(now, -6))
+  return { startDate, endDate: today }
+}
+
+/**
+ * Detect if a user message (or the active conversation) involves time gap analysis.
+ * Checks both the current message and conversation history — once gap-filling starts,
+ * it stays active so the AI continues to receive gap context on follow-up messages.
+ */
+function detectGapFillingIntent(message: string, conversationHistory?: ChatMessage[]): DateRange | null {
+  const lower = message.toLowerCase()
+
+  // Check for gap-filling keywords in current message
+  const gapKeywords = [
+    'fill in time', 'fill in the time', 'missing time', 'unlogged time',
+    'time gaps', 'fill gaps', 'fill in gaps', 'log missing', 'backfill',
+    'what did i do', 'where did my time go',
+  ]
+
+  const hasGapIntent = gapKeywords.some(kw => lower.includes(kw))
+
+  // If current message doesn't have gap intent, check if conversation is already in gap-filling mode
+  if (!hasGapIntent) {
+    return detectActiveGapFilling(conversationHistory)
+  }
+
+  const now = getCurrentTime()
+  const today = getLocalDateString(now)
+
+  // Parse date range from the message
+  // Match "last N days" / "past N days"
+  const numberWords: Record<string, number> = {
+    one: 1, two: 2, three: 3, four: 4, five: 5,
+    six: 6, seven: 7, '1': 1, '2': 2, '3': 3, '4': 4, '5': 5, '6': 6, '7': 7,
+  }
+
+  const daysMatch = lower.match(/(?:last|past)\s+(\w+)\s+days?/)
+  if (daysMatch && daysMatch[1]) {
+    const captured = daysMatch[1]
+    const n = numberWords[captured] ?? parseInt(captured, 10)
+    if (n && n > 0 && n <= 14) {
+      const startDate = getLocalDateString(addDays(now, -(n - 1)))
+      return { startDate, endDate: today }
+    }
+  }
+
+  // "yesterday"
+  if (lower.includes('yesterday')) {
+    const yesterday = getLocalDateString(addDays(now, -1))
+    return { startDate: yesterday, endDate: yesterday }
+  }
+
+  // "this week" / "past week"
+  if (lower.includes('this week') || lower.includes('past week')) {
+    const startDate = getLocalDateString(addDays(now, -6))
+    return { startDate, endDate: today }
+  }
+
+  // "today"
+  if (lower.includes('today')) {
+    return { startDate: today, endDate: today }
+  }
+
+  // Default: last 2 days if gap intent detected but no specific range
+  const startDate = getLocalDateString(addDays(now, -1))
+  return { startDate, endDate: today }
+}
+
+/**
+ * Strip <amendments> tags and their JSON content from an assistant message.
+ * Preserves the conversational text around the amendments.
+ */
+function stripAmendmentTags(content: string): string {
+  return content.replace(/<amendments>[\s\S]*?<\/amendments>/g, '[amendments applied]').trim()
 }
 
 /**
