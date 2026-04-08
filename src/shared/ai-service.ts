@@ -1,4 +1,5 @@
 import Anthropic from '@anthropic-ai/sdk'
+import type { MessageStream } from '@anthropic-ai/sdk/lib/MessageStream'
 import { ChatMessageRole } from '../shared/enums'
 import { TaskStep } from './sequencing-types'
 import { AICallOptions } from './types'
@@ -1001,6 +1002,63 @@ Make questions specific and actionable. Avoid generic questions.
       throw new Error(`AI service error: ${error instanceof Error ? error.message : String(error)}`)
     }
   }
+
+  /**
+   * Create a streaming agent message with tool support.
+   * Returns a MessageStream that can be iterated for events.
+   *
+   * Used by the agent loop to get streaming responses with tool_use support.
+   * The caller is responsible for handling tool_use blocks and feeding
+   * tool_results back for multi-turn agentic conversations.
+   */
+  createAgentStream(options: AgentStreamOptions): MessageStream {
+    const model = options.model || 'claude-opus-4-6'
+    const maxTokens = options.maxTokens || 8000
+
+    return this.anthropic.messages.stream({
+      model,
+      max_tokens: maxTokens,
+      system: options.systemPrompt,
+      messages: options.messages,
+      tools: options.tools,
+      tool_choice: options.toolChoice ?? { type: 'auto' },
+    })
+  }
+
+  /**
+   * Non-streaming agent call with tool support.
+   * Returns the full message at once. Useful for testing and
+   * cases where streaming isn't needed.
+   */
+  async callAIWithTools(options: AgentStreamOptions): Promise<Anthropic.Message> {
+    const model = options.model || 'claude-opus-4-6'
+    const maxTokens = options.maxTokens || 8000
+
+    const response = await this.anthropic.messages.create({
+      model,
+      max_tokens: maxTokens,
+      system: options.systemPrompt,
+      messages: options.messages,
+      tools: options.tools,
+      tool_choice: options.toolChoice ?? { type: 'auto' },
+    })
+
+    return response
+  }
+}
+
+/**
+ * Options for the streaming agent API call.
+ * Extends beyond AICallOptions to support tool definitions
+ * and the proper system prompt parameter.
+ */
+export interface AgentStreamOptions {
+  systemPrompt: string
+  messages: Anthropic.MessageParam[]
+  tools: Anthropic.Tool[]
+  model?: string
+  maxTokens?: number
+  toolChoice?: Anthropic.MessageCreateParams['tool_choice']
 }
 
 // Singleton instance with lazy initialization

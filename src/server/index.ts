@@ -18,6 +18,7 @@ import * as trpcExpress from '@trpc/server/adapters/express'
 import { appRouter } from './router'
 import { createContext } from './trpc'
 import { disconnectPrisma } from './prisma'
+import { agentChatHandler } from './agent/agent-chat-handler'
 
 const app = express()
 
@@ -86,6 +87,9 @@ app.get('/health', (_req, res) => {
   })
 })
 
+// Mount agent chat SSE endpoint (before tRPC to avoid catch-all)
+app.post('/api/agent/chat', agentChatHandler)
+
 // Mount tRPC router
 app.use(
   '/trpc',
@@ -113,7 +117,7 @@ if (fs.existsSync(webDistPath)) {
   // Note: '/{*splat}' syntax required for path-to-regexp v8+ / Express 5
   app.get('/{*splat}', (req, res, next) => {
     // Skip API routes
-    if (req.path.startsWith('/trpc') || req.path === '/health') {
+    if (req.path.startsWith('/trpc') || req.path.startsWith('/api/') || req.path === '/health') {
       return next()
     }
 

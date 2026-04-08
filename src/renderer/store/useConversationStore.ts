@@ -15,6 +15,7 @@ import {
   CreateConversationInput,
 } from '@shared/conversation-types'
 import { ConversationId, ChatMessageId, toConversationId, toChatMessageId } from '@shared/id-types'
+import type { AgentProposedActionEvent } from '@shared/agent-types'
 import { getDatabase } from '../services/database'
 import { JobContextData } from '../services/chat-context-provider'
 
@@ -119,6 +120,19 @@ interface ConversationState {
   highlightedItemId: string | null
 
   // =========================================================================
+  // Agent Mode State
+  // =========================================================================
+
+  /** Whether agent mode is active (vs legacy amendment chat) */
+  isAgentMode: boolean
+
+  /** Pending write tool proposals awaiting user approval */
+  pendingActions: AgentProposedActionEvent[]
+
+  /** Active tool status indicators (read tool names currently executing) */
+  activeToolStatuses: Array<{ toolName: string; label: string; toolCallId: string }>
+
+  // =========================================================================
   // Actions
   // =========================================================================
 
@@ -157,6 +171,15 @@ interface ConversationState {
   setStatus: (status: ConversationStatus) => void
   setError: (error: string | null) => void
   setJobContext: (context: JobContextData | null) => void
+
+  // Agent mode actions
+  setAgentMode: (enabled: boolean) => void
+  addPendingAction: (action: AgentProposedActionEvent) => void
+  removePendingAction: (proposalId: string) => void
+  updatePendingActionStatus: (proposalId: string, status: 'applied' | 'rejected' | 'error' | 'timeout') => void
+  setActiveToolStatus: (toolCallId: string, toolName: string, label: string) => void
+  clearActiveToolStatus: (toolCallId: string) => void
+  clearAgentState: () => void
 }
 
 // =============================================================================
@@ -190,6 +213,11 @@ export const useConversationStore = create<ConversationState>()(
 
       // Amendment state
       highlightedItemId: null,
+
+      // Agent mode state
+      isAgentMode: false,
+      pendingActions: [],
+      activeToolStatuses: [],
 
       // =====================================================================
       // Sidebar Actions
@@ -516,6 +544,57 @@ export const useConversationStore = create<ConversationState>()(
       setJobContext: (context) => {
         set({ currentJobContext: context })
       },
+
+      // =====================================================================
+      // Agent Mode Actions
+      // =====================================================================
+
+      setAgentMode: (enabled) => {
+        set({ isAgentMode: enabled })
+      },
+
+      addPendingAction: (action) => {
+        set((state) => ({
+          pendingActions: [...state.pendingActions, action],
+        }))
+      },
+
+      removePendingAction: (proposalId) => {
+        set((state) => ({
+          pendingActions: state.pendingActions.filter(a => a.proposalId !== proposalId),
+        }))
+      },
+
+      updatePendingActionStatus: (proposalId, _status) => {
+        // Remove from pending once resolved (applied, rejected, error, timeout)
+        set((state) => ({
+          pendingActions: state.pendingActions.filter(a => a.proposalId !== proposalId),
+        }))
+      },
+
+      setActiveToolStatus: (toolCallId, toolName, label) => {
+        set((state) => ({
+          activeToolStatuses: [
+            ...state.activeToolStatuses.filter(s => s.toolCallId !== toolCallId),
+            { toolCallId, toolName, label },
+          ],
+        }))
+      },
+
+      clearActiveToolStatus: (toolCallId) => {
+        set((state) => ({
+          activeToolStatuses: state.activeToolStatuses.filter(s => s.toolCallId !== toolCallId),
+        }))
+      },
+
+      clearAgentState: () => {
+        set({
+          pendingActions: [],
+          activeToolStatuses: [],
+          streamingContent: '',
+          isStreaming: false,
+        })
+      },
     }),
     {
       name: 'conversation-sidebar',
@@ -523,6 +602,7 @@ export const useConversationStore = create<ConversationState>()(
       partialize: (state) => ({
         sidebarOpen: state.sidebarOpen,
         sidebarWidth: state.sidebarWidth,
+        isAgentMode: state.isAgentMode,
       }),
     },
   ),
