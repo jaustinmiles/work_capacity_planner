@@ -10,7 +10,7 @@
 
 import { z } from 'zod'
 import { router, protectedProcedure, sessionProcedure } from '../trpc'
-import { generateUniqueId } from '../../shared/step-id-utils'
+import { generateUniqueId, resolveStepDependencies } from '../../shared/step-id-utils'
 import { getCurrentTime, getLocalDateString } from '../../shared/time-provider'
 import { UnifiedScheduler, OptimizationMode } from '../../shared/unified-scheduler'
 import { DEFAULT_WORK_SETTINGS } from '../../shared/work-settings-types'
@@ -193,10 +193,41 @@ export const taskRouter = router({
     let criticalPathDuration = 0
     let worstCaseDuration = 0
 
+    // Assign IDs and resolve dependencies BEFORE creating
+    let resolvedSteps: Array<{
+      id: string
+      name: string
+      duration: number
+      type: string
+      dependsOn: string[]
+      asyncWaitTime: number
+      cognitiveComplexity?: number | null
+      isAsyncTrigger: boolean
+      expectedResponseTime?: number | null
+      stepIndex: number
+    }> | undefined
+
     if (input.steps && input.steps.length > 0) {
-      // Simple calculation - sum of all step durations
-      const totalStepDuration = input.steps.reduce((sum, step) => sum + step.duration, 0)
-      const totalAsyncTime = input.steps.reduce((sum, step) => sum + step.asyncWaitTime, 0)
+      // Step 1: Assign IDs to all steps upfront
+      const stepsWithIds = input.steps.map((step, index) => ({
+        id: step.id || generateUniqueId('step'),
+        name: step.name,
+        duration: step.duration,
+        type: step.type,
+        dependsOn: step.dependsOn ?? [],
+        asyncWaitTime: step.asyncWaitTime,
+        cognitiveComplexity: step.cognitiveComplexity,
+        isAsyncTrigger: step.isAsyncTrigger,
+        expectedResponseTime: step.expectedResponseTime,
+        stepIndex: index,
+      }))
+
+      // Step 2: Resolve dependsOn from names/mixed to valid step IDs
+      resolvedSteps = resolveStepDependencies(stepsWithIds)
+
+      // Calculate durations
+      const totalStepDuration = resolvedSteps.reduce((sum, step) => sum + step.duration, 0)
+      const totalAsyncTime = resolvedSteps.reduce((sum, step) => sum + step.asyncWaitTime, 0)
       criticalPathDuration = totalStepDuration
       worstCaseDuration = totalStepDuration + totalAsyncTime
     }
@@ -217,16 +248,16 @@ export const taskRouter = router({
         deadline: input.deadline || null,
         deadlineType: input.deadlineType || null,
         cognitiveComplexity: input.cognitiveComplexity || null,
-        hasSteps: input.hasSteps || (input.steps && input.steps.length > 0),
+        hasSteps: input.hasSteps || (resolvedSteps && resolvedSteps.length > 0),
         criticalPathDuration,
         worstCaseDuration,
         sessionId: ctx.sessionId,
         createdAt: now,
         updatedAt: now,
-        TaskStep: input.steps
+        TaskStep: resolvedSteps
           ? {
-              create: input.steps.map((step, index) => ({
-                id: step.id || generateUniqueId('step'),
+              create: resolvedSteps.map((step) => ({
+                id: step.id,
                 name: step.name,
                 duration: step.duration,
                 type: step.type,
@@ -235,7 +266,7 @@ export const taskRouter = router({
                 cognitiveComplexity: step.cognitiveComplexity || null,
                 isAsyncTrigger: step.isAsyncTrigger,
                 expectedResponseTime: step.expectedResponseTime || null,
-                stepIndex: index,
+                stepIndex: step.stepIndex,
               })),
             }
           : undefined,

@@ -7,7 +7,7 @@
 
 import { z } from 'zod'
 import { router, protectedProcedure } from '../trpc'
-import { generateUniqueId } from '../../shared/step-id-utils'
+import { generateUniqueId, resolveDependenciesAgainstExisting, resolveStepDependencies } from '../../shared/step-id-utils'
 import { getCurrentTime } from '../../shared/time-provider'
 
 /**
@@ -160,6 +160,12 @@ export const workflowRouter = router({
       }
     })
 
+    // Resolve dependencies against existing sibling steps (names → IDs)
+    const resolvedDeps = resolveDependenciesAgainstExisting(
+      input.dependencies || [],
+      existingSteps.map(s => ({ id: s.id, name: s.name })),
+    )
+
     // Create the new step
     const newStep = await ctx.prisma.taskStep.create({
       data: {
@@ -168,7 +174,7 @@ export const workflowRouter = router({
         name: input.name,
         duration: input.duration,
         type: input.type,
-        dependsOn: JSON.stringify(input.dependencies || []),
+        dependsOn: JSON.stringify(resolvedDeps),
         asyncWaitTime: input.asyncWaitTime,
         cognitiveComplexity: input.cognitiveComplexity || null,
         isAsyncTrigger: input.isAsyncTrigger,
@@ -208,7 +214,13 @@ export const workflowRouter = router({
 
     const data: Record<string, unknown> = { ...updates }
     if (dependsOn !== undefined) {
-      data.dependsOn = JSON.stringify(dependsOn)
+      // Resolve dependencies against sibling steps (names → IDs)
+      const siblingSteps = await ctx.prisma.taskStep.findMany({
+        where: { taskId },
+        select: { id: true, name: true },
+      })
+      const resolvedDeps = resolveDependenciesAgainstExisting(dependsOn, siblingSteps)
+      data.dependsOn = JSON.stringify(resolvedDeps)
     }
 
     const step = await ctx.prisma.taskStep.update({
@@ -348,25 +360,37 @@ export const workflowRouter = router({
     .mutation(async ({ ctx, input }) => {
       const now = getCurrentTime()
 
+      // Resolve all step dependencies BEFORE the transaction
+      const stepsWithResolvedIds = input.steps.map(step => ({
+        ...step,
+        id: step.id.startsWith('step-') ? step.id : generateUniqueId('step'),
+      }))
+      const resolvedSteps = resolveStepDependencies(
+        stepsWithResolvedIds.map(s => ({
+          id: s.id,
+          name: s.name,
+          dependsOn: s.dependsOn,
+        })),
+      )
+      // Merge resolved deps back onto the full step data
+      const resolvedDepsMap = new Map(resolvedSteps.map(s => [s.id, s.dependsOn]))
+
       return ctx.prisma.$transaction(async (tx) => {
         // 1. Delete all existing steps for this workflow
         await tx.taskStep.deleteMany({
           where: { taskId: input.id },
         })
 
-        // 2. Create all new steps
-        for (const step of input.steps) {
-          // Generate new ID if the step ID doesn't follow our pattern
-          const stepId = step.id.startsWith('step-') ? step.id : generateUniqueId('step')
-
+        // 2. Create all new steps with resolved dependencies
+        for (const step of stepsWithResolvedIds) {
           await tx.taskStep.create({
             data: {
-              id: stepId,
+              id: step.id,
               taskId: input.id,
               name: step.name,
               duration: step.duration,
               type: step.type,
-              dependsOn: JSON.stringify(step.dependsOn),
+              dependsOn: JSON.stringify(resolvedDepsMap.get(step.id) ?? []),
               asyncWaitTime: step.asyncWaitTime,
               cognitiveComplexity: step.cognitiveComplexity ?? null,
               isAsyncTrigger: step.isAsyncTrigger,

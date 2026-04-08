@@ -13,7 +13,7 @@
 import { appRouter } from '../router'
 import type { Context } from '../trpc'
 import { READ_TOOL_NAMES, WRITE_TOOL_NAMES } from './tool-definitions'
-import { generateUniqueId } from '../../shared/step-id-utils'
+import { generateUniqueId, resolveStepDependencies } from '../../shared/step-id-utils'
 import { EndeavorStatus, DeadlineType } from '../../shared/enums'
 import { logger } from '../../logger'
 
@@ -179,7 +179,8 @@ export class ToolExecutor {
       }
 
       case 'create_workflow': {
-        const steps = (input.steps as Array<Record<string, unknown>>).map(step => ({
+        // Assign IDs first, then resolve name-based dependencies to IDs
+        const stepsWithIds = (input.steps as Array<Record<string, unknown>>).map(step => ({
           id: generateUniqueId('step'),
           name: step.name as string,
           duration: step.duration as number,
@@ -187,6 +188,7 @@ export class ToolExecutor {
           dependsOn: (step.dependsOn as string[]) ?? [],
           asyncWaitTime: (step.asyncWaitTime as number) ?? 0,
         }))
+        const steps = resolveStepDependencies(stepsWithIds)
 
         const data = await this.caller.task.create({
           name: input.name as string,
