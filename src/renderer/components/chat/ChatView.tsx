@@ -524,7 +524,7 @@ function MessageBubble({ message, onNavigateToView }: MessageBubbleProps): React
         )}
       </div>
 
-      {/* Amendment cards */}
+      {/* Amendment cards (legacy) or agent tool call summaries */}
       {message.amendments && Array.isArray(message.amendments) && message.amendments.length > 0 && (
         <div
           style={{
@@ -535,14 +535,21 @@ function MessageBubble({ message, onNavigateToView }: MessageBubbleProps): React
             gap: 8,
           }}
         >
-          {message.amendments.map((card) => (
-            <AmendmentCard
-              key={card.id}
-              card={card}
-              onApply={() => handleApplyAmendment(card)}
-              onSkip={() => handleSkipAmendment(card)}
-            />
-          ))}
+          {message.amendments.map((card, index) => {
+            // Guard: agent mode stores StoredToolCall objects (with toolName)
+            // instead of AmendmentCard objects (with amendment.type).
+            // Skip rendering StoredToolCalls — they were already shown during the stream.
+            if (!card.amendment) return null
+
+            return (
+              <AmendmentCard
+                key={card.id || `amendment-${index}`}
+                card={card}
+                onApply={() => handleApplyAmendment(card)}
+                onSkip={() => handleSkipAmendment(card)}
+              />
+            )
+          })}
         </div>
       )}
 
