@@ -52,6 +52,8 @@ function getToolIcon(toolName: string): React.ReactNode {
       return <IconClockCircle />
     case 'create_schedule':
       return <IconCalendar />
+    case 'link_task_to_endeavor':
+      return <IconPlus />
     case 'manage_sprint':
       return <IconThunderbolt />
     default:

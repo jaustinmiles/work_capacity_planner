@@ -510,6 +510,26 @@ const manageSprintTool: Anthropic.Tool = {
   },
 }
 
+const linkTaskToEndeavorTool: Anthropic.Tool = {
+  name: 'link_task_to_endeavor',
+  description:
+    'Link a task or workflow to an endeavor (higher-level goal). Use get_endeavors to find the endeavor ID and get_tasks to find the task ID first.',
+  input_schema: {
+    type: 'object' as const,
+    properties: {
+      endeavorId: {
+        type: 'string',
+        description: 'The endeavor ID to link the task to.',
+      },
+      taskId: {
+        type: 'string',
+        description: 'The task ID to link.',
+      },
+    },
+    required: ['endeavorId', 'taskId'],
+  },
+}
+
 const createTaskTypeTool: Anthropic.Tool = {
   name: 'create_task_type',
   description:
@@ -556,6 +576,7 @@ export const WRITE_TOOLS: Anthropic.Tool[] = [
   logWorkSessionTool,
   createScheduleTool,
   createEndeavorTool,
+  linkTaskToEndeavorTool,
   manageSprintTool,
   createTaskTypeTool,
 ]
@@ -591,6 +612,7 @@ export const TOOL_REGISTRY: Record<string, ToolRegistration> = {
   log_work_session: { name: 'log_work_session', category: 'write', statusLabel: 'Logging work session...' },
   create_schedule: { name: 'create_schedule', category: 'write', statusLabel: 'Creating schedule...' },
   create_endeavor: { name: 'create_endeavor', category: 'write', statusLabel: 'Creating endeavor...' },
+  link_task_to_endeavor: { name: 'link_task_to_endeavor', category: 'write', statusLabel: 'Linking task to endeavor...' },
   manage_sprint: { name: 'manage_sprint', category: 'write', statusLabel: 'Updating sprint...' },
   create_task_type: { name: 'create_task_type', category: 'write', statusLabel: 'Creating task type...' },
 }

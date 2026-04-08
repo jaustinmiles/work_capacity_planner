@@ -132,6 +132,13 @@ export function generateActionPreview(
         },
       }
 
+    case 'link_task_to_endeavor':
+      return {
+        title: 'Link Task to Endeavor',
+        description: 'Add task to endeavor for goal tracking',
+        details: toolInput,
+      }
+
     case 'manage_sprint':
       return {
         title: toolInput.inActiveSprint ? 'Add to Sprint' : 'Remove from Sprint',

@@ -249,6 +249,14 @@ export class ToolExecutor {
         return { success: true, data }
       }
 
+      case 'link_task_to_endeavor': {
+        const data = await this.caller.endeavor.addItem({
+          endeavorId: input.endeavorId as string,
+          taskId: input.taskId as string,
+        })
+        return { success: true, data }
+      }
+
       case 'manage_sprint': {
         const data = await this.caller.task.update({
           id: input.taskId as string,
