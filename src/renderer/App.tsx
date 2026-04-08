@@ -1,8 +1,7 @@
 import { useState, useEffect, useMemo, useCallback } from 'react'
-import { Layout, Typography, ConfigProvider, Button, Space, Badge, Spin, Alert, Popconfirm, Tabs, Modal } from '@arco-design/web-react'
-import { IconApps, IconCalendar, IconList, IconBranch, IconSchedule, IconDelete, IconUserGroup, IconClockCircle, IconMenuFold, IconMenuUnfold, IconEye, IconSettings, IconMessage, IconStar, IconMindMapping } from '@arco-design/web-react/icon'
-import { ActionButtonOverflowMenu, FloatingSidebarButton } from './components/layout'
-import type { ActionButtonConfig } from './components/layout'
+import { Layout, Typography, ConfigProvider, Button, Space, Badge, Spin, Alert, Popconfirm, Tabs, Modal, Dropdown, Menu } from '@arco-design/web-react'
+import { IconApps, IconCalendar, IconList, IconBranch, IconSchedule, IconDelete, IconUserGroup, IconClockCircle, IconMenuFold, IconMenuUnfold, IconSettings, IconStar, IconMindMapping } from '@arco-design/web-react/icon'
+import { FloatingChatButton, FloatingSidebarButton } from './components/layout'
 import { MOBILE_LAYOUT } from '@shared/constants'
 import enUS from '@arco-design/web-react/es/locale/en-US'
 import { Message } from './components/common/Message'
@@ -24,6 +23,7 @@ import { WorkScheduleModal } from './components/settings/WorkScheduleModal'
 import { MultiDayScheduleEditor } from './components/settings/MultiDayScheduleEditor'
 import { SessionManager } from './components/session/SessionManager'
 import { TaskTypeManager } from './components/settings/TaskTypeManager'
+import { SchedulingSettings } from './components/settings/SchedulingSettings'
 import { WorkLoggerDual } from './components/work-logger/WorkLoggerDual'
 import { TaskSlideshow } from './components/slideshow/TaskSlideshow'
 import { SprintBoard } from './components/sprint/SprintBoard'
@@ -40,6 +40,7 @@ import { useTimeSinkStore } from './store/useTimeSinkStore'
 import { useScheduleSnapshotStore } from './store/useScheduleSnapshotStore'
 import { useUserTaskTypeStore } from './store/useUserTaskTypeStore'
 import { useDeepWorkBoardStore } from './store/useDeepWorkBoardStore'
+import { useSchedulerStore } from './store/useSchedulerStore'
 import { connectStores } from './store/storeConnector'
 import { getDatabase } from './services/database'
 import { logger } from '@/logger'
@@ -246,6 +247,17 @@ function AppContent() {
         const db = getDatabase()
         const sessionId = await db.ensureSession()
         logger.system.info('Session ensured', { sessionId }, 'app-session-init')
+
+        // Load scheduling preferences into scheduler store
+        const prefs = await db.getSchedulingPreferences(sessionId)
+        if (prefs) {
+          useSchedulerStore.getState().setInputs({
+            schedulingPreferences: {
+              taskSplittingEnabled: prefs.taskSplittingEnabled,
+              minimumSplitMinutes: prefs.minimumSplitMinutes,
+            },
+          })
+        }
 
         // Now safe to load data
         initializeData()
@@ -648,53 +660,33 @@ function AppContent() {
                 />
               </Tabs>
 
-              {/* Action Buttons - responsive overflow menu ensures all buttons accessible */}
-              <ActionButtonOverflowMenu
-                buttons={[
-                  {
-                    key: 'chat',
-                    icon: <IconMessage />,
-                    label: 'Chat',
-                    onClick: toggleSidebar,
-                    priority: 1,
-                    isActive: sidebarOpen,
-                    title: 'AI Chat',
-                  },
-                  {
-                    key: 'logwork',
-                    icon: <IconClockCircle />,
-                    label: 'Log Work',
-                    onClick: () => setShowWorkLoggerDual(true),
-                    priority: 1,
-                    buttonType: 'primary',
-                    title: 'Log Work',
-                  },
-                  {
-                    key: 'tournament',
-                    icon: <IconEye />,
-                    label: 'Tournament',
-                    onClick: () => setShowTaskSlideshow(true),
-                    priority: 2,
-                    title: 'Task Tournament',
-                  },
-                  {
-                    key: 'settings',
-                    icon: <IconSettings />,
-                    label: 'Settings',
-                    onClick: () => setShowTaskTypeManager(true),
-                    priority: 3,
-                    title: 'Settings',
-                  },
-                  {
-                    key: 'sessions',
-                    icon: <IconUserGroup />,
-                    label: 'Sessions',
-                    onClick: () => setShowSessionManager(true),
-                    priority: 3,
-                    title: 'Session Manager',
-                  },
-                ] satisfies ActionButtonConfig[]
-              }/>
+              {/* Action Buttons: Log Work + Settings dropdown */}
+              <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexShrink: 0 }}>
+                <Button
+                  type="primary"
+                  icon={<IconClockCircle />}
+                  onClick={() => setShowWorkLoggerDual(true)}
+                  title="Log Work"
+                >
+                  {!isMobile && 'Log Work'}
+                </Button>
+                <Dropdown
+                  droplist={
+                    <Menu>
+                      <Menu.Item key="settings" onClick={() => setShowTaskTypeManager(true)}>
+                        <Space size="small"><IconSettings /> Settings</Space>
+                      </Menu.Item>
+                      <Menu.Item key="sessions" onClick={() => setShowSessionManager(true)}>
+                        <Space size="small"><IconUserGroup /> Sessions</Space>
+                      </Menu.Item>
+                    </Menu>
+                  }
+                  position="br"
+                  trigger="click"
+                >
+                  <Button type="text" icon={<IconSettings />} title="Settings" />
+                </Dropdown>
+              </div>
             </Header>
 
             <Content style={{
@@ -727,7 +719,7 @@ function AppContent() {
                   <>
                     {activeView === ViewType.Tasks && (
                       <ErrorBoundary>
-                        <TaskList onAddTask={() => setTaskFormVisible(true)} />
+                        <TaskList onAddTask={() => setTaskFormVisible(true)} onOpenTournament={() => setShowTaskSlideshow(true)} />
                       </ErrorBoundary>
                     )}
 
@@ -896,6 +888,9 @@ function AppContent() {
           {/* Chat Sidebar */}
           <ChatSidebar onNavigateToView={setActiveView} />
 
+          {/* Floating Chat Button - hidden when sidebar is open */}
+          <FloatingChatButton onClick={toggleSidebar} visible={!sidebarOpen} />
+
           <TaskCreationFlow
             visible={taskCreationFlowVisible}
             onClose={handleTaskCreationComplete}
@@ -924,7 +919,23 @@ function AppContent() {
           <SessionManager
             visible={showSessionManager}
             onClose={() => setShowSessionManager(false)}
-            onSessionChange={(): void => {
+            onSessionChange={async (): Promise<void> => {
+              // Reload scheduling preferences for new session
+              try {
+                const db = getDatabase()
+                const session = await db.getCurrentSession()
+                if (session) {
+                  const prefs = await db.getSchedulingPreferences(session.id)
+                  if (prefs) {
+                    useSchedulerStore.getState().setInputs({
+                      schedulingPreferences: {
+                        taskSplittingEnabled: prefs.taskSplittingEnabled,
+                        minimumSplitMinutes: prefs.minimumSplitMinutes,
+                      },
+                    })
+                  }
+                }
+              } catch { /* preferences will use defaults */ }
               // Reload data when session changes
               initializeData()
             }}
@@ -946,6 +957,9 @@ function AppContent() {
               </Tabs.TabPane>
               <Tabs.TabPane key="timeSinks" title="Time Sinks">
                 <TimeSinkManager />
+              </Tabs.TabPane>
+              <Tabs.TabPane key="scheduling" title="Scheduling">
+                <SchedulingSettings />
               </Tabs.TabPane>
             </Tabs>
           </Modal>

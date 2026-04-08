@@ -7,14 +7,17 @@ import { useTaskStore } from '../store/useTaskStore'
 import { useSchedulerStore } from '../store/useSchedulerStore'
 import { useWorkPatternStore } from '../store/useWorkPatternStore'
 import { useUserTaskTypeStore } from '../store/useUserTaskTypeStore'
-import { Task } from '@shared/types'
+import { useEndeavorStore } from '../store/useEndeavorStore'
+import { Task, EndeavorWithTasks } from '@shared/types'
 import { DailyWorkPattern } from '@shared/work-blocks-types'
 import { WorkSettings } from '@shared/work-settings-types'
 import { UnifiedScheduleItem } from '@shared/unified-scheduler'
 import { getCurrentTime, getLocalDateString } from '@shared/time-provider'
 import { TaskStatus } from '@shared/enums'
+import { addDays } from '@shared/time-utils'
 import { getDatabase } from './database'
 import type { UserTaskType } from '@shared/user-task-types'
+import { TimeGap, detectTimeGaps } from '../utils/gap-detector'
 
 export interface JobContextData {
   name: string
@@ -36,6 +39,11 @@ export interface WorkSessionData {
   notes?: string
 }
 
+export interface DateRange {
+  startDate: string  // YYYY-MM-DD
+  endDate: string    // YYYY-MM-DD
+}
+
 export interface AppContext {
   currentDate: string
   currentTime: string
@@ -45,8 +53,14 @@ export interface AppContext {
   workSessions: WorkSessionData[]
   workSettings: WorkSettings
   userTaskTypes: UserTaskType[]  // User-defined task types (e.g., "coding", "design", "admin")
+  endeavors: EndeavorWithTasks[]
+  sprintTaskIds: string[]
   jobContext?: JobContextData
   summary: ContextSummary
+  // Gap-filling context (populated when user requests time gap analysis)
+  timeGaps?: TimeGap[]
+  historicalSessions?: WorkSessionData[]
+  historicalPatterns?: DailyWorkPattern[]
 }
 
 interface ContextSummary {
@@ -65,12 +79,18 @@ interface ContextSummary {
 
 /**
  * Gather complete app context for AI
+ * @param jobContext - Optional job context for role-specific prompting
+ * @param dateRange - Optional date range for multi-day gap analysis
  */
-export async function gatherAppContext(jobContext?: JobContextData): Promise<AppContext> {
+export async function gatherAppContext(
+  jobContext?: JobContextData,
+  dateRange?: DateRange,
+): Promise<AppContext> {
   const taskStore = useTaskStore.getState()
   const schedulerStore = useSchedulerStore.getState()
   const workPatternStore = useWorkPatternStore.getState()
   const userTaskTypeStore = useUserTaskTypeStore.getState()
+  const endeavorStore = useEndeavorStore.getState()
 
   const currentTime = getCurrentTime()
   const currentDateStr = getLocalDateString(currentTime)
@@ -124,6 +144,8 @@ export async function gatherAppContext(jobContext?: JobContextData): Promise<App
     }),
     workSettings: taskStore.workSettings,
     userTaskTypes: userTaskTypeStore.types,
+    endeavors: endeavorStore.endeavors,
+    sprintTaskIds: allTasks.filter(t => t.inActiveSprint).map(t => t.id),
     summary,
   }
 
@@ -131,7 +153,82 @@ export async function gatherAppContext(jobContext?: JobContextData): Promise<App
     context.jobContext = jobContext
   }
 
+  // Fetch multi-day data and detect gaps when a date range is requested
+  if (dateRange) {
+    const { historicalSessions, historicalPatterns } = await fetchDateRangeData(db, dateRange, currentDateStr)
+    context.historicalSessions = historicalSessions
+    context.historicalPatterns = historicalPatterns
+
+    // Combine today's sessions with historical for gap detection
+    const allSessions = [...context.workSessions, ...historicalSessions]
+    const allPatterns = [...historicalPatterns]
+    // Include today's pattern if it's in the range
+    const todayPattern = workPatternStore.workPatterns.find(p => p.date === currentDateStr)
+    if (todayPattern && currentDateStr >= dateRange.startDate && currentDateStr <= dateRange.endDate) {
+      // Only add if not already fetched as historical
+      if (!allPatterns.some(p => p.date === currentDateStr)) {
+        allPatterns.push(todayPattern)
+      }
+    }
+
+    context.timeGaps = detectTimeGaps(allSessions, allPatterns)
+  }
+
   return context
+}
+
+/**
+ * Fetch work sessions and patterns for each day in a date range.
+ * Excludes the current date (already fetched above).
+ */
+async function fetchDateRangeData(
+  db: ReturnType<typeof getDatabase>,
+  dateRange: DateRange,
+  currentDateStr: string,
+): Promise<{ historicalSessions: WorkSessionData[]; historicalPatterns: DailyWorkPattern[] }> {
+  const historicalSessions: WorkSessionData[] = []
+  const historicalPatterns: DailyWorkPattern[] = []
+
+  // Iterate through each date in the range
+  const startDate = new Date(dateRange.startDate + 'T00:00:00')
+  const endDate = new Date(dateRange.endDate + 'T00:00:00')
+
+  let current = startDate
+  while (current <= endDate) {
+    const dateStr = getLocalDateString(current)
+
+    // Skip today — already fetched in main context
+    if (dateStr !== currentDateStr) {
+      const [sessions, pattern] = await Promise.all([
+        db.getWorkSessions(dateStr),
+        db.getWorkPattern(dateStr),
+      ])
+
+      for (const ws of sessions) {
+        const sessionData: WorkSessionData = {
+          id: ws.id,
+          taskId: ws.taskId,
+          stepId: ws.stepId,
+          startTime: new Date(ws.startTime),
+          plannedMinutes: ws.plannedMinutes ?? 0,
+          actualMinutes: ws.actualMinutes,
+          notes: ws.notes,
+        }
+        if (ws.endTime) {
+          sessionData.endTime = new Date(ws.endTime)
+        }
+        historicalSessions.push(sessionData)
+      }
+
+      if (pattern) {
+        historicalPatterns.push(pattern)
+      }
+    }
+
+    current = addDays(current, 1)
+  }
+
+  return { historicalSessions, historicalPatterns }
 }
 
 /**
@@ -148,7 +245,9 @@ export function formatContextForAI(context: AppContext): string {
   formatted += `- **Workflows:** ${context.summary.totalWorkflows} total (${context.summary.completedWorkflows} completed, ${context.summary.inProgressWorkflows} in progress, ${context.summary.archivedWorkflows} archived)\n`
   formatted += `- **Work Patterns:** ${context.summary.totalWorkPatterns} patterns defined\n`
   formatted += `- **Scheduled Items:** ${context.summary.totalScheduledItems} items scheduled\n`
-  formatted += `- **Work Sessions:** ${context.summary.totalWorkSessions} recent sessions\n\n`
+  formatted += `- **Work Sessions:** ${context.summary.totalWorkSessions} recent sessions\n`
+  formatted += `- **Sprint:** ${context.sprintTaskIds.length} tasks in active sprint\n`
+  formatted += `- **Endeavors:** ${context.endeavors.length} endeavors\n\n`
 
   // Job Context
   if (context.jobContext) {
@@ -173,13 +272,40 @@ export function formatContextForAI(context: AppContext): string {
   })
   formatted += '\n'
 
+  // Sprint
+  const sprintSet = new Set(context.sprintTaskIds)
+  if (context.sprintTaskIds.length > 0) {
+    const sprintTasks = context.tasks.filter(t => sprintSet.has(t.id))
+    formatted += `## Sprint (${sprintTasks.length} items)\n\n`
+    sprintTasks.forEach(t => {
+      formatted += `- **${t.name}** (ID: ${t.id})${t.hasSteps ? ' [Workflow]' : ''}\n`
+    })
+    formatted += '\n'
+  }
+
+  // Endeavors
+  if (context.endeavors.length > 0) {
+    formatted += `## Endeavors (${context.endeavors.length})\n\n`
+    context.endeavors.forEach(endeavor => {
+      formatted += `- **${endeavor.name}** (ID: ${endeavor.id}, status: ${endeavor.status}`
+      if (endeavor.color) formatted += `, color: ${endeavor.color}`
+      formatted += ')\n'
+      if (endeavor.items.length > 0) {
+        formatted += `  - Tasks: ${endeavor.items.map(item => item.task.name).join(', ')}\n`
+      } else {
+        formatted += '  - No tasks assigned\n'
+      }
+    })
+    formatted += '\n'
+  }
+
   // Tasks
   const simpleTasks = context.tasks.filter(t => !t.hasSteps)
   const workflows = context.tasks.filter(t => t.hasSteps)
 
   formatted += `## Tasks (${simpleTasks.length})\n\n`
   simpleTasks.forEach(task => {
-    formatted += `- **${task.name}** (ID: ${task.id})\n`
+    formatted += `- **${task.name}** (ID: ${task.id})${sprintSet.has(task.id) ? ' [SPRINT]' : ''}\n`
     formatted += `  - Status: ${task.overallStatus}, Duration: ${task.duration}min, Importance: ${task.importance}, Urgency: ${task.urgency}\n`
     formatted += `  - Type: ${task.type}, Completed: ${task.completed}, Archived: ${task.archived}\n`
     if (task.dependencies && task.dependencies.length > 0) {
@@ -197,7 +323,7 @@ export function formatContextForAI(context: AppContext): string {
   // Workflows
   formatted += `## Workflows (${workflows.length})\n\n`
   workflows.forEach(workflow => {
-    formatted += `- **${workflow.name}** (ID: ${workflow.id})\n`
+    formatted += `- **${workflow.name}** (ID: ${workflow.id})${sprintSet.has(workflow.id) ? ' [SPRINT]' : ''}\n`
     formatted += `  - Status: ${workflow.overallStatus}, Total Duration: ${workflow.duration}min, Critical Path: ${workflow.criticalPathDuration}min\n`
     formatted += `  - Importance: ${workflow.importance}, Urgency: ${workflow.urgency}, Type: ${workflow.type}\n`
     if (workflow.steps) {
@@ -289,6 +415,85 @@ export function formatContextForAI(context: AppContext): string {
       formatted += `\n_...and ${context.workSessions.length - 10} more sessions_\n`
     }
     formatted += '\n'
+  }
+
+  // Time gaps — shown when user requested gap analysis
+  if (context.timeGaps && context.timeGaps.length > 0) {
+    formatted += `## Detected Time Gaps (${context.timeGaps.length})\n\n`
+    formatted += 'These are periods within work blocks where no time was logged:\n\n'
+
+    // Group gaps by date
+    const gapsByDate = new Map<string, typeof context.timeGaps>()
+    for (const gap of context.timeGaps) {
+      const existing = gapsByDate.get(gap.date) || []
+      existing.push(gap)
+      gapsByDate.set(gap.date, existing)
+    }
+
+    for (const [date, gaps] of gapsByDate) {
+      formatted += `### ${date}\n`
+      for (const gap of gaps) {
+        const startStr = gap.startTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+        const endStr = gap.endTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+        formatted += `- **${startStr} – ${endStr}** (${gap.durationMinutes} min)`
+        if (gap.blockName) {
+          formatted += ` [within block: ${gap.blockName}]`
+        }
+        formatted += '\n'
+      }
+      formatted += '\n'
+    }
+  }
+
+  // Historical sessions — shown when multi-day context is loaded
+  if (context.historicalSessions && context.historicalSessions.length > 0) {
+    formatted += `## Historical Work Sessions (${context.historicalSessions.length})\n\n`
+
+    // Create lookup maps
+    const taskNameMap = new Map<string, string>()
+    const stepNameMap = new Map<string, { name: string; workflowName: string }>()
+    context.tasks.forEach(task => {
+      taskNameMap.set(task.id, task.name)
+      if (task.steps) {
+        task.steps.forEach(step => {
+          stepNameMap.set(step.id, { name: step.name, workflowName: task.name })
+        })
+      }
+    })
+
+    // Group by date
+    const sessionsByDate = new Map<string, WorkSessionData[]>()
+    for (const session of context.historicalSessions) {
+      const d = session.startTime
+      const dateKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+      const existing = sessionsByDate.get(dateKey) || []
+      existing.push(session)
+      sessionsByDate.set(dateKey, existing)
+    }
+
+    for (const [date, sessions] of sessionsByDate) {
+      formatted += `### ${date}\n`
+      for (const session of sessions) {
+        let sessionName: string
+        if (session.stepId) {
+          const stepInfo = stepNameMap.get(session.stepId)
+          sessionName = stepInfo ? `${stepInfo.name} (${stepInfo.workflowName})` : `Step ${session.stepId}`
+        } else {
+          sessionName = taskNameMap.get(session.taskId) || `Task ${session.taskId}`
+        }
+        const startStr = session.startTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+        const endStr = session.endTime
+          ? session.endTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+          : 'ongoing'
+        const durationMin = session.endTime
+          ? Math.round((session.endTime.getTime() - session.startTime.getTime()) / 60000)
+          : null
+        formatted += `- **${sessionName}**: ${startStr} – ${endStr}`
+        if (durationMin !== null) formatted += ` (${durationMin} min)`
+        formatted += '\n'
+      }
+      formatted += '\n'
+    }
   }
 
   return formatted

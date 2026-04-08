@@ -21,7 +21,10 @@
       "mcp__diagnostic__get_uncovered_files",
       "mcp__diagnostic__get_file_coverage",
       "Bash(npx eslint:*)",
-      "Bash(git stash show:*)"
+      "Bash(git stash show:*)",
+      "Bash(ls:*)",
+      "Bash(grep:*)",
+      "mcp__diagnostic__build"
     ],
     "deny": [],
     "defaultMode": "acceptEdits",

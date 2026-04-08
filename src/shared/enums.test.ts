@@ -115,7 +115,7 @@ describe('enums', () => {
 
     it('should have all expected keys', () => {
       const keys = Object.keys(AmendmentType)
-      expect(keys).toHaveLength(17)
+      expect(keys).toHaveLength(19)
       expect(keys).toContain('StatusUpdate')
       expect(keys).toContain('TimeLog')
       expect(keys).toContain('NoteAddition')

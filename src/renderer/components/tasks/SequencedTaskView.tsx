@@ -3,6 +3,7 @@ import { Card, Space, Typography, Tag, Button, Alert, Statistic, Grid, Progress,
 import { IconClockCircle, IconCalendar, IconPlayArrow, IconPause, IconRefresh, IconDown, IconEdit, IconDelete, IconMindMapping, IconHistory, IconBook, IconArchive, IconUndo } from '@arco-design/web-react/icon'
 import { SequencedTask, TaskStep } from '@shared/sequencing-types'
 import { StepStatus } from '@shared/enums'
+import { validateDependencies, fixBrokenDependencies } from '@shared/step-id-utils'
 import { TaskStepItem } from './TaskStepItem'
 import { useSortedUserTaskTypes } from '../../store/useUserTaskTypeStore'
 import { UnifiedTaskEdit } from './UnifiedTaskEdit'
@@ -56,6 +57,15 @@ export function SequencedTaskView({
   const completedSteps = task.steps.filter(step => step.status === StepStatus.Completed).length
   const totalSteps = task.steps.length
   const progressPercent = totalSteps > 0 ? (completedSteps / totalSteps) * 100 : 0
+
+  // Validate workflow dependencies — detect broken references
+  const stepsForValidation = task.steps.map(s => ({
+    id: s.id,
+    name: s.name,
+    dependsOn: Array.isArray(s.dependsOn) ? s.dependsOn : [],
+  }))
+  const depValidation = validateDependencies(stepsForValidation)
+  const hasDependencyErrors = !depValidation.valid
 
   // Find the step that's in progress AND actively being worked on (not paused)
   const currentStep = task.steps.find(step =>
@@ -144,6 +154,26 @@ export function SequencedTaskView({
     }
   }
 
+  const handleFixDependencies = async () => {
+    try {
+      const db = getDatabase()
+      const fixed = fixBrokenDependencies(stepsForValidation)
+      for (const fixedStep of fixed) {
+        const original = task.steps.find(s => s.id === fixedStep.id)
+        if (original && JSON.stringify(original.dependsOn) !== JSON.stringify(fixedStep.dependsOn)) {
+          await db.updateTaskStep(task.id, fixedStep.id, { dependsOn: fixedStep.dependsOn })
+        }
+      }
+      const { refreshAllData } = useTaskStore.getState()
+      await refreshAllData()
+      logger.ui.info(`Fixed broken dependencies in workflow: ${task.name}`, {}, 'fix-deps')
+    } catch (error) {
+      logger.ui.error('Failed to fix dependencies', {
+        error: error instanceof Error ? error.message : String(error),
+      }, 'fix-deps-error')
+    }
+  }
+
   const handleToggleArchive = async () => {
     try {
       const db = getDatabase()
@@ -154,9 +184,9 @@ export function SequencedTaskView({
         await db.archiveTask(task.id)
         logger.ui.info(`Archived workflow: ${task.name}`)
       }
-      // Refresh tasks to update UI
-      const { loadTasks } = useTaskStore.getState()
-      await loadTasks()
+      // Refresh all data so both tasks and sequencedTasks update reactively
+      const { refreshAllData } = useTaskStore.getState()
+      await refreshAllData()
     } catch (error) {
       logger.ui.error('Failed to toggle archive status', {
         error: error instanceof Error ? error.message : String(error),
@@ -179,7 +209,7 @@ export function SequencedTaskView({
   return (
     <Space direction="vertical" style={{ width: '100%' }} size="small">
       {/* Combined Card - Header and Content in one card to remove gap */}
-      <Card style={{ marginBottom: 0 }}>
+      <Card style={{ marginBottom: 0, ...(hasDependencyErrors ? { border: '2px solid #f53f3f' } : {}) }}>
         <Row gutter={24} align="center">
           <Col flex="auto">
             <Space direction="vertical" size="small">
@@ -193,6 +223,11 @@ export function SequencedTaskView({
                 >
                   {task.overallStatus.replace('_', ' ')}
                 </Tag>
+                {hasDependencyErrors && (
+                  <Tag color="red" size="small">
+                    Broken Dependencies
+                  </Tag>
+                )}
               </Space>
 
               <Text type="secondary">
@@ -314,6 +349,29 @@ export function SequencedTaskView({
               <Space>
                 <Text>Waiting for async process to complete...</Text>
                 <Text type="secondary">Next step will be available automatically</Text>
+              </Space>
+            }
+          />
+        )}
+
+        {hasDependencyErrors && (
+          <Alert
+            type="error"
+            style={{ marginTop: 16, marginBottom: 16 }}
+            title="Broken Dependencies"
+            content={
+              <Space direction="vertical" size="small">
+                {depValidation.errors.map((err, i) => (
+                  <Text key={i} style={{ fontSize: 13 }}>{err}</Text>
+                ))}
+                <Button
+                  size="mini"
+                  status="danger"
+                  onClick={handleFixDependencies}
+                  style={{ marginTop: 4 }}
+                >
+                  Remove broken dependencies
+                </Button>
               </Space>
             }
           />

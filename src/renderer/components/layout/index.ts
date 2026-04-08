@@ -1,3 +1,2 @@
-export { ActionButtonOverflowMenu } from './ActionButtonOverflowMenu'
-export type { ActionButtonConfig, ButtonPriority } from './ActionButtonOverflowMenu'
+export { FloatingChatButton } from './FloatingChatButton'
 export { FloatingSidebarButton } from './FloatingSidebarButton'

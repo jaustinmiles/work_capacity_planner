@@ -9,7 +9,7 @@ import React from 'react'
 import { useDraggable } from '@dnd-kit/core'
 import { Card, Typography, Space, Tag } from '@arco-design/web-react'
 import { IconDragDotVertical, IconClockCircle, IconBranch } from '@arco-design/web-react/icon'
-import type { Task } from '@shared/types'
+import type { Task, Endeavor } from '@shared/types'
 import { useSortedUserTaskTypes } from '../../store/useUserTaskTypeStore'
 
 const { Text } = Typography
@@ -17,9 +17,10 @@ const { Text } = Typography
 interface SprintTaskCardProps {
   task: Task
   isDragging?: boolean
+  endeavors?: Endeavor[]
 }
 
-export function SprintTaskCard({ task, isDragging = false }: SprintTaskCardProps): React.ReactElement {
+export function SprintTaskCard({ task, isDragging = false, endeavors }: SprintTaskCardProps): React.ReactElement {
   const userTypes = useSortedUserTaskTypes()
 
   const {
@@ -118,6 +119,22 @@ export function SprintTaskCard({ task, isDragging = false }: SprintTaskCardProps
                 </Text>
               )}
             </Space>
+
+            {/* Endeavor tags */}
+            {endeavors && endeavors.length > 0 && (
+              <Space size={4} style={{ flexWrap: 'wrap', marginTop: 4 }}>
+                {endeavors.map(e => (
+                  <Tag
+                    key={e.id}
+                    size="small"
+                    color={e.color || '#86909c'}
+                    style={{ margin: 0, fontSize: 11 }}
+                  >
+                    {e.name}
+                  </Tag>
+                ))}
+              </Space>
+            )}
           </div>
         </div>
       </Card>

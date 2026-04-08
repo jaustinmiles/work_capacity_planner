@@ -305,6 +305,21 @@ class DiagnosticWrapper {
               },
             },
           },
+          {
+            name: 'build',
+            description: 'Run a build script (build:mcp, build:main, build:preload, build:web). Reports success or type errors.',
+            inputSchema: {
+              type: 'object',
+              properties: {
+                target: {
+                  type: 'string',
+                  description: 'Build target: "mcp", "main", "preload", "web" (default: "mcp")',
+                  default: 'mcp',
+                  enum: ['mcp', 'main', 'preload', 'web'],
+                },
+              },
+            },
+          },
         ] satisfies Tool[],
       }
     })
@@ -357,6 +372,9 @@ class DiagnosticWrapper {
           case 'get_patch_coverage':
             return await this.handleGetPatchCoverage(args)
 
+          case 'build':
+            return await this.runBuild(args)
+
           default:
             throw new Error(`Unknown tool: ${name}`)
         }
@@ -394,8 +412,8 @@ class DiagnosticWrapper {
     }
   }
 
-  private async callResolveFeedback(args: Record<string, string>) {
-    const { title } = args
+  private async callResolveFeedback(args: Record<string, unknown>) {
+    const title = String(args.title ?? '')
     const scriptPath = path.join(process.cwd(), 'scripts/analysis/feedback-utils.js')
 
     const output = await this.runScript('node', [scriptPath, 'resolve', title])
@@ -410,8 +428,11 @@ class DiagnosticWrapper {
     }
   }
 
-  private async callAddFeedback(args: Record<string, string>) {
-    const { type: feedbackType, priority, title, description } = args
+  private async callAddFeedback(args: Record<string, unknown>) {
+    const feedbackType = String(args.type ?? '')
+    const priority = String(args.priority ?? '')
+    const title = String(args.title ?? '')
+    const description = String(args.description ?? '')
     const scriptPath = path.join(process.cwd(), 'scripts/analysis/feedback-utils.js')
 
     const output = await this.runScript('node', [scriptPath, 'add', feedbackType, priority, title, description])
@@ -492,6 +513,34 @@ class DiagnosticWrapper {
           text: `**Logs (${action})**\n\n\`\`\`\n${output}\n\`\`\``,
         },
       ],
+    }
+  }
+
+  private async runBuild(args: Record<string, unknown>) {
+    const target = String(args.target ?? 'mcp')
+    const scriptName = `build:${target}`
+
+    try {
+      const output = await this.runScript('npm', ['run', scriptName], 120000)
+      return {
+        content: [
+          {
+            type: 'text',
+            text: `**Build Results (${scriptName})**\n\n✅ Build succeeded!\n\n\`\`\`\n${output || '(no output)'}\n\`\`\``,
+          },
+        ],
+      }
+    } catch (error) {
+      const errorMsg = error instanceof Error ? error.message : String(error)
+      const truncated = this.truncateOutput(errorMsg, 8000)
+      return {
+        content: [
+          {
+            type: 'text',
+            text: `**Build Results (${scriptName})**\n\n❌ Build failed:\n\n\`\`\`\n${truncated}\n\`\`\``,
+          },
+        ],
+      }
     }
   }
 
@@ -782,7 +831,7 @@ class DiagnosticWrapper {
       const passedMatch = output.match(/Tests\s+(\d+)\s+passed/)
       const failedMatch = output.match(/(\d+)\s+failed/)
       const skippedMatch = output.match(/(\d+)\s+skipped/)
-      const totalMatch = output.match(/\((\d+)\)/)
+      const totalMatch = output.match(/Tests\s+.*\((\d+)\)/)
 
       const passed = passedMatch ? parseInt(passedMatch[1]) : 0
       const failed = failedMatch ? parseInt(failedMatch[1]) : 0

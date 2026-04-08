@@ -53,7 +53,7 @@ const workMeetingSchema = z.object({
   endTime: z.string().regex(/^\d{2}:\d{2}$/),
   type: z.string(),
   recurring: z.string().default('none'),
-  daysOfWeek: z.string().optional(),
+  daysOfWeek: z.string().nullish(),
 })
 
 /**

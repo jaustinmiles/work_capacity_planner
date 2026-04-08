@@ -39,6 +39,8 @@ const updateSchedulingPreferencesInput = z.object({
   asyncParallelizationBonus: z.number().int().min(0).optional(),
   bedtimeHour: z.number().int().min(0).max(23).optional(),
   wakeHour: z.number().int().min(0).max(23).optional(),
+  taskSplittingEnabled: z.boolean().optional(),
+  minimumSplitMinutes: z.number().int().min(5).max(120).optional(),
 })
 
 export const sessionRouter = router({

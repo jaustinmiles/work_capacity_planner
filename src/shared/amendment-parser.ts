@@ -304,7 +304,7 @@ IMPORTANT:
 
     try {
       const response = await (aiService as any).anthropic.messages.create({
-        model: 'claude-opus-4-1-20250805',
+        model: 'claude-opus-4-6',
         max_tokens: 2000,
         temperature: 0.3,
         messages: [{
