@@ -10,7 +10,7 @@
 
 import { z } from 'zod'
 import { router, protectedProcedure, sessionProcedure } from '../trpc'
-import { generateUniqueId } from '../../shared/step-id-utils'
+import { generateUniqueId, resolveStepDependencies } from '../../shared/step-id-utils'
 import { getCurrentTime, getLocalDateString } from '../../shared/time-provider'
 import { UnifiedScheduler, OptimizationMode } from '../../shared/unified-scheduler'
 import { DEFAULT_WORK_SETTINGS } from '../../shared/work-settings-types'
@@ -193,10 +193,41 @@ export const taskRouter = router({
     let criticalPathDuration = 0
     let worstCaseDuration = 0
 
+    // Assign IDs and resolve dependencies BEFORE creating
+    let resolvedSteps: Array<{
+      id: string
+      name: string
+      duration: number
+      type: string
+      dependsOn: string[]
+      asyncWaitTime: number
+      cognitiveComplexity?: number | null
+      isAsyncTrigger: boolean
+      expectedResponseTime?: number | null
+      stepIndex: number
+    }> | undefined
+
     if (input.steps && input.steps.length > 0) {
-      // Simple calculation - sum of all step durations
-      const totalStepDuration = input.steps.reduce((sum, step) => sum + step.duration, 0)
-      const totalAsyncTime = input.steps.reduce((sum, step) => sum + step.asyncWaitTime, 0)
+      // Step 1: Assign IDs to all steps upfront
+      const stepsWithIds = input.steps.map((step, index) => ({
+        id: step.id || generateUniqueId('step'),
+        name: step.name,
+        duration: step.duration,
+        type: step.type,
+        dependsOn: step.dependsOn ?? [],
+        asyncWaitTime: step.asyncWaitTime,
+        cognitiveComplexity: step.cognitiveComplexity,
+        isAsyncTrigger: step.isAsyncTrigger,
+        expectedResponseTime: step.expectedResponseTime,
+        stepIndex: index,
+      }))
+
+      // Step 2: Resolve dependsOn from names/mixed to valid step IDs
+      resolvedSteps = resolveStepDependencies(stepsWithIds)
+
+      // Calculate durations
+      const totalStepDuration = resolvedSteps.reduce((sum, step) => sum + step.duration, 0)
+      const totalAsyncTime = resolvedSteps.reduce((sum, step) => sum + step.asyncWaitTime, 0)
       criticalPathDuration = totalStepDuration
       worstCaseDuration = totalStepDuration + totalAsyncTime
     }
@@ -217,16 +248,16 @@ export const taskRouter = router({
         deadline: input.deadline || null,
         deadlineType: input.deadlineType || null,
         cognitiveComplexity: input.cognitiveComplexity || null,
-        hasSteps: input.hasSteps || (input.steps && input.steps.length > 0),
+        hasSteps: input.hasSteps || (resolvedSteps && resolvedSteps.length > 0),
         criticalPathDuration,
         worstCaseDuration,
         sessionId: ctx.sessionId,
         createdAt: now,
         updatedAt: now,
-        TaskStep: input.steps
+        TaskStep: resolvedSteps
           ? {
-              create: input.steps.map((step, index) => ({
-                id: step.id || generateUniqueId('step'),
+              create: resolvedSteps.map((step) => ({
+                id: step.id,
                 name: step.name,
                 duration: step.duration,
                 type: step.type,
@@ -235,7 +266,7 @@ export const taskRouter = router({
                 cognitiveComplexity: step.cognitiveComplexity || null,
                 isAsyncTrigger: step.isAsyncTrigger,
                 expectedResponseTime: step.expectedResponseTime || null,
-                stepIndex: index,
+                stepIndex: step.stepIndex,
               })),
             }
           : undefined,
@@ -535,6 +566,127 @@ export const taskRouter = router({
         estimatedDuration: targetItem.duration,
         scheduledStartTime: targetItem.startTime,
         loggedMinutes: task?.actualDuration ?? 0,
+      }
+    }),
+
+  /**
+   * Get the full scheduled timeline for today.
+   *
+   * Runs the UnifiedScheduler and returns ALL scheduled items (tasks, steps,
+   * meetings, breaks) plus unscheduled items. Used by the AI agent to
+   * understand the complete picture of the user's day.
+   */
+  getFullSchedule: sessionProcedure
+    .input(z.object({ date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional() }))
+    .query(async ({ ctx, input }) => {
+      const currentTime = getCurrentTime()
+      const targetDate = input.date ?? getLocalDateString(currentTime)
+
+      // Fetch all tasks for this session
+      const rawTasks = await ctx.prisma.task.findMany({
+        where: { sessionId: ctx.sessionId, archived: false },
+        include: { TaskStep: { orderBy: { stepIndex: 'asc' } } },
+      })
+
+      const allTasks = rawTasks.map(formatTask)
+      const simpleTasks = filterSchedulableItems(
+        allTasks.filter((t) => !t.hasSteps) as Task[],
+      )
+      const workflows = filterSchedulableWorkflows(
+        allTasks.filter((t) => t.hasSteps) as unknown as SequencedTask[],
+      )
+
+      // Fetch work pattern for the target date
+      const pattern = await ctx.prisma.workPattern.findUnique({
+        where: {
+          sessionId_date: {
+            sessionId: ctx.sessionId,
+            date: targetDate,
+          },
+        },
+        include: {
+          WorkBlock: true,
+          WorkMeeting: true,
+        },
+      })
+
+      if (!pattern) {
+        return { scheduled: [], unscheduled: [], date: targetDate, hasPattern: false }
+      }
+
+      const workPattern: DailyWorkPattern = {
+        id: pattern.id,
+        date: pattern.date,
+        blocks: pattern.WorkBlock.map((block) => ({
+          id: block.id,
+          startTime: block.startTime,
+          endTime: block.endTime,
+          typeConfig: JSON.parse(block.typeConfig as string),
+          capacity: block.totalCapacity
+            ? { totalMinutes: block.totalCapacity }
+            : undefined,
+        })),
+        accumulated: {},
+        meetings: pattern.WorkMeeting.map((meeting) => ({
+          id: meeting.id,
+          name: meeting.name,
+          startTime: meeting.startTime,
+          endTime: meeting.endTime,
+          type: meeting.type as MeetingType,
+          recurring: (meeting.recurring || 'none') as 'daily' | 'weekly' | 'none',
+          daysOfWeek: meeting.daysOfWeek
+            ? JSON.parse(meeting.daysOfWeek)
+            : undefined,
+        })),
+      }
+
+      // Run the scheduler
+      const scheduler = new UnifiedScheduler()
+      const items = [...simpleTasks, ...workflows]
+
+      const context = {
+        startDate: targetDate,
+        tasks: simpleTasks as Task[],
+        workflows: workflows,
+        workPatterns: [workPattern],
+        workSettings: DEFAULT_WORK_SETTINGS,
+        currentTime,
+      }
+
+      const config = {
+        startDate: currentTime,
+        allowTaskSplitting: true,
+        respectMeetings: true,
+        optimizationMode: OptimizationMode.Realistic,
+        debugMode: false,
+      }
+
+      const result = scheduler.scheduleForDisplay(items, context, config)
+
+      // Return a simplified view of the schedule for the agent
+      return {
+        date: targetDate,
+        hasPattern: true,
+        scheduled: result.scheduled.map((item) => ({
+          name: item.name,
+          type: item.type,
+          startTime: item.startTime,
+          endTime: item.endTime,
+          duration: item.duration,
+          taskTypeId: item.taskTypeId,
+          completed: item.completed,
+          isWaitingOnAsync: item.isWaitingOnAsync,
+          originalTaskId: item.originalTaskId,
+          blockId: item.blockId,
+        })),
+        unscheduled: result.unscheduled.map((item) => ({
+          name: item.name,
+          type: item.type,
+          duration: item.duration,
+          taskTypeId: item.taskTypeId,
+          completed: item.completed,
+          originalTaskId: item.originalTaskId,
+        })),
       }
     }),
 })

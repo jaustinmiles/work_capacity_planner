@@ -83,14 +83,16 @@ export interface TypeAllocation {
 /**
  * Configuration for how a work block handles task types.
  *
- * Three kinds:
+ * Four kinds:
  * - BlockConfigKind.Single: Block accepts only one specific task type
  * - BlockConfigKind.Combo: Block accepts multiple types with ratio-based capacity allocation
+ * - BlockConfigKind.Any: Block accepts any task type — scheduled by priority/metrics only
  * - BlockConfigKind.System: Non-working block (blocked or sleep)
  */
 export type BlockTypeConfig =
   | { kind: BlockConfigKind.Single; typeId: string }
   | { kind: BlockConfigKind.Combo; allocations: TypeAllocation[] }
+  | { kind: BlockConfigKind.Any }
   | { kind: BlockConfigKind.System; systemType: WorkBlockType }
 
 // ============================================================================
@@ -359,6 +361,13 @@ export function isComboBlock(config: BlockTypeConfig): config is { kind: BlockCo
 }
 
 /**
+ * Check if a block type config is an any-type block (accepts all task types).
+ */
+export function isAnyBlock(config: BlockTypeConfig): config is { kind: BlockConfigKind.Any } {
+  return config.kind === BlockConfigKind.Any
+}
+
+/**
  * Get all type IDs referenced in a block type config.
  */
 export function getTypeIdsFromConfig(config: BlockTypeConfig): string[] {
@@ -368,6 +377,7 @@ export function getTypeIdsFromConfig(config: BlockTypeConfig): string[] {
   if (config.kind === BlockConfigKind.Combo) {
     return config.allocations.map((a) => a.typeId)
   }
+  // Any blocks accept all types — return empty (callers should check isAnyBlock separately)
   return []
 }
 
@@ -377,6 +387,10 @@ export function getTypeIdsFromConfig(config: BlockTypeConfig): string[] {
 export function isTypeCompatibleWithBlock(taskTypeId: string, config: BlockTypeConfig): boolean {
   if (config.kind === BlockConfigKind.System) {
     return false // System blocks don't accept tasks
+  }
+
+  if (config.kind === BlockConfigKind.Any) {
+    return true // Any blocks accept all task types
   }
 
   if (config.kind === BlockConfigKind.Single) {
@@ -397,6 +411,10 @@ export function isTypeCompatibleWithBlock(taskTypeId: string, config: BlockTypeC
 export function getTypeRatioInBlock(taskTypeId: string, config: BlockTypeConfig): number {
   if (config.kind === BlockConfigKind.System) {
     return 0
+  }
+
+  if (config.kind === BlockConfigKind.Any) {
+    return 1.0 // Any blocks give full capacity to all types
   }
 
   if (config.kind === BlockConfigKind.Single) {

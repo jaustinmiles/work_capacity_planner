@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { Card, Space, Typography, Tag, Empty, Timeline, Badge } from '@arco-design/web-react'
 import { IconClockCircle, IconCalendar, IconMoon } from '@arco-design/web-react/icon'
 import { DailyWorkPattern } from '@shared/work-blocks-types'
-import { isComboBlock, isSystemBlock } from '@shared/user-task-types'
+import { isComboBlock, isSystemBlock, isAnyBlock } from '@shared/user-task-types'
 import { logger } from '@/logger'
 
 // UI representation of a scheduled item - different from the adapter's ScheduledItem
@@ -183,7 +183,8 @@ export function DailyScheduleView({ date, scheduledItems, workPattern, style }: 
                   <Space>
                     {blockIcon}
                     <Text style={{ fontWeight: 500 }}>
-                      {isComboBlock(block.typeConfig) ? 'Combo Work Block' :
+                      {isAnyBlock(block.typeConfig) ? 'Any Task Block' :
+                       isComboBlock(block.typeConfig) ? 'Combo Work Block' :
                        isSystemBlock(block.typeConfig) ? 'System Block' :
                        'Work Block'}
                     </Text>

@@ -30,6 +30,9 @@ const blockTypeConfigSchema = z.discriminatedUnion('kind', [
     ),
   }),
   z.object({
+    kind: z.literal(BlockConfigKind.Any),
+  }),
+  z.object({
     kind: z.literal(BlockConfigKind.System),
     systemType: z.nativeEnum(WorkBlockType),
   }),

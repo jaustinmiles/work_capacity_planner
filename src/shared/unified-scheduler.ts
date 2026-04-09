@@ -30,6 +30,7 @@ import {
   isSystemBlock,
   isSingleTypeBlock,
   isComboBlock,
+  isAnyBlock,
   getTypeRatioInBlock,
 } from './user-task-types'
 import { WorkSettings } from './work-settings-types'
@@ -318,6 +319,7 @@ interface BlockScoreResult {
 const BLOCK_SCORING_WEIGHTS = {
   TYPE_MATCH_EXACT: 100,      // Single-type block matches task type exactly
   TYPE_MATCH_COMBO: 50,       // Combo block includes the task type
+  TYPE_MATCH_ANY: 30,         // Any-type block accepts all types (lower priority than typed blocks)
   CAN_FIT_ENTIRELY: 25,       // Task fits completely without splitting
   CAPACITY_AVAILABLE: 20,     // Scaled by remaining capacity percentage (0-20)
   COMBO_RATIO_BONUS: 15,      // Bonus when this type has ≥50% allocation in combo
@@ -1435,6 +1437,7 @@ export class UnifiedScheduler {
     }
 
     // Check type compatibility - type is guaranteed to exist at this point
+    // Any blocks accept all task types — skip type check
     // Single type blocks must match exactly
     if (isSingleTypeBlock(block.typeConfig) && block.typeConfig.typeId !== taskTypeId) {
       return { canFit: false, canPartiallyFit: false }
@@ -1447,6 +1450,8 @@ export class UnifiedScheduler {
         return { canFit: false, canPartiallyFit: false }
       }
     }
+
+    // Any blocks pass through — no type check needed (isAnyBlock implicitly allowed)
 
     // Calculate type-specific capacity for this block
     const totalCapacityForTaskType = taskTypeId
@@ -1599,6 +1604,12 @@ export class UnifiedScheduler {
             reasons.push(`High ratio in combo: ${(allocation.ratio * 100).toFixed(0)}%`)
           }
         }
+      } else if (isAnyBlock(block.typeConfig)) {
+        // Any blocks accept all types but score lower than typed blocks.
+        // This ensures tasks prefer their dedicated blocks when available,
+        // and only spill into Any blocks when dedicated capacity is full.
+        score += BLOCK_SCORING_WEIGHTS.TYPE_MATCH_ANY
+        reasons.push('Any-type block (accepts all types)')
       }
     }
 

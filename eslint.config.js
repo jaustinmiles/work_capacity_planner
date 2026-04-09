@@ -59,6 +59,10 @@ module.exports = [
         AudioBuffer: 'readonly',
         crypto: 'readonly',
         Crypto: 'readonly',
+        fetch: 'readonly',
+        AbortController: 'readonly',
+        AbortSignal: 'readonly',
+        TextDecoder: 'readonly',
       },
     },
     plugins: {

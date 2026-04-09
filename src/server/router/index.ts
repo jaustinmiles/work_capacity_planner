@@ -24,6 +24,7 @@ import { endeavorRouter } from './endeavor'
 import { deepWorkBoardRouter } from './deepWorkBoard'
 import { feedbackRouter } from './feedback'
 import { pomodoroRouter } from './pomodoro'
+import { agentRouter } from './agent'
 
 /**
  * Main application router
@@ -46,6 +47,7 @@ import { pomodoroRouter } from './pomodoro'
  * - endeavor: Higher-level goal grouping for workflows/tasks
  * - deepWorkBoard: Freeform whiteboard canvas for task creation and execution
  * - feedback: Development feedback (file-based, context/feedback.json)
+ * - agent: AI agent tool approval/rejection (chat endpoint is SSE, see agent-chat-handler)
  */
 export const appRouter = router({
   session: sessionRouter,
@@ -66,6 +68,7 @@ export const appRouter = router({
   deepWorkBoard: deepWorkBoardRouter,
   feedback: feedbackRouter,
   pomodoro: pomodoroRouter,
+  agent: agentRouter,
 })
 
 /**

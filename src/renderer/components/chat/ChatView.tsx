@@ -6,13 +6,20 @@
  */
 
 import React, { useRef, useEffect, useState, useCallback, useMemo } from 'react'
-import { Input, Button, Spin, Typography, Alert } from '@arco-design/web-react'
-import { IconSend, IconVoice, IconPause } from '@arco-design/web-react/icon'
+import { Input, Button, Spin, Typography, Alert, Switch } from '@arco-design/web-react'
+import { IconSend, IconVoice, IconPause, IconRobot } from '@arco-design/web-react/icon'
 import { useConversationStore, ConversationStatus } from '../../store/useConversationStore'
 import { ChatMessageRecord, AmendmentCard as AmendmentCardType } from '@shared/conversation-types'
-import { ChatMessageRole, ViewType } from '@shared/enums'
+import { ChatMessageRole, ViewType, ToolExecutionStatus } from '@shared/enums'
 import { AmendmentCard } from './AmendmentCard'
+import { ProposedActionCard } from './ProposedActionCard'
+import { ToolStatusIndicator } from './ToolStatusIndicator'
 import { sendChatMessage } from '../../services/brainstorm-chat-ai'
+import {
+  sendAgentMessage,
+  approveAgentAction,
+  rejectAgentAction,
+} from '../../services/agent-stream-handler'
 import { generatePreview } from '../../services/chat-response-parser'
 import { generateUniqueId } from '@shared/step-id-utils'
 import { AmendmentCard as AmendmentCardData } from '@shared/conversation-types'
@@ -68,6 +75,18 @@ export function ChatView({ onNavigateToView }: ChatViewProps): React.ReactElemen
     addAssistantMessage,
     setStatus,
     setError,
+    isAgentMode,
+    setAgentMode,
+    pendingActions,
+    activeToolStatuses,
+    addPendingAction,
+    removePendingAction,
+    appendStreamingContent,
+    setStreamingContent,
+    setActiveToolStatus,
+    clearActiveToolStatus,
+    clearAgentState,
+    activeConversationId,
   } = useConversationStore()
 
   const [inputValue, setInputValue] = useState('')
@@ -193,10 +212,104 @@ export function ChatView({ onNavigateToView }: ChatViewProps): React.ReactElemen
     setError,
   ])
 
+  // Agent mode send handler
+  // The SERVER handles all DB persistence for agent mode (user message + assistant message).
+  // The client only manages local UI state (streaming text, pending cards, tool indicators).
+  // On completion, we reload messages from DB to get canonical state.
+  const handleAgentSend = useCallback(async () => {
+    const content = inputValue.trim()
+    if (!isValidUserInput(content) || isSending || !activeConversationId) return
+
+    wasAtBottomRef.current = true
+    setInputValue('')
+    setStatus(ConversationStatus.Sending)
+    clearAgentState()
+
+    try {
+      // Add user message to LOCAL state only — server saves to DB
+      const { messages: currentMessages } = useConversationStore.getState()
+      useConversationStore.setState({
+        messages: [
+          ...currentMessages,
+          {
+            id: `pending-${Date.now()}` as any,
+            conversationId: activeConversationId,
+            role: ChatMessageRole.User,
+            content,
+            amendments: null,
+            createdAt: new Date(),
+          },
+        ],
+      })
+
+      // Start SSE connection to agent
+      setStreamingContent('')
+      const controller = sendAgentMessage(
+        content,
+        activeConversationId as string,
+        {
+          onTextDelta: (text) => {
+            appendStreamingContent(text)
+          },
+          onToolStatus: (event) => {
+            if (event.status === ToolExecutionStatus.Executing) {
+              setActiveToolStatus(event.toolCallId, event.toolName, event.label)
+            } else {
+              clearActiveToolStatus(event.toolCallId)
+            }
+          },
+          onProposedAction: (event) => {
+            addPendingAction(event)
+          },
+          onActionResult: (event) => {
+            removePendingAction(event.proposalId)
+          },
+          onDone: () => {
+            // Reload messages from DB to get canonical state
+            // (server saved both user + assistant messages)
+            const { selectConversation } = useConversationStore.getState()
+            selectConversation(activeConversationId)
+            clearAgentState()
+            setStatus(ConversationStatus.Idle)
+          },
+          onError: (message) => {
+            // Still reload — server may have partially saved
+            const { selectConversation } = useConversationStore.getState()
+            selectConversation(activeConversationId)
+            setError(message)
+            clearAgentState()
+          },
+        },
+      )
+
+      // Controller available for potential cancellation in future
+      void controller
+    } catch (error) {
+      setError(error instanceof Error ? error.message : 'Failed to send message')
+      clearAgentState()
+    }
+  }, [
+    inputValue,
+    isSending,
+    activeConversationId,
+    setStatus,
+    setError,
+    clearAgentState,
+    setStreamingContent,
+    appendStreamingContent,
+    setActiveToolStatus,
+    clearActiveToolStatus,
+    addPendingAction,
+    removePendingAction,
+  ])
+
+  // Route to appropriate send handler based on mode
+  const handleSendMessage = isAgentMode ? handleAgentSend : handleSend
+
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>): void => {
     if (shouldSendOnKeyDown(e.nativeEvent)) {
       e.preventDefault()
-      handleSend()
+      handleSendMessage()
     }
   }
 
@@ -209,6 +322,28 @@ export function ChatView({ onNavigateToView }: ChatViewProps): React.ReactElemen
         overflow: 'hidden',
       }}
     >
+      {/* Agent mode toggle */}
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'flex-end',
+          padding: '6px 16px',
+          borderBottom: '1px solid var(--color-border)',
+          gap: 8,
+          fontSize: 12,
+          color: 'var(--color-text-3)',
+        }}
+      >
+        <IconRobot style={{ fontSize: 14 }} />
+        <span>Agent</span>
+        <Switch
+          size="small"
+          checked={isAgentMode}
+          onChange={setAgentMode}
+        />
+      </div>
+
       {/* Messages */}
       <div
         ref={messagesContainerRef}
@@ -258,10 +393,34 @@ export function ChatView({ onNavigateToView }: ChatViewProps): React.ReactElemen
                   marginBottom: 12,
                 }}
               >
-                <Text>{streamingContent}</Text>
+                {isAgentMode ? (
+                  <MarkdownContent content={streamingContent} />
+                ) : (
+                  <Text>{streamingContent}</Text>
+                )}
                 <span className="streaming-cursor" />
               </div>
             )}
+
+            {/* Agent: tool status indicators */}
+            {isAgentMode && activeToolStatuses.length > 0 && (
+              <ToolStatusIndicator statuses={activeToolStatuses} />
+            )}
+
+            {/* Agent: pending action cards */}
+            {isAgentMode && pendingActions.map((action) => (
+              <div key={action.proposalId} style={{ marginBottom: 8 }}>
+                <ProposedActionCard
+                  action={action}
+                  onApprove={async (proposalId) => {
+                    await approveAgentAction(proposalId)
+                  }}
+                  onReject={async (proposalId) => {
+                    await rejectAgentAction(proposalId)
+                  }}
+                />
+              </div>
+            ))}
 
             <div ref={messagesEndRef} />
           </>
@@ -312,7 +471,7 @@ export function ChatView({ onNavigateToView }: ChatViewProps): React.ReactElemen
           <Button
             type="primary"
             icon={isSending ? <Spin size={16} /> : <IconSend />}
-            onClick={handleSend}
+            onClick={handleSendMessage}
             disabled={!inputValue.trim() || isSending || recordingState === 'recording'}
           />
         </div>
@@ -382,7 +541,7 @@ function MessageBubble({ message, onNavigateToView }: MessageBubbleProps): React
         )}
       </div>
 
-      {/* Amendment cards */}
+      {/* Amendment cards (legacy) or agent tool call summaries */}
       {message.amendments && Array.isArray(message.amendments) && message.amendments.length > 0 && (
         <div
           style={{
@@ -393,14 +552,21 @@ function MessageBubble({ message, onNavigateToView }: MessageBubbleProps): React
             gap: 8,
           }}
         >
-          {message.amendments.map((card) => (
-            <AmendmentCard
-              key={card.id}
-              card={card}
-              onApply={() => handleApplyAmendment(card)}
-              onSkip={() => handleSkipAmendment(card)}
-            />
-          ))}
+          {message.amendments.map((card, index) => {
+            // Guard: agent mode stores StoredToolCall objects (with toolName)
+            // instead of AmendmentCard objects (with amendment.type).
+            // Skip rendering StoredToolCalls — they were already shown during the stream.
+            if (!card.amendment) return null
+
+            return (
+              <AmendmentCard
+                key={card.id || `amendment-${index}`}
+                card={card}
+                onApply={() => handleApplyAmendment(card)}
+                onSkip={() => handleSkipAmendment(card)}
+              />
+            )
+          })}
         </div>
       )}
 

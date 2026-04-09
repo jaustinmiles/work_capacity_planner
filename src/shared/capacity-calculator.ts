@@ -11,6 +11,7 @@ import {
   isSystemBlock,
   isSingleTypeBlock,
   isComboBlock,
+  isAnyBlock,
 } from './user-task-types'
 import { calculateDuration } from './time-utils'
 
@@ -37,6 +38,10 @@ export function getCapacityForType(block: BlockCapacity, taskTypeId: string): nu
     return 0 // System blocks have no task capacity
   }
 
+  if (isAnyBlock(block.typeConfig)) {
+    return block.totalMinutes // Any blocks give full capacity to all types
+  }
+
   if (isSingleTypeBlock(block.typeConfig)) {
     return block.typeConfig.typeId === taskTypeId ? block.totalMinutes : 0
   }
@@ -59,6 +64,10 @@ export function getCapacityForType(block: BlockCapacity, taskTypeId: string): nu
 export function isTypeCompatibleWithBlock(block: BlockCapacity, taskTypeId: string): boolean {
   if (isSystemBlock(block.typeConfig)) {
     return false
+  }
+
+  if (isAnyBlock(block.typeConfig)) {
+    return true // Any blocks accept all task types
   }
 
   if (isSingleTypeBlock(block.typeConfig)) {

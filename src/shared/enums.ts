@@ -65,6 +65,7 @@ export enum WorkBlockType {
 export enum BlockConfigKind {
   Single = 'single',  // Block accepts only one specific task type
   Combo = 'combo',    // Block accepts multiple types with ratio-based capacity allocation
+  Any = 'any',        // Block accepts any task type — scheduled by priority/metrics only
   System = 'system',  // Non-working block (blocked or sleep)
 }
 
@@ -151,6 +152,38 @@ export enum AmendmentCardStatus {
   Pending = 'pending',
   Applied = 'applied',
   Skipped = 'skipped',
+}
+
+// Agent proposed action status (for ProposedActionCard states)
+export enum ProposedActionStatus {
+  Pending = 'pending',
+  Applying = 'applying',
+  Applied = 'applied',
+  Rejected = 'rejected',
+  Error = 'error',
+  Timeout = 'timeout',
+}
+
+// Agent approval decision (user response to a write tool proposal)
+export enum ApprovalDecision {
+  Approved = 'approved',
+  Rejected = 'rejected',
+  Timeout = 'timeout',
+}
+
+// Agent tool execution status (SSE event status for read tools)
+export enum ToolExecutionStatus {
+  Executing = 'executing',
+  Completed = 'completed',
+  Error = 'error',
+}
+
+// Agent action result status (SSE event status after write tool resolution)
+export enum ActionResultStatus {
+  Applied = 'applied',
+  Rejected = 'rejected',
+  Error = 'error',
+  Timeout = 'timeout',
 }
 
 // Entity types for amendments

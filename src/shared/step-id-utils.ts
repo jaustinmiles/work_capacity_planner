@@ -229,6 +229,118 @@ export function validateDependencies(
 }
 
 /**
+ * Resolve step dependencies from names/mixed references to valid step IDs.
+ *
+ * Used by server routers during workflow creation to ensure dependsOn
+ * always contains step IDs, never step names. This is the authoritative
+ * resolution point — called in task.create, workflow.addStep, etc.
+ *
+ * Resolution strategy per entry in dependsOn:
+ * 1. If it matches a step ID in the set → keep it
+ * 2. If it matches a step name (exact, case-insensitive, partial) → resolve to ID
+ * 3. If it matches "step N" or "Step N" → resolve by index
+ * 4. Otherwise → drop it with a warning
+ *
+ * @param steps - All steps being created, each must have id, name, and dependsOn
+ * @returns Same steps with dependsOn resolved to valid IDs
+ */
+export function resolveStepDependencies<T extends { id: string; name: string; dependsOn: string[] }>(
+  steps: T[],
+): T[] {
+  const idSet = new Set(steps.map(s => s.id))
+  const nameToId = new Map<string, string>()
+
+  // Build lookup maps
+  for (const step of steps) {
+    nameToId.set(step.name, step.id)
+    nameToId.set(step.name.toLowerCase(), step.id)
+  }
+
+  return steps.map(step => ({
+    ...step,
+    dependsOn: step.dependsOn
+      .map(dep => resolveOneDependency(dep, idSet, nameToId, steps))
+      .filter((id): id is string => id !== null),
+  }))
+}
+
+/**
+ * Resolve dependencies against a set of existing steps.
+ *
+ * Used by addStep and updateStep where the new step's dependencies
+ * reference siblings that already exist in the database.
+ *
+ * @param dependsOn - The dependency references to resolve (names, IDs, or mixed)
+ * @param existingSteps - The existing sibling steps (with id and name)
+ * @returns Array of resolved step IDs (unresolvable entries dropped)
+ */
+export function resolveDependenciesAgainstExisting(
+  dependsOn: string[],
+  existingSteps: Array<{ id: string; name: string }>,
+): string[] {
+  const idSet = new Set(existingSteps.map(s => s.id))
+  const nameToId = new Map<string, string>()
+
+  for (const step of existingSteps) {
+    nameToId.set(step.name, step.id)
+    nameToId.set(step.name.toLowerCase(), step.id)
+  }
+
+  return dependsOn
+    .map(dep => resolveOneDependency(dep, idSet, nameToId, existingSteps))
+    .filter((id): id is string => id !== null)
+}
+
+/**
+ * Resolve a single dependency reference to a step ID.
+ * Shared logic used by both resolveStepDependencies and resolveDependenciesAgainstExisting.
+ */
+function resolveOneDependency(
+  dep: string,
+  validIds: Set<string>,
+  nameToId: Map<string, string>,
+  steps: Array<{ id: string; name: string }>,
+): string | null {
+  // 1. Already a valid step ID
+  if (validIds.has(dep)) {
+    return dep
+  }
+
+  // 2. Exact name match
+  const exactMatch = nameToId.get(dep)
+  if (exactMatch) return exactMatch
+
+  // 3. Case-insensitive name match
+  const ciMatch = nameToId.get(dep.toLowerCase())
+  if (ciMatch) return ciMatch
+
+  // 4. "step N" or "Step N" reference (1-based)
+  const stepNumMatch = dep.match(/^(?:step|Step)\s+(\d+)$/i)
+  if (stepNumMatch?.[1]) {
+    const idx = parseInt(stepNumMatch[1], 10) - 1
+    const matchedStep = steps[idx]
+    if (idx >= 0 && matchedStep) {
+      return matchedStep.id
+    }
+  }
+
+  // 5. Partial match — step name contained in dep or dep contained in step name
+  for (const [name, id] of nameToId.entries()) {
+    if (dep.includes(name) || name.includes(dep)) {
+      return id
+    }
+  }
+
+  // 6. Unresolvable — drop it
+  logger.system.warn(`Could not resolve dependency "${dep}" to a step ID — dropping`, {
+    dependency: dep,
+    availableSteps: steps.map(s => ({ id: s.id, name: s.name })),
+  }, 'dependency-resolve-dropped')
+
+  return null
+}
+
+/**
  * Fix broken dependencies by removing invalid references
  */
 export function fixBrokenDependencies(
