@@ -31,6 +31,8 @@ import { EndeavorList } from './components/endeavors/EndeavorList'
 import { EndeavorDetail } from './components/endeavors/EndeavorDetail'
 import { EndeavorGraphView } from './components/endeavors/graph/EndeavorGraphView'
 import { DeepWorkBoardView } from './components/deep-work/DeepWorkBoardView'
+import { TimerTab } from './components/timers/TimerTab'
+import { useTimerStore } from './store/useTimerStore'
 import { DevTools } from './components/dev/DevTools'
 import { TimeSinkManager } from './components/time-sinks/TimeSinkManager'
 import { TimeSinkLogger } from './components/time-sinks/TimeSinkLogger'
@@ -89,6 +91,9 @@ function AppContent() {
 
         // Initialize user task types (needed for task type display)
         await useUserTaskTypeStore.getState().loadTypes()
+
+        // Initialize timers (loads active timers, catches up expired ones)
+        await useTimerStore.getState().initialize()
 
         logger.system.info('All stores initialized successfully', {}, 'app-init')
       } catch (error) {
@@ -641,6 +646,15 @@ function AppContent() {
                   }
                 />
                 <Tabs.TabPane
+                  key={ViewType.Timers}
+                  title={
+                    <Space>
+                      <IconClockCircle />
+                      {!isMobile && <span>Timers</span>}
+                    </Space>
+                  }
+                />
+                <Tabs.TabPane
                   key={ViewType.Calendar}
                   title={
                     <Space>
@@ -762,6 +776,12 @@ function AppContent() {
                     {activeView === ViewType.DeepWork && (
                       <ErrorBoundary>
                         <DeepWorkBoardView />
+                      </ErrorBoundary>
+                    )}
+
+                    {activeView === ViewType.Timers && (
+                      <ErrorBoundary>
+                        <TimerTab />
                       </ErrorBoundary>
                     )}
 

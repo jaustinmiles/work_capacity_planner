@@ -356,10 +356,10 @@ export const taskRouter = router({
     .mutation(async ({ ctx, input }) => {
       const now = getCurrentTime()
 
-      // Fetch the task first to check asyncWaitTime
+      // Fetch the task first to check asyncWaitTime and name
       const existing = await ctx.prisma.task.findUnique({
         where: { id: input.id },
-        select: { asyncWaitTime: true },
+        select: { asyncWaitTime: true, name: true, sessionId: true },
       })
 
       // Route through the completion processor to handle async wait times
@@ -383,6 +383,26 @@ export const taskRouter = router({
         },
         include: { TaskStep: { orderBy: { stepIndex: 'asc' } } },
       })
+
+      // Auto-create timer if task enters waiting state
+      if (completionResult.shouldStartTimer && existing?.sessionId) {
+        const { createTimerExpiresAt } = await import('../../shared/timer-types')
+        await ctx.prisma.timer.create({
+          data: {
+            id: generateUniqueId('timer'),
+            sessionId: existing.sessionId,
+            name: `Wait: ${existing.name ?? 'Task'}`,
+            status: 'active',
+            originalDurationMinutes: completionResult.asyncWaitMinutes,
+            startedAt: now,
+            expiresAt: createTimerExpiresAt(now, completionResult.asyncWaitMinutes),
+            linkedTaskId: input.id,
+            createdAt: now,
+            updatedAt: now,
+          },
+        })
+      }
+
       return formatTask(task)
     }),
 

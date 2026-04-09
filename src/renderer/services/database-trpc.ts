@@ -1591,6 +1591,54 @@ export class TrpcDatabaseService {
   async getPomodoroCycleWithSessions(cycleId: string): Promise<Record<string, unknown> | null> {
     return this.client.pomodoro.getCycleWithSessions.query({ cycleId })
   }
+
+  // ===========================================================================
+  // Timers
+  // ===========================================================================
+
+  async createTimer(input: {
+    name: string
+    durationMinutes: number
+    linkedTaskId?: string
+    linkedStepId?: string
+  }): Promise<Record<string, unknown>> {
+    return this.client.timer.create.mutate(input) as Promise<Record<string, unknown>>
+  }
+
+  async getActiveTimers(): Promise<Record<string, unknown>[]> {
+    return this.client.timer.getActive.query() as Promise<Record<string, unknown>[]>
+  }
+
+  async getAllTimers(input?: {
+    statuses?: string[]
+    limit?: number
+  }): Promise<Record<string, unknown>[]> {
+    return this.client.timer.getAll.query(input as Parameters<typeof this.client.timer.getAll.query>[0]) as Promise<Record<string, unknown>[]>
+  }
+
+  async extendTimer(timerId: string, addMinutes: number): Promise<Record<string, unknown>> {
+    return this.client.timer.extend.mutate({ timerId, addMinutes }) as Promise<Record<string, unknown>>
+  }
+
+  async pauseTimer(timerId: string): Promise<Record<string, unknown>> {
+    return this.client.timer.pause.mutate({ timerId }) as Promise<Record<string, unknown>>
+  }
+
+  async resumeTimer(timerId: string): Promise<Record<string, unknown>> {
+    return this.client.timer.resume.mutate({ timerId }) as Promise<Record<string, unknown>>
+  }
+
+  async dismissTimer(timerId: string): Promise<Record<string, unknown>> {
+    return this.client.timer.dismiss.mutate({ timerId }) as Promise<Record<string, unknown>>
+  }
+
+  async cancelTimer(timerId: string): Promise<Record<string, unknown>> {
+    return this.client.timer.cancel.mutate({ timerId }) as Promise<Record<string, unknown>>
+  }
+
+  async expireTimer(timerId: string): Promise<Record<string, unknown>> {
+    return this.client.timer.expire.mutate({ timerId }) as Promise<Record<string, unknown>>
+  }
 }
 
 /**

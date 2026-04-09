@@ -134,6 +134,7 @@ model Session {
   DeepWorkBoard         DeepWorkBoard[]
   PomodoroSettings      PomodoroSettings?
   PomodoroCycles        PomodoroCycle[]
+  Timer                 Timer[]
 }
 
 // Schedule Snapshot - Captures schedule state at a point in time
@@ -239,6 +240,7 @@ model Task {
   WorkSession          WorkSession[]
   TaskStep             TaskStep[]      @relation("TaskSteps")
   EndeavorItem         EndeavorItem[]  // Endeavors this task belongs to
+  Timer                Timer[]         // Timers linked to this task
 }
 
 model TaskStep {
@@ -625,4 +627,35 @@ model PomodoroCycle {
   @@index([sessionId])
   @@index([startTime])
   @@index([status])
+}
+
+// Timer - First-class countdown timer
+// Session-scoped, can be linked to a Task or TaskStep (auto-created on async completion)
+// or standalone (user-created for arbitrary countdowns like laundry, deliveries, etc.)
+// Timer state uses absolute timestamps — client derives remaining time from expiresAt - now
+model Timer {
+  id                      String    @id
+  sessionId               String
+  name                    String                        // Display name (e.g., "Wait for API response", "Laundry")
+  status                  String    @default("active")  // TimerStatus: active, paused, expired, dismissed, cancelled
+  originalDurationMinutes Int                           // Original duration as configured
+  extendedByMinutes       Int       @default(0)         // Total minutes added via extend operations
+  startedAt               DateTime                      // When the timer was first started
+  expiresAt               DateTime                      // Absolute expiration time (startedAt + duration + extensions)
+  pausedAt                DateTime?                     // When timer was paused (null if not paused)
+  pausedRemainingMs       Int?                          // Milliseconds remaining when paused (to resume accurately)
+  expiredAt               DateTime?                     // When the timer actually expired
+  dismissedAt             DateTime?                     // When user dismissed the expired notification
+  linkedTaskId            String?                       // Optional: task this timer is for
+  linkedStepId            String?                       // Optional: step this timer is for
+  createdAt               DateTime  @default(now())
+  updatedAt               DateTime  @default(now())
+  Session                 Session   @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  Task                    Task?     @relation(fields: [linkedTaskId], references: [id], onDelete: SetNull)
+
+  @@index([sessionId])
+  @@index([status])
+  @@index([expiresAt])
+  @@index([linkedTaskId])
+  @@index([linkedStepId])
 }

@@ -115,3 +115,13 @@ export const POMODORO_DEFAULTS = {
   CYCLES_BEFORE_LONG_BREAK: 4,
   TIMER_TICK_INTERVAL_MS: 1000,
 } as const
+
+/**
+ * Timer defaults for the native countdown timer system
+ */
+export const TIMER_DEFAULTS = {
+  /** Tick interval for active timers */
+  TICK_INTERVAL_MS: 1000,
+  /** Threshold below which "expiring soon" styling applies */
+  EXPIRING_SOON_MINUTES: 5,
+} as const
