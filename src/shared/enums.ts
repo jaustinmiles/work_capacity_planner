@@ -164,6 +164,15 @@ export enum ProposedActionStatus {
   Timeout = 'timeout',
 }
 
+// Timer status — lifecycle of a countdown timer
+export enum TimerStatus {
+  Active = 'active',
+  Paused = 'paused',
+  Expired = 'expired',
+  Dismissed = 'dismissed',
+  Cancelled = 'cancelled',
+}
+
 // Agent approval decision (user response to a write tool proposal)
 export enum ApprovalDecision {
   Approved = 'approved',
@@ -245,6 +254,7 @@ export enum ViewType {
   Sprint = 'sprint',
   Endeavors = 'endeavors',
   DeepWork = 'deepWork',
+  Timers = 'timers',
 }
 
 // Sprint filter modes for task list views

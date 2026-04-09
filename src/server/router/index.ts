@@ -25,6 +25,7 @@ import { deepWorkBoardRouter } from './deepWorkBoard'
 import { feedbackRouter } from './feedback'
 import { pomodoroRouter } from './pomodoro'
 import { agentRouter } from './agent'
+import { timerRouter } from './timer'
 
 /**
  * Main application router
@@ -69,6 +70,7 @@ export const appRouter = router({
   feedback: feedbackRouter,
   pomodoro: pomodoroRouter,
   agent: agentRouter,
+  timer: timerRouter,
 })
 
 /**
