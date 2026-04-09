@@ -5,6 +5,8 @@
  * Used by both server (agent loop) and renderer (stream handler, UI).
  */
 
+import type { ToolExecutionStatus, ActionResultStatus } from './enums'
+
 // ============================================================================
 // SSE Event Types — server emits these, client consumes them
 // ============================================================================
@@ -24,7 +26,7 @@ export interface AgentToolStatusEvent {
   type: 'tool_status'
   toolName: string
   toolCallId: string
-  status: 'executing' | 'completed' | 'error'
+  status: ToolExecutionStatus
   /** Human-readable label like "Checking your tasks..." */
   label: string
   /** Duration in ms (set on 'completed' status) */
@@ -48,7 +50,7 @@ export interface AgentProposedActionEvent {
 export interface AgentActionResultEvent {
   type: 'action_result'
   proposalId: string
-  status: 'applied' | 'rejected' | 'error' | 'timeout'
+  status: ActionResultStatus
   /** Result data from the executed tool (on 'applied') */
   result?: unknown
   /** Error message (on 'error') */

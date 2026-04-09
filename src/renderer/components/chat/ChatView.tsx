@@ -10,7 +10,7 @@ import { Input, Button, Spin, Typography, Alert, Switch } from '@arco-design/web
 import { IconSend, IconVoice, IconPause, IconRobot } from '@arco-design/web-react/icon'
 import { useConversationStore, ConversationStatus } from '../../store/useConversationStore'
 import { ChatMessageRecord, AmendmentCard as AmendmentCardType } from '@shared/conversation-types'
-import { ChatMessageRole, ViewType } from '@shared/enums'
+import { ChatMessageRole, ViewType, ToolExecutionStatus } from '@shared/enums'
 import { AmendmentCard } from './AmendmentCard'
 import { ProposedActionCard } from './ProposedActionCard'
 import { ToolStatusIndicator } from './ToolStatusIndicator'
@@ -252,7 +252,7 @@ export function ChatView({ onNavigateToView }: ChatViewProps): React.ReactElemen
             appendStreamingContent(text)
           },
           onToolStatus: (event) => {
-            if (event.status === 'executing') {
+            if (event.status === ToolExecutionStatus.Executing) {
               setActiveToolStatus(event.toolCallId, event.toolName, event.label)
             } else {
               clearActiveToolStatus(event.toolCallId)

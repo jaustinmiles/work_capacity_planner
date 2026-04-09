@@ -8,6 +8,7 @@
 
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { pendingApprovals, resolveApproval } from '../agent-loop'
+import { ApprovalDecision } from '../../../shared/enums'
 
 describe('agent loop approval mechanism', () => {
   beforeEach(() => {
@@ -15,7 +16,7 @@ describe('agent loop approval mechanism', () => {
   })
 
   describe('resolveApproval', () => {
-    it('should resolve a pending approval with "approved"', () => {
+    it('should resolve a pending approval with Approved', () => {
       const mockResolve = vi.fn()
       pendingApprovals.set('proposal-1', {
         resolve: mockResolve,
@@ -24,14 +25,14 @@ describe('agent loop approval mechanism', () => {
         createdAt: Date.now(),
       })
 
-      const result = resolveApproval('proposal-1', 'approved')
+      const result = resolveApproval('proposal-1', ApprovalDecision.Approved)
 
       expect(result).toBe(true)
-      expect(mockResolve).toHaveBeenCalledWith('approved')
+      expect(mockResolve).toHaveBeenCalledWith(ApprovalDecision.Approved)
       expect(pendingApprovals.has('proposal-1')).toBe(false)
     })
 
-    it('should resolve a pending approval with "rejected"', () => {
+    it('should resolve a pending approval with Rejected', () => {
       const mockResolve = vi.fn()
       pendingApprovals.set('proposal-2', {
         resolve: mockResolve,
@@ -40,15 +41,15 @@ describe('agent loop approval mechanism', () => {
         createdAt: Date.now(),
       })
 
-      const result = resolveApproval('proposal-2', 'rejected')
+      const result = resolveApproval('proposal-2', ApprovalDecision.Rejected)
 
       expect(result).toBe(true)
-      expect(mockResolve).toHaveBeenCalledWith('rejected')
+      expect(mockResolve).toHaveBeenCalledWith(ApprovalDecision.Rejected)
       expect(pendingApprovals.has('proposal-2')).toBe(false)
     })
 
     it('should return false for unknown proposal IDs', () => {
-      const result = resolveApproval('nonexistent', 'approved')
+      const result = resolveApproval('nonexistent', ApprovalDecision.Approved)
       expect(result).toBe(false)
     })
 
@@ -61,12 +62,12 @@ describe('agent loop approval mechanism', () => {
         createdAt: Date.now(),
       })
 
-      resolveApproval('proposal-3', 'approved')
-      const secondResult = resolveApproval('proposal-3', 'rejected')
+      resolveApproval('proposal-3', ApprovalDecision.Approved)
+      const secondResult = resolveApproval('proposal-3', ApprovalDecision.Rejected)
 
       expect(secondResult).toBe(false)
       expect(mockResolve).toHaveBeenCalledTimes(1)
-      expect(mockResolve).toHaveBeenCalledWith('approved')
+      expect(mockResolve).toHaveBeenCalledWith(ApprovalDecision.Approved)
     })
   })
 
@@ -87,10 +88,10 @@ describe('agent loop approval mechanism', () => {
 
       expect(pendingApprovals.size).toBe(2)
 
-      resolveApproval('p1', 'approved')
+      resolveApproval('p1', ApprovalDecision.Approved)
       expect(pendingApprovals.size).toBe(1)
 
-      resolveApproval('p2', 'rejected')
+      resolveApproval('p2', ApprovalDecision.Rejected)
       expect(pendingApprovals.size).toBe(0)
     })
   })

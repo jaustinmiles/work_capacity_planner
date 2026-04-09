@@ -10,14 +10,22 @@
 
 import type { ActionPreview } from '../../shared/agent-types'
 
+/** Map from entity ID to display name */
+export type EntityNameMap = Map<string, string>
+
 /**
- * Optional context for resolving entity IDs to display names.
- * Populated by the agent loop before generating previews.
+ * Context for resolving entity IDs to display names in action previews.
+ * Populated by the agent loop via DB lookups before generating previews.
+ *
+ * Each map is ID → display name (e.g., "task-abc123" → "Review Q4 numbers").
  */
 export interface PreviewEntityContext {
-  taskNames?: Map<string, string>
-  endeavorNames?: Map<string, string>
-  typeNames?: Map<string, string>
+  /** Task/workflow ID → name */
+  taskNames: EntityNameMap
+  /** Endeavor ID → name */
+  endeavorNames: EntityNameMap
+  /** UserTaskType ID → name */
+  typeNames: EntityNameMap
 }
 
 /**

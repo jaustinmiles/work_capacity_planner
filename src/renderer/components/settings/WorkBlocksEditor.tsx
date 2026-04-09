@@ -31,6 +31,7 @@ import {
   isSingleTypeBlock,
   isComboBlock,
   isSystemBlock,
+  isAnyBlock,
   AccumulatedTimeByType,
 } from '@shared/user-task-types'
 import { WorkBlockType, BlockConfigKind, MeetingType } from '@shared/enums'
@@ -472,13 +473,16 @@ export function WorkBlocksEditor({
                     <Select
                       value={
                         isSystemBlock(block.typeConfig) ? 'system' :
+                        isAnyBlock(block.typeConfig) ? 'any' :
                         isComboBlock(block.typeConfig) ? 'combo' :
                         isSingleTypeBlock(block.typeConfig) ? block.typeConfig.typeId :
                         userTaskTypes[0]?.id ?? 'unknown'
                       }
                       onChange={(value) => {
                         let newTypeConfig: BlockTypeConfig
-                        if (value === 'combo') {
+                        if (value === 'any') {
+                          newTypeConfig = { kind: BlockConfigKind.Any }
+                        } else if (value === 'combo') {
                           // Combo block - use first two types if available
                           const firstType = userTaskTypes[0]?.id ?? 'focused'
                           const secondType = userTaskTypes[1]?.id ?? userTaskTypes[0]?.id ?? 'admin'
@@ -509,6 +513,7 @@ export function WorkBlocksEditor({
                         </Select.Option>
                       ))}
                       {/* Special options */}
+                      <Select.Option value="any">📋 Any Task</Select.Option>
                       {userTaskTypes.length >= 2 && (
                         <Select.Option value="combo">🔀 Combo</Select.Option>
                       )}
@@ -528,6 +533,10 @@ export function WorkBlocksEditor({
                           }).join(' / ')}
                         </Text>
                       </Space>
+                    ) : isAnyBlock(block.typeConfig) ? (
+                      <Text type="secondary" style={{ fontSize: 11 }}>
+                        {block.capacity?.totalMinutes || 0} mins — any task type
+                      </Text>
                     ) : isSystemBlock(block.typeConfig) ? (
                       <Text type="secondary">
                         Blocked time

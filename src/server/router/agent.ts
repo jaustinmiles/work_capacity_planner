@@ -9,6 +9,7 @@
 import { z } from 'zod'
 import { router, protectedProcedure } from '../trpc'
 import { resolveApproval } from '../agent/agent-loop'
+import { ApprovalDecision } from '../../shared/enums'
 
 export const agentRouter = router({
   /**
@@ -18,7 +19,7 @@ export const agentRouter = router({
   approveAction: protectedProcedure
     .input(z.object({ proposalId: z.string() }))
     .mutation(({ input }) => {
-      const resolved = resolveApproval(input.proposalId, 'approved')
+      const resolved = resolveApproval(input.proposalId, ApprovalDecision.Approved)
       return { resolved }
     }),
 
@@ -29,7 +30,7 @@ export const agentRouter = router({
   rejectAction: protectedProcedure
     .input(z.object({ proposalId: z.string() }))
     .mutation(({ input }) => {
-      const resolved = resolveApproval(input.proposalId, 'rejected')
+      const resolved = resolveApproval(input.proposalId, ApprovalDecision.Rejected)
       return { resolved }
     }),
 })

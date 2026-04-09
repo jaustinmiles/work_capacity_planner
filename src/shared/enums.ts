@@ -164,6 +164,28 @@ export enum ProposedActionStatus {
   Timeout = 'timeout',
 }
 
+// Agent approval decision (user response to a write tool proposal)
+export enum ApprovalDecision {
+  Approved = 'approved',
+  Rejected = 'rejected',
+  Timeout = 'timeout',
+}
+
+// Agent tool execution status (SSE event status for read tools)
+export enum ToolExecutionStatus {
+  Executing = 'executing',
+  Completed = 'completed',
+  Error = 'error',
+}
+
+// Agent action result status (SSE event status after write tool resolution)
+export enum ActionResultStatus {
+  Applied = 'applied',
+  Rejected = 'rejected',
+  Error = 'error',
+  Timeout = 'timeout',
+}
+
 // Entity types for amendments
 export enum EntityType {
   Task = 'task',

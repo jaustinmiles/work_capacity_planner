@@ -15,10 +15,15 @@ import Anthropic from '@anthropic-ai/sdk'
 import type { Context } from '../trpc'
 import { getAIService } from '../../shared/ai-service'
 import type { AgentSSEEvent, StoredToolCall } from '../../shared/agent-types'
+import {
+  ApprovalDecision,
+  ToolExecutionStatus,
+  ActionResultStatus,
+} from '../../shared/enums'
 import { ALL_TOOLS, READ_TOOL_NAMES, TOOL_REGISTRY } from './tool-definitions'
 import { createToolExecutor } from './tool-executors'
 import { buildAgentSystemPrompt, AgentSessionInfo } from './agent-context'
-import { generateActionPreview, PreviewEntityContext } from './action-previews'
+import { generateActionPreview, PreviewEntityContext, EntityNameMap } from './action-previews'
 import { prisma } from '../prisma'
 import { generateUniqueId } from '../../shared/step-id-utils'
 import { logger } from '../../logger'
@@ -35,7 +40,7 @@ const APPROVAL_TIMEOUT_MS = 5 * 60 * 1000 // 5 minutes
  * resolves it when the user approves or rejects.
  */
 export interface PendingApproval {
-  resolve: (decision: 'approved' | 'rejected') => void
+  resolve: (decision: ApprovalDecision.Approved | ApprovalDecision.Rejected) => void
   toolName: string
   toolInput: Record<string, unknown>
   createdAt: number
@@ -135,7 +140,7 @@ export async function runAgentLoop(options: AgentLoopOptions): Promise<AgentLoop
             type: 'tool_status',
             toolName,
             toolCallId,
-            status: 'executing',
+            status: ToolExecutionStatus.Executing,
             label: registration?.statusLabel ?? `Running ${toolName}...`,
           })
 
@@ -147,7 +152,7 @@ export async function runAgentLoop(options: AgentLoopOptions): Promise<AgentLoop
             type: 'tool_status',
             toolName,
             toolCallId,
-            status: result.success ? 'completed' : 'error',
+            status: result.success ? ToolExecutionStatus.Completed : ToolExecutionStatus.Error,
             label: registration?.statusLabel ?? toolName,
             durationMs,
           })
@@ -188,14 +193,14 @@ export async function runAgentLoop(options: AgentLoopOptions): Promise<AgentLoop
           // Wait for user decision
           const decision = await waitForApproval(proposalId, toolName, toolInput)
 
-          if (decision === 'approved') {
+          if (decision === ApprovalDecision.Approved) {
             // Execute the write tool
             const result = await toolExecutor.execute(toolName, toolInput)
 
             onEvent({
               type: 'action_result',
               proposalId,
-              status: result.success ? 'applied' : 'error',
+              status: result.success ? ActionResultStatus.Applied : ActionResultStatus.Error,
               result: result.success ? result.data : undefined,
               error: result.error,
             })
@@ -205,7 +210,7 @@ export async function runAgentLoop(options: AgentLoopOptions): Promise<AgentLoop
               toolName,
               toolInput,
               category: 'write',
-              approvalStatus: 'approved',
+              approvalStatus: ApprovalDecision.Approved,
               result: result.success ? result.data : undefined,
               error: result.error,
             })
@@ -220,10 +225,13 @@ export async function runAgentLoop(options: AgentLoopOptions): Promise<AgentLoop
             })
           } else {
             // User rejected or timeout
+            const resultStatus = decision === ApprovalDecision.Rejected
+              ? ActionResultStatus.Rejected
+              : ActionResultStatus.Timeout
             onEvent({
               type: 'action_result',
               proposalId,
-              status: decision === 'rejected' ? 'rejected' : 'timeout',
+              status: resultStatus,
             })
 
             storedToolCalls.push({
@@ -239,7 +247,7 @@ export async function runAgentLoop(options: AgentLoopOptions): Promise<AgentLoop
               tool_use_id: toolCallId,
               content: JSON.stringify({
                 skipped: true,
-                reason: decision === 'rejected'
+                reason: decision === ApprovalDecision.Rejected
                   ? 'User chose to skip this action.'
                   : 'User did not respond in time.',
               }),
@@ -305,27 +313,34 @@ export async function runAgentLoop(options: AgentLoopOptions): Promise<AgentLoop
   }
 }
 
+/** Known input field names that reference task/workflow IDs */
+const TASK_ID_FIELDS = new Set(['id', 'taskId', 'workflowId'])
+
+/** Known input field names that reference endeavor IDs */
+const ENDEAVOR_ID_FIELDS = new Set(['endeavorId'])
+
 /**
  * Build entity context for preview generation by looking up
  * names for any IDs referenced in the tool input.
+ *
+ * Extracts entity IDs from known fields, batch-queries the DB,
+ * and returns typed maps from ID → display name.
  */
 async function buildEntityContext(
   toolInput: Record<string, unknown>,
 ): Promise<PreviewEntityContext> {
-  const context: PreviewEntityContext = {
-    taskNames: new Map(),
-    endeavorNames: new Map(),
-    typeNames: new Map(),
-  }
+  const taskNames: EntityNameMap = new Map()
+  const endeavorNames: EntityNameMap = new Map()
+  const typeNames: EntityNameMap = new Map()
 
-  // Collect IDs that need resolution
+  // Collect IDs that need resolution from known field names
   const taskIds: string[] = []
   const endeavorIds: string[] = []
 
   for (const [key, value] of Object.entries(toolInput)) {
     if (typeof value !== 'string') continue
-    if (key === 'id' || key === 'taskId' || key === 'workflowId') taskIds.push(value)
-    if (key === 'endeavorId') endeavorIds.push(value)
+    if (TASK_ID_FIELDS.has(key)) taskIds.push(value)
+    if (ENDEAVOR_ID_FIELDS.has(key)) endeavorIds.push(value)
   }
 
   // Batch lookup tasks
@@ -335,7 +350,7 @@ async function buildEntityContext(
       select: { id: true, name: true },
     })
     for (const t of tasks) {
-      context.taskNames!.set(t.id, t.name)
+      taskNames.set(t.id, t.name)
     }
   }
 
@@ -346,34 +361,33 @@ async function buildEntityContext(
       select: { id: true, name: true },
     })
     for (const e of endeavors) {
-      context.endeavorNames!.set(e.id, e.name)
+      endeavorNames.set(e.id, e.name)
     }
   }
 
-  // Lookup task types (small table, just load all)
+  // Lookup task types (small table, load all for broad coverage)
   const types = await prisma.userTaskType.findMany({
     select: { id: true, name: true },
   })
   for (const t of types) {
-    context.typeNames!.set(t.id, t.name)
+    typeNames.set(t.id, t.name)
   }
 
-  return context
+  return { taskNames, endeavorNames, typeNames }
 }
 
 /**
  * Wait for a user approval decision on a write tool proposal.
- * Returns 'approved', 'rejected', or 'timeout'.
  */
 function waitForApproval(
   proposalId: string,
   toolName: string,
   toolInput: Record<string, unknown>,
-): Promise<'approved' | 'rejected' | 'timeout'> {
-  return new Promise<'approved' | 'rejected' | 'timeout'>((resolve) => {
+): Promise<ApprovalDecision> {
+  return new Promise<ApprovalDecision>((resolve) => {
     // Register the pending approval
     pendingApprovals.set(proposalId, {
-      resolve: (decision: 'approved' | 'rejected') => resolve(decision),
+      resolve: (decision) => resolve(decision),
       toolName,
       toolInput,
       createdAt: Date.now(),
@@ -383,7 +397,7 @@ function waitForApproval(
     setTimeout(() => {
       if (pendingApprovals.has(proposalId)) {
         pendingApprovals.delete(proposalId)
-        resolve('timeout')
+        resolve(ApprovalDecision.Timeout)
       }
     }, APPROVAL_TIMEOUT_MS)
   })
@@ -393,7 +407,10 @@ function waitForApproval(
  * Resolve a pending approval — called by the agent router when
  * the user clicks Apply or Skip on a ProposedActionCard.
  */
-export function resolveApproval(proposalId: string, decision: 'approved' | 'rejected'): boolean {
+export function resolveApproval(
+  proposalId: string,
+  decision: ApprovalDecision.Approved | ApprovalDecision.Rejected,
+): boolean {
   const pending = pendingApprovals.get(proposalId)
   if (pending) {
     pending.resolve(decision)
