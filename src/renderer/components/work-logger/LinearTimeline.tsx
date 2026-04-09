@@ -124,6 +124,8 @@ function getBlockColor(block: WorkBlock, userTypes: UserTaskType[]): string {
     return getTypeColor(userTypes, typeConfig.typeId)
   } else if (typeConfig.kind === BlockConfigKind.Combo) {
     return '#722ED1' // Purple for combo blocks
+  } else if (typeConfig.kind === BlockConfigKind.Any) {
+    return '#3491FA' // Blue for any-type blocks
   } else {
     // System blocks (sleep, blocked)
     return typeConfig.systemType === WorkBlockType.Sleep ? '#86909c' : '#F53F3F'
@@ -842,6 +844,8 @@ export function LinearTimeline({
               blockTypeName = userType ? `${userType.emoji} ${userType.name}` : 'Unknown Type'
             } else if (typeConfig.kind === BlockConfigKind.Combo) {
               blockTypeName = '🎨 Combo Block'
+            } else if (typeConfig.kind === BlockConfigKind.Any) {
+              blockTypeName = '📋 Any Task'
             } else if (typeConfig.systemType === WorkBlockType.Sleep) {
               blockTypeName = '😴 Sleep'
             } else {

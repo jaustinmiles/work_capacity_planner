@@ -17,16 +17,16 @@ import {
 
 describe('agent tool definitions', () => {
   describe('tool counts', () => {
-    it('should have 9 read tools', () => {
-      expect(READ_TOOLS).toHaveLength(9)
+    it('should have 10 read tools', () => {
+      expect(READ_TOOLS).toHaveLength(10)
     })
 
     it('should have 12 write tools', () => {
       expect(WRITE_TOOLS).toHaveLength(12)
     })
 
-    it('should have 21 total tools', () => {
-      expect(ALL_TOOLS).toHaveLength(21)
+    it('should have 22 total tools', () => {
+      expect(ALL_TOOLS).toHaveLength(22)
     })
 
     it('should have ALL_TOOLS = READ + WRITE with no overlap', () => {

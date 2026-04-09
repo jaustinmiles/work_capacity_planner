@@ -140,6 +140,22 @@ const getTaskTypesTool: Anthropic.Tool = {
   },
 }
 
+const getFullScheduleTool: Anthropic.Tool = {
+  name: 'get_full_schedule',
+  description:
+    'Get the complete scheduled timeline for a date, as computed by the scheduling engine. Returns all scheduled items (tasks, workflow steps, meetings, breaks) with their assigned time slots, plus any unscheduled items that did not fit. Use this to understand the full picture of what the user\'s day looks like and identify gaps or overcommitments.',
+  input_schema: {
+    type: 'object' as const,
+    properties: {
+      date: {
+        type: 'string',
+        description: 'Date in YYYY-MM-DD format. Defaults to today if omitted.',
+      },
+    },
+    required: [],
+  },
+}
+
 const getTimeSummaryTool: Anthropic.Tool = {
   name: 'get_time_summary',
   description:
@@ -410,12 +426,12 @@ const createScheduleTool: Anthropic.Tool = {
             endTime: { type: 'string', description: 'Block end in HH:MM format.' },
             typeConfig: {
               type: 'object',
-              description: 'Block type configuration. Use kind "single" with a typeId for a block dedicated to one task type, or "combo" with allocations for mixed blocks.',
+              description: 'Block type configuration. Use kind "single" for one task type, "combo" for mixed blocks, "any" for a block that accepts any task type (scheduled by priority), or "system" for blocked/sleep time.',
               properties: {
                 kind: {
                   type: 'string',
-                  enum: ['single', 'combo', 'system'],
-                  description: '"single" for one task type, "combo" for multiple types with ratios, "system" for blocked/sleep time.',
+                  enum: ['single', 'combo', 'any', 'system'],
+                  description: '"single" for one task type, "combo" for multiple types with ratios, "any" for any task type (priority-based), "system" for blocked/sleep time.',
                 },
                 typeId: {
                   type: 'string',
@@ -562,6 +578,7 @@ export const READ_TOOLS: Anthropic.Tool[] = [
   getNextScheduledTool,
   getEndeavorsTool,
   getTaskTypesTool,
+  getFullScheduleTool,
   getTimeSummaryTool,
 ]
 
@@ -601,6 +618,7 @@ export const TOOL_REGISTRY: Record<string, ToolRegistration> = {
   get_next_scheduled: { name: 'get_next_scheduled', category: 'read', statusLabel: 'Consulting the scheduler...' },
   get_endeavors: { name: 'get_endeavors', category: 'read', statusLabel: 'Reviewing endeavors...' },
   get_task_types: { name: 'get_task_types', category: 'read', statusLabel: 'Loading task types...' },
+  get_full_schedule: { name: 'get_full_schedule', category: 'read', statusLabel: 'Computing full schedule...' },
   get_time_summary: { name: 'get_time_summary', category: 'read', statusLabel: 'Calculating time summary...' },
   // Write tools
   create_task: { name: 'create_task', category: 'write', statusLabel: 'Creating task...' },

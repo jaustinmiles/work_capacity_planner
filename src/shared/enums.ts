@@ -65,6 +65,7 @@ export enum WorkBlockType {
 export enum BlockConfigKind {
   Single = 'single',  // Block accepts only one specific task type
   Combo = 'combo',    // Block accepts multiple types with ratio-based capacity allocation
+  Any = 'any',        // Block accepts any task type — scheduled by priority/metrics only
   System = 'system',  // Non-working block (blocked or sleep)
 }
 

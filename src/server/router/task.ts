@@ -568,4 +568,125 @@ export const taskRouter = router({
         loggedMinutes: task?.actualDuration ?? 0,
       }
     }),
+
+  /**
+   * Get the full scheduled timeline for today.
+   *
+   * Runs the UnifiedScheduler and returns ALL scheduled items (tasks, steps,
+   * meetings, breaks) plus unscheduled items. Used by the AI agent to
+   * understand the complete picture of the user's day.
+   */
+  getFullSchedule: sessionProcedure
+    .input(z.object({ date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional() }))
+    .query(async ({ ctx, input }) => {
+      const currentTime = getCurrentTime()
+      const targetDate = input.date ?? getLocalDateString(currentTime)
+
+      // Fetch all tasks for this session
+      const rawTasks = await ctx.prisma.task.findMany({
+        where: { sessionId: ctx.sessionId, archived: false },
+        include: { TaskStep: { orderBy: { stepIndex: 'asc' } } },
+      })
+
+      const allTasks = rawTasks.map(formatTask)
+      const simpleTasks = filterSchedulableItems(
+        allTasks.filter((t) => !t.hasSteps) as Task[],
+      )
+      const workflows = filterSchedulableWorkflows(
+        allTasks.filter((t) => t.hasSteps) as unknown as SequencedTask[],
+      )
+
+      // Fetch work pattern for the target date
+      const pattern = await ctx.prisma.workPattern.findUnique({
+        where: {
+          sessionId_date: {
+            sessionId: ctx.sessionId,
+            date: targetDate,
+          },
+        },
+        include: {
+          WorkBlock: true,
+          WorkMeeting: true,
+        },
+      })
+
+      if (!pattern) {
+        return { scheduled: [], unscheduled: [], date: targetDate, hasPattern: false }
+      }
+
+      const workPattern: DailyWorkPattern = {
+        id: pattern.id,
+        date: pattern.date,
+        blocks: pattern.WorkBlock.map((block) => ({
+          id: block.id,
+          startTime: block.startTime,
+          endTime: block.endTime,
+          typeConfig: JSON.parse(block.typeConfig as string),
+          capacity: block.totalCapacity
+            ? { totalMinutes: block.totalCapacity }
+            : undefined,
+        })),
+        accumulated: {},
+        meetings: pattern.WorkMeeting.map((meeting) => ({
+          id: meeting.id,
+          name: meeting.name,
+          startTime: meeting.startTime,
+          endTime: meeting.endTime,
+          type: meeting.type as MeetingType,
+          recurring: (meeting.recurring || 'none') as 'daily' | 'weekly' | 'none',
+          daysOfWeek: meeting.daysOfWeek
+            ? JSON.parse(meeting.daysOfWeek)
+            : undefined,
+        })),
+      }
+
+      // Run the scheduler
+      const scheduler = new UnifiedScheduler()
+      const items = [...simpleTasks, ...workflows]
+
+      const context = {
+        startDate: targetDate,
+        tasks: simpleTasks as Task[],
+        workflows: workflows,
+        workPatterns: [workPattern],
+        workSettings: DEFAULT_WORK_SETTINGS,
+        currentTime,
+      }
+
+      const config = {
+        startDate: currentTime,
+        allowTaskSplitting: true,
+        respectMeetings: true,
+        optimizationMode: OptimizationMode.Realistic,
+        debugMode: false,
+      }
+
+      const result = scheduler.scheduleForDisplay(items, context, config)
+
+      // Return a simplified view of the schedule for the agent
+      return {
+        date: targetDate,
+        hasPattern: true,
+        scheduled: result.scheduled.map((item) => ({
+          name: item.name,
+          type: item.type,
+          startTime: item.startTime,
+          endTime: item.endTime,
+          duration: item.duration,
+          taskTypeId: item.taskTypeId,
+          completed: item.completed,
+          isWaitingOnAsync: item.isWaitingOnAsync,
+          originalTaskId: item.originalTaskId,
+          blockId: item.blockId,
+        })),
+        unscheduled: result.unscheduled.map((item) => ({
+          name: item.name,
+          type: item.type,
+          duration: item.duration,
+          taskTypeId: item.taskTypeId,
+          completed: item.completed,
+          originalTaskId: item.originalTaskId,
+        })),
+      }
+    }),
 })

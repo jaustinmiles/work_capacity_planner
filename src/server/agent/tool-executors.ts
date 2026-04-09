@@ -107,6 +107,13 @@ export class ToolExecutor {
         return { success: true, data }
       }
 
+      case 'get_full_schedule': {
+        const data = await this.caller.task.getFullSchedule({
+          date: input.date as string | undefined,
+        })
+        return { success: true, data }
+      }
+
       case 'get_task_types': {
         const data = await this.caller.userTaskType.getAll()
         return { success: true, data }
