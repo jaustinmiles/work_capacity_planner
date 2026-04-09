@@ -153,6 +153,16 @@ export enum AmendmentCardStatus {
   Skipped = 'skipped',
 }
 
+// Agent proposed action status (for ProposedActionCard states)
+export enum ProposedActionStatus {
+  Pending = 'pending',
+  Applying = 'applying',
+  Applied = 'applied',
+  Rejected = 'rejected',
+  Error = 'error',
+  Timeout = 'timeout',
+}
+
 // Entity types for amendments
 export enum EntityType {
   Task = 'task',

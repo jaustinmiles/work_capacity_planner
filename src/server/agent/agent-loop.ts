@@ -18,7 +18,8 @@ import type { AgentSSEEvent, StoredToolCall } from '../../shared/agent-types'
 import { ALL_TOOLS, READ_TOOL_NAMES, TOOL_REGISTRY } from './tool-definitions'
 import { createToolExecutor } from './tool-executors'
 import { buildAgentSystemPrompt, AgentSessionInfo } from './agent-context'
-import { generateActionPreview } from './action-previews'
+import { generateActionPreview, PreviewEntityContext } from './action-previews'
+import { prisma } from '../prisma'
 import { generateUniqueId } from '../../shared/step-id-utils'
 import { logger } from '../../logger'
 
@@ -173,7 +174,8 @@ export async function runAgentLoop(options: AgentLoopOptions): Promise<AgentLoop
         } else {
           // Write tool — pause for user approval
           const proposalId = generateUniqueId('proposal')
-          const preview = generateActionPreview(toolName, toolInput)
+          const entityContext = await buildEntityContext(toolInput)
+          const preview = generateActionPreview(toolName, toolInput, entityContext)
 
           onEvent({
             type: 'proposed_action',
@@ -301,6 +303,62 @@ export async function runAgentLoop(options: AgentLoopOptions): Promise<AgentLoop
     toolCalls: storedToolCalls,
     loopIterations,
   }
+}
+
+/**
+ * Build entity context for preview generation by looking up
+ * names for any IDs referenced in the tool input.
+ */
+async function buildEntityContext(
+  toolInput: Record<string, unknown>,
+): Promise<PreviewEntityContext> {
+  const context: PreviewEntityContext = {
+    taskNames: new Map(),
+    endeavorNames: new Map(),
+    typeNames: new Map(),
+  }
+
+  // Collect IDs that need resolution
+  const taskIds: string[] = []
+  const endeavorIds: string[] = []
+
+  for (const [key, value] of Object.entries(toolInput)) {
+    if (typeof value !== 'string') continue
+    if (key === 'id' || key === 'taskId' || key === 'workflowId') taskIds.push(value)
+    if (key === 'endeavorId') endeavorIds.push(value)
+  }
+
+  // Batch lookup tasks
+  if (taskIds.length > 0) {
+    const tasks = await prisma.task.findMany({
+      where: { id: { in: taskIds } },
+      select: { id: true, name: true },
+    })
+    for (const t of tasks) {
+      context.taskNames!.set(t.id, t.name)
+    }
+  }
+
+  // Batch lookup endeavors
+  if (endeavorIds.length > 0) {
+    const endeavors = await prisma.endeavor.findMany({
+      where: { id: { in: endeavorIds } },
+      select: { id: true, name: true },
+    })
+    for (const e of endeavors) {
+      context.endeavorNames!.set(e.id, e.name)
+    }
+  }
+
+  // Lookup task types (small table, just load all)
+  const types = await prisma.userTaskType.findMany({
+    select: { id: true, name: true },
+  })
+  for (const t of types) {
+    context.typeNames!.set(t.id, t.name)
+  }
+
+  return context
 }
 
 /**

@@ -19,10 +19,9 @@ import {
   IconThunderbolt,
 } from '@arco-design/web-react/icon'
 import type { AgentProposedActionEvent } from '@shared/agent-types'
+import { ProposedActionStatus } from '@shared/enums'
 
 const { Text, Title } = Typography
-
-type ActionStatus = 'pending' | 'applying' | 'applied' | 'rejected' | 'error' | 'timeout'
 
 interface ProposedActionCardProps {
   action: AgentProposedActionEvent
@@ -90,34 +89,34 @@ export function ProposedActionCard({
   onApprove,
   onReject,
 }: ProposedActionCardProps): React.ReactElement {
-  const [status, setStatus] = useState<ActionStatus>('pending')
+  const [status, setStatus] = useState(ProposedActionStatus.Pending)
 
   const { preview, toolName, proposalId } = action
 
   const handleApprove = async (): Promise<void> => {
-    setStatus('applying')
+    setStatus(ProposedActionStatus.Applying)
     try {
       await onApprove(proposalId)
-      setStatus('applied')
+      setStatus(ProposedActionStatus.Applied)
     } catch {
-      setStatus('error')
+      setStatus(ProposedActionStatus.Error)
     }
   }
 
   const handleReject = async (): Promise<void> => {
     try {
       await onReject(proposalId)
-      setStatus('rejected')
+      setStatus(ProposedActionStatus.Rejected)
     } catch {
       // Still mark as rejected locally even if the server call fails
-      setStatus('rejected')
+      setStatus(ProposedActionStatus.Rejected)
     }
   }
 
-  const isPending = status === 'pending'
-  const isApplied = status === 'applied'
-  const isRejected = status === 'rejected'
-  const isApplying = status === 'applying'
+  const isPending = status === ProposedActionStatus.Pending
+  const isApplied = status === ProposedActionStatus.Applied
+  const isRejected = status === ProposedActionStatus.Rejected
+  const isApplying = status === ProposedActionStatus.Applying
   const color = getToolColor(toolName)
 
   return (
@@ -125,13 +124,16 @@ export function ProposedActionCard({
       size="small"
       style={{
         borderRadius: 8,
+        borderLeft: `3px solid var(--color-${color}-6)`,
         border: `1px solid ${
           isApplied
             ? 'var(--color-success-light-4)'
             : isRejected
             ? 'var(--color-border-2)'
-            : 'var(--color-border)'
+            : `var(--color-${color}-3)`
         }`,
+        borderLeftWidth: 3,
+        borderLeftColor: `var(--color-${color}-6)`,
         background: isApplied
           ? 'var(--color-success-light-1)'
           : isRejected
@@ -150,6 +152,13 @@ export function ProposedActionCard({
         }}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <Tag
+            size="small"
+            color={color}
+            style={{ fontSize: 10, padding: '0 4px', lineHeight: '18px' }}
+          >
+            AGENT
+          </Tag>
           <span style={{ color: `var(--color-${color}-6)` }}>
             {getToolIcon(toolName)}
           </span>
@@ -168,12 +177,12 @@ export function ProposedActionCard({
             Skipped
           </Tag>
         )}
-        {status === 'error' && (
+        {status === ProposedActionStatus.Error && (
           <Tag color="red" size="small">
             Error
           </Tag>
         )}
-        {status === 'timeout' && (
+        {status === ProposedActionStatus.Timeout && (
           <Tag color="orangered" size="small">
             Timed Out
           </Tag>

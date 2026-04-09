@@ -40,7 +40,7 @@ describe('generateActionPreview', () => {
       expect(preview.description).toContain('urgency')
     })
 
-    it('should truncate with +N more for many fields', () => {
+    it('should list all updated fields with values', () => {
       const preview = generateActionPreview('update_task', {
         id: 'task-1',
         name: 'x',
@@ -50,7 +50,8 @@ describe('generateActionPreview', () => {
         notes: 'stuff',
       })
 
-      expect(preview.description).toContain('+')
+      expect(preview.description).toContain('duration → 30min')
+      expect(preview.description).toContain('importance → 5/10')
     })
   })
 
@@ -106,8 +107,8 @@ describe('generateActionPreview', () => {
 
       expect(preview.title).toBe('Create Schedule')
       expect(preview.description).toContain('2026-04-07')
-      expect(preview.description).toContain('1 blocks')
-      expect(preview.description).toContain('1 meetings')
+      expect(preview.description).toContain('1 block')
+      expect(preview.description).toContain('1 meeting')
     })
   })
 

@@ -213,6 +213,9 @@ export function ChatView({ onNavigateToView }: ChatViewProps): React.ReactElemen
   ])
 
   // Agent mode send handler
+  // The SERVER handles all DB persistence for agent mode (user message + assistant message).
+  // The client only manages local UI state (streaming text, pending cards, tool indicators).
+  // On completion, we reload messages from DB to get canonical state.
   const handleAgentSend = useCallback(async () => {
     const content = inputValue.trim()
     if (!isValidUserInput(content) || isSending || !activeConversationId) return
@@ -223,7 +226,21 @@ export function ChatView({ onNavigateToView }: ChatViewProps): React.ReactElemen
     clearAgentState()
 
     try {
-      await addUserMessage(content)
+      // Add user message to LOCAL state only — server saves to DB
+      const { messages: currentMessages } = useConversationStore.getState()
+      useConversationStore.setState({
+        messages: [
+          ...currentMessages,
+          {
+            id: `pending-${Date.now()}` as any,
+            conversationId: activeConversationId,
+            role: ChatMessageRole.User,
+            content,
+            amendments: null,
+            createdAt: new Date(),
+          },
+        ],
+      })
 
       // Start SSE connection to agent
       setStreamingContent('')
@@ -247,16 +264,18 @@ export function ChatView({ onNavigateToView }: ChatViewProps): React.ReactElemen
           onActionResult: (event) => {
             removePendingAction(event.proposalId)
           },
-          onDone: (_toolCallCount, _loopIterations) => {
-            // Finalize: move streaming content to a proper assistant message
-            const { streamingContent: finalContent } = useConversationStore.getState()
-            if (finalContent) {
-              addAssistantMessage(finalContent)
-            }
+          onDone: () => {
+            // Reload messages from DB to get canonical state
+            // (server saved both user + assistant messages)
+            const { selectConversation } = useConversationStore.getState()
+            selectConversation(activeConversationId)
             clearAgentState()
             setStatus(ConversationStatus.Idle)
           },
           onError: (message) => {
+            // Still reload — server may have partially saved
+            const { selectConversation } = useConversationStore.getState()
+            selectConversation(activeConversationId)
             setError(message)
             clearAgentState()
           },
@@ -273,8 +292,6 @@ export function ChatView({ onNavigateToView }: ChatViewProps): React.ReactElemen
     inputValue,
     isSending,
     activeConversationId,
-    addUserMessage,
-    addAssistantMessage,
     setStatus,
     setError,
     clearAgentState,
