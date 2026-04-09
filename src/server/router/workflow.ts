@@ -234,23 +234,35 @@ export const workflowRouter = router({
         where: { taskId },
       })
 
-      const allCompleted = allSteps.every((s) => s.status === 'completed')
+      // A step is "done" if it's completed, waiting (async timer), or skipped
+      const allDone = allSteps.every(
+        (s) => s.status === 'completed' || s.status === 'waiting' || s.status === 'skipped',
+      )
+      const anyWaiting = allSteps.some((s) => s.status === 'waiting')
       const anyInProgress = allSteps.some((s) => s.status === 'in_progress')
+      const anyStarted = allSteps.some(
+        (s) => s.status === 'completed' || s.status === 'in_progress' || s.status === 'waiting',
+      )
 
       let overallStatus = 'not_started'
-      if (allCompleted) {
+      if (allDone && !anyWaiting) {
         overallStatus = 'completed'
-      } else if (anyInProgress || allSteps.some((s) => s.status === 'completed')) {
+      } else if (allDone && anyWaiting) {
+        // All work done but some steps waiting on async timers
+        overallStatus = 'waiting'
+      } else if (anyInProgress || anyStarted) {
         overallStatus = 'in_progress'
       }
+
+      const isFullyCompleted = allDone && !anyWaiting
 
       await ctx.prisma.task.update({
         where: { id: taskId },
         data: {
           overallStatus,
           updatedAt: getCurrentTime(),
-          completed: allCompleted,
-          completedAt: allCompleted ? getCurrentTime() : null,
+          completed: isFullyCompleted,
+          completedAt: isFullyCompleted ? getCurrentTime() : null,
         },
       })
     }
