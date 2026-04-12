@@ -224,6 +224,33 @@ export class ToolExecutor {
         return { success: true, data }
       }
 
+      case 'update_workflow_step': {
+        const updateData: Record<string, unknown> = {
+          taskId: input.taskId as string,
+          stepId: input.stepId as string,
+        }
+        if (input.name !== undefined) updateData.name = input.name
+        if (input.duration !== undefined) updateData.duration = input.duration
+        if (input.type !== undefined) updateData.type = input.type
+        if (input.status !== undefined) updateData.status = input.status
+        if (input.dependsOn !== undefined) updateData.dependsOn = input.dependsOn
+        if (input.cognitiveComplexity !== undefined) updateData.cognitiveComplexity = input.cognitiveComplexity
+        if (input.notes !== undefined) updateData.notes = input.notes
+
+        const data = await this.caller.workflow.updateStep(
+          updateData as Parameters<RouterCaller['workflow']['updateStep']>[0],
+        )
+        return { success: true, data }
+      }
+
+      case 'remove_workflow_step': {
+        const data = await this.caller.workflow.deleteStep({
+          taskId: input.taskId as string,
+          stepId: input.stepId as string,
+        })
+        return { success: true, data }
+      }
+
       case 'log_work_session': {
         const data = await this.caller.workSession.create({
           taskId: input.taskId as string,

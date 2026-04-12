@@ -369,6 +369,61 @@ const addWorkflowStepTool: Anthropic.Tool = {
   },
 }
 
+const updateWorkflowStepTool: Anthropic.Tool = {
+  name: 'update_workflow_step',
+  description:
+    'Update an existing workflow step. Can change name, duration, type, status, dependencies, and other fields. Use get_task_detail first to get step IDs.',
+  input_schema: {
+    type: 'object' as const,
+    properties: {
+      taskId: {
+        type: 'string',
+        description: 'The parent workflow (task) ID.',
+      },
+      stepId: {
+        type: 'string',
+        description: 'The step ID to update.',
+      },
+      name: { type: 'string', description: 'New step name.' },
+      duration: { type: 'number', description: 'New duration in minutes.' },
+      type: { type: 'string', description: 'New task type ID.' },
+      status: {
+        type: 'string',
+        enum: ['pending', 'in_progress', 'waiting', 'completed', 'skipped'],
+        description: 'New step status.',
+      },
+      dependsOn: {
+        type: 'array',
+        items: { type: 'string' },
+        description: 'New dependency list — step IDs or step names that this step depends on.',
+      },
+      cognitiveComplexity: { type: 'number', minimum: 1, maximum: 5, description: 'Cognitive complexity (1-5).' },
+      notes: { type: 'string', description: 'Step notes.' },
+    },
+    required: ['taskId', 'stepId'],
+  },
+}
+
+const removeWorkflowStepTool: Anthropic.Tool = {
+  name: 'remove_workflow_step',
+  description:
+    'Remove a step from an existing workflow. Remaining steps are automatically re-indexed. Use get_task_detail first to get step IDs.',
+  input_schema: {
+    type: 'object' as const,
+    properties: {
+      taskId: {
+        type: 'string',
+        description: 'The parent workflow (task) ID.',
+      },
+      stepId: {
+        type: 'string',
+        description: 'The step ID to remove.',
+      },
+    },
+    required: ['taskId', 'stepId'],
+  },
+}
+
 const logWorkSessionTool: Anthropic.Tool = {
   name: 'log_work_session',
   description:
@@ -590,6 +645,8 @@ export const WRITE_TOOLS: Anthropic.Tool[] = [
   archiveTaskTool,
   createWorkflowTool,
   addWorkflowStepTool,
+  updateWorkflowStepTool,
+  removeWorkflowStepTool,
   logWorkSessionTool,
   createScheduleTool,
   createEndeavorTool,
@@ -627,6 +684,8 @@ export const TOOL_REGISTRY: Record<string, ToolRegistration> = {
   archive_task: { name: 'archive_task', category: 'write', statusLabel: 'Archiving task...' },
   create_workflow: { name: 'create_workflow', category: 'write', statusLabel: 'Creating workflow...' },
   add_workflow_step: { name: 'add_workflow_step', category: 'write', statusLabel: 'Adding workflow step...' },
+  update_workflow_step: { name: 'update_workflow_step', category: 'write', statusLabel: 'Updating workflow step...' },
+  remove_workflow_step: { name: 'remove_workflow_step', category: 'write', statusLabel: 'Removing workflow step...' },
   log_work_session: { name: 'log_work_session', category: 'write', statusLabel: 'Logging work session...' },
   create_schedule: { name: 'create_schedule', category: 'write', statusLabel: 'Creating schedule...' },
   create_endeavor: { name: 'create_endeavor', category: 'write', statusLabel: 'Creating endeavor...' },

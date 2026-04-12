@@ -134,6 +134,25 @@ export function generateActionPreview(
       }
     }
 
+    case 'update_workflow_step': {
+      const taskName = resolveName(toolInput.taskId, entityContext?.taskNames)
+      const fields = Object.keys(toolInput).filter(k => k !== 'taskId' && k !== 'stepId')
+      return {
+        title: 'Update Workflow Step',
+        description: `Step in "${taskName}" — updating ${fields.join(', ')}`,
+        details: { workflowName: taskName, ...toolInput },
+      }
+    }
+
+    case 'remove_workflow_step': {
+      const taskName = resolveName(toolInput.taskId, entityContext?.taskNames)
+      return {
+        title: 'Remove Workflow Step',
+        description: `Remove step from "${taskName}"`,
+        details: { workflowName: taskName, stepId: toolInput.stepId },
+      }
+    }
+
     case 'log_work_session': {
       const taskName = resolveName(toolInput.taskId, entityContext?.taskNames)
       const minutes = toolInput.actualMinutes ?? toolInput.duration
