@@ -96,7 +96,7 @@ describe('buildAgentSystemPrompt', () => {
     })
 
     // The old prompt was ~400 lines / ~15000 chars with context dump.
-    // The new one should be well under 4000 chars (personality + tool instructions + rules).
-    expect(prompt.length).toBeLessThan(4000)
+    // The new one includes memory protocol (~4500 chars) but is still much smaller.
+    expect(prompt.length).toBeLessThan(5000)
   })
 })

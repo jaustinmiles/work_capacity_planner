@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useCallback } from 'react'
 import { Layout, Typography, ConfigProvider, Button, Space, Badge, Spin, Alert, Popconfirm, Tabs, Modal, Dropdown, Menu } from '@arco-design/web-react'
-import { IconApps, IconCalendar, IconList, IconBranch, IconSchedule, IconDelete, IconUserGroup, IconClockCircle, IconMenuFold, IconMenuUnfold, IconSettings, IconStar, IconMindMapping } from '@arco-design/web-react/icon'
+import { IconApps, IconCalendar, IconList, IconBranch, IconSchedule, IconDelete, IconUserGroup, IconClockCircle, IconMenuFold, IconMenuUnfold, IconSettings, IconStar, IconMindMapping, IconBulb } from '@arco-design/web-react/icon'
 import { FloatingChatButton, FloatingSidebarButton } from './components/layout'
 import { MOBILE_LAYOUT } from '@shared/constants'
 import enUS from '@arco-design/web-react/es/locale/en-US'
@@ -33,6 +33,7 @@ import { EndeavorGraphView } from './components/endeavors/graph/EndeavorGraphVie
 import { DeepWorkBoardView } from './components/deep-work/DeepWorkBoardView'
 import { TimerTab } from './components/timers/TimerTab'
 import { useTimerStore } from './store/useTimerStore'
+import { MemoryPanel } from './components/memory/MemoryPanel'
 import { DevTools } from './components/dev/DevTools'
 import { TimeSinkManager } from './components/time-sinks/TimeSinkManager'
 import { TimeSinkLogger } from './components/time-sinks/TimeSinkLogger'
@@ -655,6 +656,15 @@ function AppContent() {
                   }
                 />
                 <Tabs.TabPane
+                  key={ViewType.Memory}
+                  title={
+                    <Space>
+                      <IconBulb />
+                      {!isMobile && <span>Memory</span>}
+                    </Space>
+                  }
+                />
+                <Tabs.TabPane
                   key={ViewType.Calendar}
                   title={
                     <Space>
@@ -782,6 +792,12 @@ function AppContent() {
                     {activeView === ViewType.Timers && (
                       <ErrorBoundary>
                         <TimerTab />
+                      </ErrorBoundary>
+                    )}
+
+                    {activeView === ViewType.Memory && (
+                      <ErrorBoundary>
+                        <MemoryPanel />
                       </ErrorBoundary>
                     )}
 

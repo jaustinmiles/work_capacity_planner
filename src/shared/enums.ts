@@ -164,6 +164,21 @@ export enum ProposedActionStatus {
   Timeout = 'timeout',
 }
 
+// Agent memory category — what kind of fact the agent learned
+export enum MemoryCategory {
+  Preference = 'preference',     // User work style, scheduling preferences
+  Correction = 'correction',     // Things the user told the agent not to do
+  Pattern = 'pattern',           // Observed behavioral patterns
+  Fact = 'fact',                 // Time-sensitive facts (deadlines, blockers)
+}
+
+// Agent memory source — how the memory was created
+export enum MemorySource {
+  AgentObserved = 'agent_observed',           // Agent noticed a pattern
+  UserStated = 'user_stated',                 // User explicitly told the agent
+  ConversationSummary = 'conversation_summary', // Extracted from conversation summary
+}
+
 // Timer status — lifecycle of a countdown timer
 export enum TimerStatus {
   Active = 'active',
@@ -255,6 +270,7 @@ export enum ViewType {
   Endeavors = 'endeavors',
   DeepWork = 'deepWork',
   Timers = 'timers',
+  Memory = 'memory',
 }
 
 // Sprint filter modes for task list views

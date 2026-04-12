@@ -135,6 +135,8 @@ model Session {
   PomodoroSettings      PomodoroSettings?
   PomodoroCycles        PomodoroCycle[]
   Timer                 Timer[]
+  AgentMemory           AgentMemory[]
+  ConversationSummary   ConversationSummary[]
 }
 
 // Schedule Snapshot - Captures schedule state at a point in time
@@ -445,7 +447,8 @@ model Conversation {
   isArchived   Boolean       @default(false)
   Session      Session       @relation(fields: [sessionId], references: [id], onDelete: Cascade)
   JobContext   JobContext?   @relation(fields: [jobContextId], references: [id], onDelete: SetNull)
-  ChatMessage  ChatMessage[]
+  ChatMessage          ChatMessage[]
+  ConversationSummary  ConversationSummary?
 
   @@index([sessionId])
   @@index([createdAt])
@@ -658,4 +661,44 @@ model Timer {
   @@index([expiresAt])
   @@index([linkedTaskId])
   @@index([linkedStepId])
+}
+
+// AgentMemory - Persistent structured facts the AI agent learns about the user
+// Two-layer memory: core memories (always in context) + conversation summaries (on-demand search)
+model AgentMemory {
+  id             String   @id
+  sessionId      String
+  category       String                        // MemoryCategory: preference, correction, pattern, fact
+  key            String                        // Short label (e.g., "deep_work_preference")
+  value          String                        // The fact itself (e.g., "Prefers morning deep work blocks")
+  confidence     Float    @default(0.8)        // 0-1 confidence score (higher = more certain)
+  source         String   @default("agent_observed") // MemorySource: agent_observed, user_stated, conversation_summary
+  pinned         Boolean  @default(false)      // Pinned memories are never pruned
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @default(now())
+  lastAccessedAt DateTime @default(now())
+  Session        Session  @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@unique([sessionId, key])
+  @@index([sessionId])
+  @@index([category])
+  @@index([updatedAt])
+}
+
+// ConversationSummary - Auto-generated summaries of past conversations
+// Searchable by the agent for "do you remember when we talked about X?"
+model ConversationSummary {
+  id                String       @id
+  sessionId         String
+  conversationId    String       @unique
+  summary           String                     // Natural language summary of the conversation
+  keyDecisions      String       @default("[]") // JSON array of key decisions made
+  memoriesExtracted String       @default("[]") // JSON array of AgentMemory IDs created from this conversation
+  messageCount      Int                        // Number of messages in the conversation when summarized
+  createdAt         DateTime     @default(now())
+  Session           Session      @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  Conversation      Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@index([sessionId])
+  @@index([createdAt])
 }

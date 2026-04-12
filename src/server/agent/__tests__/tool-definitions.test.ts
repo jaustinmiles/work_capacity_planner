@@ -10,8 +10,10 @@ import {
   ALL_TOOLS,
   READ_TOOLS,
   WRITE_TOOLS,
+  MEMORY_TOOLS,
   READ_TOOL_NAMES,
   WRITE_TOOL_NAMES,
+  MEMORY_TOOL_NAMES,
   TOOL_REGISTRY,
 } from '../tool-definitions'
 
@@ -25,21 +27,30 @@ describe('agent tool definitions', () => {
       expect(WRITE_TOOLS).toHaveLength(14)
     })
 
-    it('should have 24 total tools', () => {
-      expect(ALL_TOOLS).toHaveLength(24)
+    it('should have 4 memory tools', () => {
+      expect(MEMORY_TOOLS).toHaveLength(4)
     })
 
-    it('should have ALL_TOOLS = READ + WRITE with no overlap', () => {
+    it('should have 28 total tools', () => {
+      expect(ALL_TOOLS).toHaveLength(28)
+    })
+
+    it('should have ALL_TOOLS = READ + WRITE + MEMORY with no overlap', () => {
       const readNames = new Set(READ_TOOLS.map(t => t.name))
       const writeNames = new Set(WRITE_TOOLS.map(t => t.name))
+      const memoryNames = new Set(MEMORY_TOOLS.map(t => t.name))
 
-      // No overlap
+      // No overlap between any categories
       for (const name of readNames) {
         expect(writeNames.has(name)).toBe(false)
+        expect(memoryNames.has(name)).toBe(false)
+      }
+      for (const name of writeNames) {
+        expect(memoryNames.has(name)).toBe(false)
       }
 
       // Combined equals ALL_TOOLS
-      expect(ALL_TOOLS).toHaveLength(readNames.size + writeNames.size)
+      expect(ALL_TOOLS).toHaveLength(readNames.size + writeNames.size + memoryNames.size)
     })
   })
 

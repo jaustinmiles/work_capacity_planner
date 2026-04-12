@@ -1639,6 +1639,26 @@ export class TrpcDatabaseService {
   async expireTimer(timerId: string): Promise<Record<string, unknown>> {
     return this.client.timer.expire.mutate({ timerId }) as Promise<Record<string, unknown>>
   }
+
+  // ===========================================================================
+  // Agent Memory
+  // ===========================================================================
+
+  async getMemories(): Promise<Record<string, unknown>[]> {
+    return this.client.memory.getAllForPanel.query() as Promise<Record<string, unknown>[]>
+  }
+
+  async updateMemory(memoryId: string, updates: { value?: string; confidence?: number; pinned?: boolean }): Promise<Record<string, unknown>> {
+    return this.client.memory.update.mutate({ memoryId, ...updates }) as Promise<Record<string, unknown>>
+  }
+
+  async deleteMemory(memoryId: string): Promise<void> {
+    await this.client.memory.delete.mutate({ memoryId })
+  }
+
+  async getConversationSummaries(): Promise<Record<string, unknown>[]> {
+    return this.client.memory.getAllSummaries.query() as Promise<Record<string, unknown>[]>
+  }
 }
 
 /**
