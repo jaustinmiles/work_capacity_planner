@@ -12,7 +12,7 @@
 
 import { appRouter } from '../router'
 import type { Context } from '../trpc'
-import { READ_TOOL_NAMES, WRITE_TOOL_NAMES } from './tool-definitions'
+import { READ_TOOL_NAMES, WRITE_TOOL_NAMES, MEMORY_TOOL_NAMES } from './tool-definitions'
 import { generateUniqueId, resolveStepDependencies } from '../../shared/step-id-utils'
 import { EndeavorStatus, DeadlineType } from '../../shared/enums'
 import { logger } from '../../logger'
@@ -46,6 +46,9 @@ export class ToolExecutor {
     try {
       if (READ_TOOL_NAMES.has(toolName)) {
         return await this.executeReadTool(toolName, input)
+      }
+      if (MEMORY_TOOL_NAMES.has(toolName)) {
+        return await this.executeMemoryTool(toolName, input)
       }
       if (WRITE_TOOL_NAMES.has(toolName)) {
         return await this.executeWriteTool(toolName, input)
@@ -312,6 +315,50 @@ export class ToolExecutor {
 
       default:
         return { success: false, error: `Unknown write tool: ${toolName}` }
+    }
+  }
+
+  // ============================================================================
+  // Memory Tool Executors (auto-execute, no approval)
+  // ============================================================================
+
+  private async executeMemoryTool(toolName: string, input: Record<string, unknown>): Promise<ToolExecutionResult> {
+    switch (toolName) {
+      case 'get_memories': {
+        const data = await this.caller.memory.getAll()
+        return { success: true, data }
+      }
+
+      case 'search_memory': {
+        const data = await this.caller.memory.searchSummaries({
+          query: input.query as string,
+          startDate: input.startDate as string | undefined,
+          endDate: input.endDate as string | undefined,
+        })
+        return { success: true, data }
+      }
+
+      case 'save_memory': {
+        const data = await this.caller.memory.save({
+          category: input.category as Parameters<RouterCaller['memory']['save']>[0]['category'],
+          key: input.key as string,
+          value: input.value as string,
+          confidence: input.confidence as number | undefined,
+        })
+        return { success: true, data }
+      }
+
+      case 'update_memory': {
+        const data = await this.caller.memory.update({
+          memoryId: input.memoryId as string,
+          value: input.value as string | undefined,
+          confidence: input.confidence as number | undefined,
+        })
+        return { success: true, data }
+      }
+
+      default:
+        return { success: false, error: `Unknown memory tool: ${toolName}` }
     }
   }
 

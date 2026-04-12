@@ -620,8 +620,115 @@ const createTaskTypeTool: Anthropic.Tool = {
 }
 
 // ============================================================================
+// Memory Tool Definitions (auto-execute, no approval needed)
+// ============================================================================
+
+const getMemoriesTool: Anthropic.Tool = {
+  name: 'get_memories',
+  description:
+    'Get all your stored memories for this session. Returns structured facts you have learned about the user — preferences, corrections, patterns, and facts. Use this to refresh your memory at the start of conversations or when you need to verify a remembered fact.',
+  input_schema: {
+    type: 'object' as const,
+    properties: {},
+    required: [],
+  },
+}
+
+const searchMemoryTool: Anthropic.Tool = {
+  name: 'search_memory',
+  description:
+    'Search past conversation summaries by keyword and/or date range. Use this when the user references a past conversation ("remember when we talked about X?") or when you need historical context.',
+  input_schema: {
+    type: 'object' as const,
+    properties: {
+      query: {
+        type: 'string',
+        description: 'Search keyword or phrase to find in past conversation summaries.',
+      },
+      startDate: {
+        type: 'string',
+        description: 'Optional start date (YYYY-MM-DD) to limit search range.',
+      },
+      endDate: {
+        type: 'string',
+        description: 'Optional end date (YYYY-MM-DD) to limit search range.',
+      },
+    },
+    required: ['query'],
+  },
+}
+
+const saveMemoryTool: Anthropic.Tool = {
+  name: 'save_memory',
+  description:
+    'Save a new observation, preference, correction, or fact to your persistent memory. This survives across conversations. Use when you notice a pattern, the user corrects you, states a preference, or you learn an important fact. Keep memories concise (one sentence). Check existing memories first to avoid duplicates — use update_memory instead if one already covers the topic.',
+  input_schema: {
+    type: 'object' as const,
+    properties: {
+      category: {
+        type: 'string',
+        enum: ['preference', 'correction', 'pattern', 'fact'],
+        description: 'Memory category: preference (work style), correction (things not to do), pattern (observed behavior), fact (deadlines, blockers).',
+      },
+      key: {
+        type: 'string',
+        description: 'Short unique label for this memory (e.g., "deep_work_preference", "estimate_accuracy_coding").',
+      },
+      value: {
+        type: 'string',
+        description: 'The fact itself in one concise sentence.',
+      },
+      confidence: {
+        type: 'number',
+        description: 'Confidence 0-1. Use 1.0 for user-stated facts, 0.6-0.8 for observations.',
+        minimum: 0,
+        maximum: 1,
+      },
+    },
+    required: ['category', 'key', 'value'],
+  },
+}
+
+const updateMemoryTool: Anthropic.Tool = {
+  name: 'update_memory',
+  description:
+    'Update an existing memory entry. Use when a preference changes, an observation needs refinement, or a fact is outdated. Get the memory ID from get_memories first.',
+  input_schema: {
+    type: 'object' as const,
+    properties: {
+      memoryId: {
+        type: 'string',
+        description: 'The memory ID to update (from get_memories).',
+      },
+      value: {
+        type: 'string',
+        description: 'New value for this memory.',
+      },
+      confidence: {
+        type: 'number',
+        description: 'Updated confidence score.',
+        minimum: 0,
+        maximum: 1,
+      },
+    },
+    required: ['memoryId'],
+  },
+}
+
+// ============================================================================
 // Exports
 // ============================================================================
+
+/** Memory tools — auto-execute without approval (internal agent state only) */
+export const MEMORY_TOOLS: Anthropic.Tool[] = [
+  getMemoriesTool,
+  searchMemoryTool,
+  saveMemoryTool,
+  updateMemoryTool,
+]
+
+/** Set of memory tool names — these auto-execute like read tools */
+export const MEMORY_TOOL_NAMES = new Set(MEMORY_TOOLS.map(t => t.name))
 
 /** All read tools — auto-execute without user approval */
 export const READ_TOOLS: Anthropic.Tool[] = [
@@ -656,7 +763,7 @@ export const WRITE_TOOLS: Anthropic.Tool[] = [
 ]
 
 /** All tools combined for the API call */
-export const ALL_TOOLS: Anthropic.Tool[] = [...READ_TOOLS, ...WRITE_TOOLS]
+export const ALL_TOOLS: Anthropic.Tool[] = [...READ_TOOLS, ...WRITE_TOOLS, ...MEMORY_TOOLS]
 
 /** Set of read tool names for fast lookup */
 export const READ_TOOL_NAMES = new Set(READ_TOOLS.map(t => t.name))
@@ -692,4 +799,9 @@ export const TOOL_REGISTRY: Record<string, ToolRegistration> = {
   link_task_to_endeavor: { name: 'link_task_to_endeavor', category: 'write', statusLabel: 'Linking task to endeavor...' },
   manage_sprint: { name: 'manage_sprint', category: 'write', statusLabel: 'Updating sprint...' },
   create_task_type: { name: 'create_task_type', category: 'write', statusLabel: 'Creating task type...' },
+  // Memory tools (auto-execute)
+  get_memories: { name: 'get_memories', category: 'read', statusLabel: 'Checking memory...' },
+  search_memory: { name: 'search_memory', category: 'read', statusLabel: 'Searching past conversations...' },
+  save_memory: { name: 'save_memory', category: 'read', statusLabel: 'Saving to memory...' },
+  update_memory: { name: 'update_memory', category: 'read', statusLabel: 'Updating memory...' },
 }

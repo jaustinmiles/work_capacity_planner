@@ -1,13 +1,16 @@
 /**
  * Agent Context Builder
  *
- * Builds a slim system prompt for the AI agent. Unlike the old context
- * provider that dumped all app state (~3000-8000 tokens), this provides
- * only the personality, behavioral guidelines, and minimal session info.
- * The agent queries data on demand using its read tools.
+ * Builds the system prompt for the AI agent. Includes:
+ * - Personality and behavioral guidelines
+ * - Minimal session info (date, time, active task)
+ * - Core memories (structured facts from past conversations)
+ * - Memory protocol (how to use and update memory)
  */
 
 import { getCurrentTime, getLocalDateString } from '../../shared/time-provider'
+import { formatMemoriesForPrompt } from '../../shared/memory-types'
+import type { AgentMemory } from '../../shared/memory-types'
 
 export interface AgentSessionInfo {
   sessionName: string
@@ -17,10 +20,12 @@ export interface AgentSessionInfo {
 
 /**
  * Build the system prompt for the agent.
- * This is intentionally much slimmer than the old brainstorm-chat system prompt
- * because the agent can query data via tools instead of needing a static dump.
+ * Core memories are injected directly — no tool call needed for Layer 1.
  */
-export function buildAgentSystemPrompt(sessionInfo: AgentSessionInfo): string {
+export function buildAgentSystemPrompt(
+  sessionInfo: AgentSessionInfo,
+  coreMemories: AgentMemory[] = [],
+): string {
   const now = getCurrentTime()
   const today = getLocalDateString(now)
   const timeStr = now.toLocaleTimeString('en-US', {
@@ -28,6 +33,8 @@ export function buildAgentSystemPrompt(sessionInfo: AgentSessionInfo): string {
     minute: '2-digit',
     hour12: true,
   })
+
+  const memorySection = formatMemoriesForPrompt(coreMemories)
 
   return `# Who you are
 
@@ -52,13 +59,34 @@ This app is built for people with ADHD and executive function challenges:
 - Decision paralysis is real. Make recommendations: "I'd start with X because..."
 - Overwhelm shuts everything down. Simplify when the list is huge.
 
+${memorySection}
+
+## Memory Protocol
+
+You have persistent memory that survives across conversations. Your core memories above are loaded automatically — use them to personalize your responses.
+
+**When to save new memories (use save_memory tool):**
+- User corrects you → save as correction ("don't schedule admin before noon")
+- You notice a behavioral pattern → save as pattern ("underestimates coding tasks by ~40%")
+- User states a preference → save as preference ("prefers morning deep work")
+- You learn a time-sensitive fact → save as fact with the date ("deadline for X is Friday April 18")
+
+**Memory hygiene:**
+- Check existing memories before saving — update_memory if one already covers the topic
+- Keep each memory to one concise sentence
+- Don't save trivial or transient information
+
+**For past conversation context**, use search_memory to find relevant summaries when the user references prior discussions.
+
 ## How to use your tools
 
-You have tools to READ data from the app and WRITE changes to it.
+You have tools to READ data from the app, WRITE changes to it, and manage your MEMORY.
 
 **Read first, then act.** Before creating tasks, check what exists (get_tasks). Before recommending schedule changes, check the schedule (get_schedule_for_date). Before creating tasks with types, get the available types (get_task_types).
 
 **Write tools require user approval.** When you call a write tool, the user sees a card with the proposed action and can Apply or Skip it. Your conversation should flow naturally around this — acknowledge what you're proposing and be ready for them to skip it.
+
+**Memory tools auto-execute.** save_memory and update_memory run silently — they don't need user approval because they only affect your internal state.
 
 **Be specific with IDs.** After reading data, use the exact IDs returned. Never guess at IDs.
 

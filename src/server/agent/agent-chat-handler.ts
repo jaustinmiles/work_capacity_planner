@@ -132,6 +132,14 @@ export async function agentChatHandler(req: Request, res: Response): Promise<voi
       where: { id: conversationId },
       data: { updatedAt: getCurrentTime() },
     })
+
+    // Trigger conversation summarization in background (non-blocking)
+    // Only if conversation has enough messages and no existing summary
+    triggerConversationSummary(conversationId, activeSessionId).catch(err => {
+      logger.system.warn('Conversation summarization failed', {
+        error: err instanceof Error ? err.message : String(err),
+      }, 'summary-error')
+    })
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error)
     logger.system.error('Agent chat error', { error: message }, 'agent-chat')
@@ -171,4 +179,128 @@ async function loadConversationHistory(
   }
 
   return history
+}
+
+/**
+ * Trigger conversation summarization if the conversation is long enough
+ * and doesn't already have a summary. Runs in the background.
+ */
+async function triggerConversationSummary(
+  conversationId: string,
+  sessionId: string,
+): Promise<void> {
+  const MIN_MESSAGES = 10
+
+  // Check if summary already exists
+  const existing = await prisma.conversationSummary.findUnique({
+    where: { conversationId },
+  })
+  if (existing) return
+
+  // Count messages
+  const messageCount = await prisma.chatMessage.count({
+    where: { conversationId },
+  })
+  if (messageCount < MIN_MESSAGES) return
+
+  // Load conversation for summarization
+  const messages = await prisma.chatMessage.findMany({
+    where: { conversationId },
+    orderBy: { createdAt: 'asc' },
+    select: { role: true, content: true },
+  })
+
+  const conversationText = messages
+    .map(m => `${m.role}: ${m.content.substring(0, 500)}`)
+    .join('\n\n')
+
+  // Call Claude to summarize (non-streaming, separate from the agent loop)
+  const { getAIService } = await import('../../shared/ai-service')
+  const aiService = getAIService()
+
+  const summaryResponse = await aiService.callAI({
+    systemPrompt: `You are summarizing a conversation between a user and an AI task planning assistant. Extract:
+1. A 2-3 sentence summary of what was discussed and accomplished
+2. Key decisions made (as a JSON array of strings)
+3. Any user preferences, corrections, or facts learned (as a JSON array of objects with category, key, value)
+
+Respond in this exact JSON format:
+{
+  "summary": "...",
+  "keyDecisions": ["...", "..."],
+  "memoriesExtracted": [{"category": "preference|correction|pattern|fact", "key": "short_key", "value": "concise fact"}]
+}`,
+    messages: [
+      { role: ChatMessageRole.User, content: `Summarize this conversation:\n\n${conversationText}` },
+    ],
+    maxTokens: 2000,
+  })
+
+  // Parse the summary response
+  try {
+    const parsed = JSON.parse(summaryResponse.content)
+    const { generateUniqueId: genId } = await import('../../shared/step-id-utils')
+
+    // Save the summary
+    await prisma.conversationSummary.create({
+      data: {
+        id: genId('summary'),
+        sessionId,
+        conversationId,
+        summary: parsed.summary || '',
+        keyDecisions: JSON.stringify(parsed.keyDecisions || []),
+        memoriesExtracted: JSON.stringify([]),
+        messageCount,
+        createdAt: getCurrentTime(),
+      },
+    })
+
+    // Auto-create memories from extracted facts
+    const memories = parsed.memoriesExtracted || []
+    for (const mem of memories) {
+      if (mem.key && mem.value && mem.category) {
+        await prisma.agentMemory.upsert({
+          where: {
+            sessionId_key: { sessionId, key: mem.key },
+          },
+          create: {
+            id: genId('mem'),
+            sessionId,
+            category: mem.category,
+            key: mem.key,
+            value: mem.value,
+            confidence: 0.7,
+            source: 'conversation_summary',
+            createdAt: getCurrentTime(),
+            updatedAt: getCurrentTime(),
+            lastAccessedAt: getCurrentTime(),
+          },
+          update: {
+            value: mem.value,
+            updatedAt: getCurrentTime(),
+          },
+        })
+      }
+    }
+
+    logger.system.info('Conversation summarized', {
+      conversationId,
+      memoryCount: memories.length,
+    }, 'summary-created')
+  } catch {
+    // If parsing fails, save raw text as summary
+    const { generateUniqueId: genId } = await import('../../shared/step-id-utils')
+    await prisma.conversationSummary.create({
+      data: {
+        id: genId('summary'),
+        sessionId,
+        conversationId,
+        summary: summaryResponse.content.substring(0, 2000),
+        keyDecisions: '[]',
+        memoriesExtracted: '[]',
+        messageCount,
+        createdAt: getCurrentTime(),
+      },
+    })
+  }
 }

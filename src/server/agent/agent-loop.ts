@@ -20,12 +20,13 @@ import {
   ToolExecutionStatus,
   ActionResultStatus,
 } from '../../shared/enums'
-import { ALL_TOOLS, READ_TOOL_NAMES, TOOL_REGISTRY } from './tool-definitions'
+import { ALL_TOOLS, READ_TOOL_NAMES, MEMORY_TOOL_NAMES, TOOL_REGISTRY } from './tool-definitions'
 import { createToolExecutor } from './tool-executors'
 import { buildAgentSystemPrompt, AgentSessionInfo } from './agent-context'
 import { generateActionPreview, PreviewEntityContext, EntityNameMap } from './action-previews'
 import { prisma } from '../prisma'
 import { generateUniqueId } from '../../shared/step-id-utils'
+import { getCurrentTime } from '../../shared/time-provider'
 import { logger } from '../../logger'
 
 /** Maximum number of API round-trips in a single agent turn */
@@ -78,7 +79,30 @@ export async function runAgentLoop(options: AgentLoopOptions): Promise<AgentLoop
 
   const aiService = getAIService()
   const toolExecutor = createToolExecutor(ctx)
-  const systemPrompt = buildAgentSystemPrompt(sessionInfo)
+
+  // Load core memories (Layer 1) for injection into system prompt
+  const coreMemories = await prisma.agentMemory.findMany({
+    where: { sessionId: sessionInfo.sessionId },
+    orderBy: [{ pinned: 'desc' }, { lastAccessedAt: 'desc' }],
+    take: 30,
+  })
+
+  // Mark memories as accessed
+  if (coreMemories.length > 0) {
+    await prisma.agentMemory.updateMany({
+      where: { id: { in: coreMemories.map(m => m.id) } },
+      data: { lastAccessedAt: getCurrentTime() },
+    })
+  }
+
+  const systemPrompt = buildAgentSystemPrompt(
+    sessionInfo,
+    coreMemories.map(m => ({
+      ...m,
+      category: m.category as import('../../shared/enums').MemoryCategory,
+      source: m.source as import('../../shared/enums').MemorySource,
+    })),
+  )
 
   // Build the messages array: history + new user message
   const messages: Anthropic.MessageParam[] = [
@@ -134,8 +158,8 @@ export async function runAgentLoop(options: AgentLoopOptions): Promise<AgentLoop
         const toolCallId = block.id
         const registration = TOOL_REGISTRY[toolName]
 
-        if (READ_TOOL_NAMES.has(toolName)) {
-          // Read tool — execute immediately
+        if (READ_TOOL_NAMES.has(toolName) || MEMORY_TOOL_NAMES.has(toolName)) {
+          // Read tool or memory tool — execute immediately (no approval needed)
           onEvent({
             type: 'tool_status',
             toolName,
