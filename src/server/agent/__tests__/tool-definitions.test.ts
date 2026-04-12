@@ -21,12 +21,12 @@ describe('agent tool definitions', () => {
       expect(READ_TOOLS).toHaveLength(10)
     })
 
-    it('should have 12 write tools', () => {
-      expect(WRITE_TOOLS).toHaveLength(12)
+    it('should have 14 write tools', () => {
+      expect(WRITE_TOOLS).toHaveLength(14)
     })
 
-    it('should have 22 total tools', () => {
-      expect(ALL_TOOLS).toHaveLength(22)
+    it('should have 24 total tools', () => {
+      expect(ALL_TOOLS).toHaveLength(24)
     })
 
     it('should have ALL_TOOLS = READ + WRITE with no overlap', () => {
