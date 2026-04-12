@@ -153,13 +153,12 @@ export function StartNextTaskWidget(): ReactElement {
         showNotification(`Completed task: ${activeSession.taskName || 'Task'}`, NotificationType.Success)
       }
 
-      // No manual sync needed - the reactive chain handles this:
-      // 1. updateTask() updates TaskStore
-      // 2. storeConnector subscription detects change
-      // 3. filterSchedulableItems() removes completed task
-      // 4. setInputs() updates SchedulerStore.nextScheduledItem
-      // 5. This component's subscription to nextScheduledItem triggers re-render
-      // 6. useMemo derives nextTask from the new nextScheduledItem
+      // Reactive chain handles the rest:
+      // 1. completeStep/updateTask updates local state (including workflow overallStatus)
+      // 2. storeConnector detects sequencedTasks/tasks change
+      // 3. filterSchedulableItems removes completed task/workflow
+      // 4. setInputs recomputes schedule + nextScheduledItem
+      // 5. This component re-renders via nextScheduledItem subscription
     } catch (error) {
       logger.ui.error('Failed to complete task', { error })
       showNotification('Failed to complete task', NotificationType.Error)

@@ -6,9 +6,10 @@
  */
 
 import React, { useRef, useEffect, useState, useCallback, useMemo } from 'react'
-import { Input, Button, Spin, Typography, Alert, Switch } from '@arco-design/web-react'
+import { Input, Button, Spin, Typography, Alert, Switch, Tag } from '@arco-design/web-react'
 import { IconSend, IconVoice, IconPause, IconRobot } from '@arco-design/web-react/icon'
 import { useConversationStore, ConversationStatus } from '../../store/useConversationStore'
+import { useTaskStore } from '../../store/useTaskStore'
 import { ChatMessageRecord, AmendmentCard as AmendmentCardType } from '@shared/conversation-types'
 import { ChatMessageRole, ViewType, ToolExecutionStatus } from '@shared/enums'
 import { AmendmentCard } from './AmendmentCard'
@@ -264,11 +265,15 @@ export function ChatView({ onNavigateToView }: ChatViewProps): React.ReactElemen
           onActionResult: (event) => {
             removePendingAction(event.proposalId)
           },
-          onDone: () => {
-            // Reload messages from DB to get canonical state
-            // (server saved both user + assistant messages)
+          onDone: (toolCallCount) => {
+            // Reload conversation messages from DB
             const { selectConversation } = useConversationStore.getState()
             selectConversation(activeConversationId)
+            // Agent operates server-side — if it made tool calls, the DB has
+            // changed independently of client stores. Reload to sync.
+            if (toolCallCount > 0) {
+              useTaskStore.getState().refreshAllData()
+            }
             clearAgentState()
             setStatus(ConversationStatus.Idle)
           },
@@ -276,6 +281,7 @@ export function ChatView({ onNavigateToView }: ChatViewProps): React.ReactElemen
             // Still reload — server may have partially saved
             const { selectConversation } = useConversationStore.getState()
             selectConversation(activeConversationId)
+            useTaskStore.getState().refreshAllData()
             setError(message)
             clearAgentState()
           },
@@ -553,10 +559,42 @@ function MessageBubble({ message, onNavigateToView }: MessageBubbleProps): React
           }}
         >
           {message.amendments.map((card, index) => {
-            // Guard: agent mode stores StoredToolCall objects (with toolName)
-            // instead of AmendmentCard objects (with amendment.type).
-            // Skip rendering StoredToolCalls — they were already shown during the stream.
-            if (!card.amendment) return null
+            // StoredToolCall objects (from agent mode) have toolName but no amendment
+            if (!card.amendment) {
+              const toolCall = card as unknown as Record<string, unknown>
+              if (!toolCall.toolName) return null
+
+              const isWrite = toolCall.category === 'write'
+              const wasApproved = toolCall.approvalStatus === 'approved'
+              const statusColor = wasApproved ? 'green' : toolCall.approvalStatus === 'rejected' ? 'gray' : 'arcoblue'
+              const statusLabel = isWrite
+                ? (wasApproved ? 'Applied' : toolCall.approvalStatus === 'rejected' ? 'Skipped' : 'Read')
+                : 'Read'
+
+              return (
+                <div
+                  key={toolCall.toolCallId as string || `tool-${index}`}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 8,
+                    padding: '4px 10px',
+                    borderRadius: 6,
+                    background: 'var(--color-fill-1)',
+                    fontSize: 12,
+                    color: 'var(--color-text-3)',
+                    borderLeft: `3px solid var(--color-${statusColor}-6)`,
+                  }}
+                >
+                  <Tag size="small" color={statusColor} style={{ fontSize: 10 }}>
+                    {statusLabel}
+                  </Tag>
+                  <span style={{ fontFamily: 'monospace' }}>
+                    {(toolCall.toolName as string).replace(/_/g, ' ')}
+                  </span>
+                </div>
+              )
+            }
 
             return (
               <AmendmentCard

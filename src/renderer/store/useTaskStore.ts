@@ -1030,7 +1030,10 @@ export const useTaskStore = create<TaskStore>()(
         entityId: stepId,
         step: step || undefined,
       })
-      const finalStatus = completionResult.finalStatus
+      // Map TaskStatus to StepStatus (same values, different enums)
+      const finalStatus = completionResult.finalStatus === TaskStatus.Waiting
+        ? StepStatus.Waiting
+        : StepStatus.Completed
 
       // Update step progress AND notes
       const now = completionResult.completedAt
@@ -1058,13 +1061,37 @@ export const useTaskStore = create<TaskStore>()(
           activeWorkSessions: newSessions,
           sequencedTasks: state.sequencedTasks.map(t => {
             if (t.id === workflow?.id) {
+              // Update the step status
+              const updatedSteps = t.steps.map(s =>
+                s.id === stepId
+                  ? { ...s, status: finalStatus as StepStatus, completedAt: now, percentComplete: 100 }
+                  : s,
+              )
+
+              // Recompute workflow overallStatus locally to match server
+              const allDone = updatedSteps.every(
+                s => s.status === StepStatus.Completed || s.status === StepStatus.Waiting || s.status === StepStatus.Skipped,
+              )
+              const anyWaiting = updatedSteps.some(s => s.status === StepStatus.Waiting)
+              const anyStarted = updatedSteps.some(
+                s => s.status === StepStatus.Completed || s.status === StepStatus.InProgress || s.status === StepStatus.Waiting,
+              )
+
+              let newOverallStatus = t.overallStatus
+              if (allDone && !anyWaiting) {
+                newOverallStatus = TaskStatus.Completed
+              } else if (allDone && anyWaiting) {
+                newOverallStatus = TaskStatus.Waiting
+              } else if (anyStarted) {
+                newOverallStatus = TaskStatus.InProgress
+              }
+
               return {
                 ...t,
-                steps: t.steps.map(s =>
-                  s.id === stepId
-                    ? { ...s, status: finalStatus as any, completedAt: now, percentComplete: 100 }
-                    : s,
-                ),
+                steps: updatedSteps,
+                overallStatus: newOverallStatus,
+                completed: allDone && !anyWaiting,
+                completedAt: (allDone && !anyWaiting) ? now : t.completedAt,
               }
             }
             return t
