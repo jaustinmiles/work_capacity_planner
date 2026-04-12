@@ -13,7 +13,6 @@ import {
   MEMORY_TOOLS,
   READ_TOOL_NAMES,
   WRITE_TOOL_NAMES,
-  MEMORY_TOOL_NAMES,
   TOOL_REGISTRY,
 } from '../tool-definitions'
 
