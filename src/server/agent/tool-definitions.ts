@@ -620,6 +620,99 @@ const createTaskTypeTool: Anthropic.Tool = {
 }
 
 // ============================================================================
+// Timer Tool Definitions
+// ============================================================================
+
+const getTimersTool: Anthropic.Tool = {
+  name: 'get_timers',
+  description:
+    'Get all active, paused, and expired timers. Shows countdown timers the user has running — both auto-created (from async wait times) and manually created (laundry, deliveries, etc.).',
+  input_schema: {
+    type: 'object' as const,
+    properties: {},
+    required: [],
+  },
+}
+
+const createTimerTool: Anthropic.Tool = {
+  name: 'create_timer',
+  description:
+    'Create a new countdown timer. Use for arbitrary countdowns ("set a 30 minute timer for laundry") or for tracking async waits. Duration is in minutes — can be multi-day (1440 = 1 day).',
+  input_schema: {
+    type: 'object' as const,
+    properties: {
+      name: {
+        type: 'string',
+        description: 'Timer display name (e.g., "Laundry", "Wait for API response").',
+      },
+      durationMinutes: {
+        type: 'number',
+        description: 'Duration in minutes.',
+      },
+      linkedTaskId: {
+        type: 'string',
+        description: 'Optional task ID this timer is for (auto-completes when timer expires).',
+      },
+      linkedStepId: {
+        type: 'string',
+        description: 'Optional step ID this timer is for (auto-completes when timer expires).',
+      },
+    },
+    required: ['name', 'durationMinutes'],
+  },
+}
+
+const extendTimerTool: Anthropic.Tool = {
+  name: 'extend_timer',
+  description:
+    'Add time to an existing timer. Use when something is taking longer than expected. Can also reactivate an expired timer.',
+  input_schema: {
+    type: 'object' as const,
+    properties: {
+      timerId: { type: 'string', description: 'Timer ID to extend (from get_timers).' },
+      addMinutes: { type: 'number', description: 'Minutes to add.' },
+    },
+    required: ['timerId', 'addMinutes'],
+  },
+}
+
+const pauseTimerTool: Anthropic.Tool = {
+  name: 'pause_timer',
+  description: 'Pause an active timer. Remaining time is preserved for when it resumes.',
+  input_schema: {
+    type: 'object' as const,
+    properties: {
+      timerId: { type: 'string', description: 'Timer ID to pause.' },
+    },
+    required: ['timerId'],
+  },
+}
+
+const resumeTimerTool: Anthropic.Tool = {
+  name: 'resume_timer',
+  description: 'Resume a paused timer.',
+  input_schema: {
+    type: 'object' as const,
+    properties: {
+      timerId: { type: 'string', description: 'Timer ID to resume.' },
+    },
+    required: ['timerId'],
+  },
+}
+
+const dismissTimerTool: Anthropic.Tool = {
+  name: 'dismiss_timer',
+  description: 'Dismiss an expired timer notification.',
+  input_schema: {
+    type: 'object' as const,
+    properties: {
+      timerId: { type: 'string', description: 'Timer ID to dismiss.' },
+    },
+    required: ['timerId'],
+  },
+}
+
+// ============================================================================
 // Memory Tool Definitions (auto-execute, no approval needed)
 // ============================================================================
 
@@ -742,6 +835,7 @@ export const READ_TOOLS: Anthropic.Tool[] = [
   getTaskTypesTool,
   getFullScheduleTool,
   getTimeSummaryTool,
+  getTimersTool,
 ]
 
 /** All write tools — require user approval */
@@ -760,6 +854,11 @@ export const WRITE_TOOLS: Anthropic.Tool[] = [
   linkTaskToEndeavorTool,
   manageSprintTool,
   createTaskTypeTool,
+  createTimerTool,
+  extendTimerTool,
+  pauseTimerTool,
+  resumeTimerTool,
+  dismissTimerTool,
 ]
 
 /** All tools combined for the API call */
@@ -799,6 +898,13 @@ export const TOOL_REGISTRY: Record<string, ToolRegistration> = {
   link_task_to_endeavor: { name: 'link_task_to_endeavor', category: 'write', statusLabel: 'Linking task to endeavor...' },
   manage_sprint: { name: 'manage_sprint', category: 'write', statusLabel: 'Updating sprint...' },
   create_task_type: { name: 'create_task_type', category: 'write', statusLabel: 'Creating task type...' },
+  // Timer tools
+  get_timers: { name: 'get_timers', category: 'read', statusLabel: 'Checking timers...' },
+  create_timer: { name: 'create_timer', category: 'write', statusLabel: 'Creating timer...' },
+  extend_timer: { name: 'extend_timer', category: 'write', statusLabel: 'Extending timer...' },
+  pause_timer: { name: 'pause_timer', category: 'write', statusLabel: 'Pausing timer...' },
+  resume_timer: { name: 'resume_timer', category: 'write', statusLabel: 'Resuming timer...' },
+  dismiss_timer: { name: 'dismiss_timer', category: 'write', statusLabel: 'Dismissing timer...' },
   // Memory tools (auto-execute)
   get_memories: { name: 'get_memories', category: 'read', statusLabel: 'Checking memory...' },
   search_memory: { name: 'search_memory', category: 'read', statusLabel: 'Searching past conversations...' },

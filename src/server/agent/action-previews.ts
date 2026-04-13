@@ -222,6 +222,46 @@ export function generateActionPreview(
       }
     }
 
+    case 'create_timer': {
+      const duration = toolInput.durationMinutes as number
+      const hours = Math.floor(duration / 60)
+      const mins = duration % 60
+      const durationStr = hours > 0 ? `${hours}h ${mins}m` : `${mins}min`
+      return {
+        title: 'Create Timer',
+        description: `"${toolInput.name}" — ${durationStr}`,
+        details: { name: toolInput.name, duration: durationStr },
+      }
+    }
+
+    case 'extend_timer':
+      return {
+        title: 'Extend Timer',
+        description: `Add ${toolInput.addMinutes} minutes`,
+        details: toolInput,
+      }
+
+    case 'pause_timer':
+      return {
+        title: 'Pause Timer',
+        description: 'Pause countdown',
+        details: toolInput,
+      }
+
+    case 'resume_timer':
+      return {
+        title: 'Resume Timer',
+        description: 'Resume countdown',
+        details: toolInput,
+      }
+
+    case 'dismiss_timer':
+      return {
+        title: 'Dismiss Timer',
+        description: 'Dismiss expired notification',
+        details: toolInput,
+      }
+
     case 'create_task_type':
       return {
         title: 'Create Task Type',
