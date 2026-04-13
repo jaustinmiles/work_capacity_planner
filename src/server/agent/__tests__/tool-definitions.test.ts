@@ -18,20 +18,20 @@ import {
 
 describe('agent tool definitions', () => {
   describe('tool counts', () => {
-    it('should have 10 read tools', () => {
-      expect(READ_TOOLS).toHaveLength(10)
+    it('should have 11 read tools', () => {
+      expect(READ_TOOLS).toHaveLength(11)
     })
 
-    it('should have 14 write tools', () => {
-      expect(WRITE_TOOLS).toHaveLength(14)
+    it('should have 19 write tools', () => {
+      expect(WRITE_TOOLS).toHaveLength(19)
     })
 
     it('should have 4 memory tools', () => {
       expect(MEMORY_TOOLS).toHaveLength(4)
     })
 
-    it('should have 28 total tools', () => {
-      expect(ALL_TOOLS).toHaveLength(28)
+    it('should have 34 total tools', () => {
+      expect(ALL_TOOLS).toHaveLength(34)
     })
 
     it('should have ALL_TOOLS = READ + WRITE + MEMORY with no overlap', () => {

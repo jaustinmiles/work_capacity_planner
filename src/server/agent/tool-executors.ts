@@ -117,6 +117,11 @@ export class ToolExecutor {
         return { success: true, data }
       }
 
+      case 'get_timers': {
+        const data = await this.caller.timer.getActive()
+        return { success: true, data }
+      }
+
       case 'get_task_types': {
         const data = await this.caller.userTaskType.getAll()
         return { success: true, data }
@@ -285,6 +290,39 @@ export class ToolExecutor {
           deadlineType: input.deadlineType as DeadlineType | undefined,
           color: input.color as string | undefined,
         })
+        return { success: true, data }
+      }
+
+      case 'create_timer': {
+        const data = await this.caller.timer.create({
+          name: input.name as string,
+          durationMinutes: input.durationMinutes as number,
+          linkedTaskId: input.linkedTaskId as string | undefined,
+          linkedStepId: input.linkedStepId as string | undefined,
+        })
+        return { success: true, data }
+      }
+
+      case 'extend_timer': {
+        const data = await this.caller.timer.extend({
+          timerId: input.timerId as string,
+          addMinutes: input.addMinutes as number,
+        })
+        return { success: true, data }
+      }
+
+      case 'pause_timer': {
+        const data = await this.caller.timer.pause({ timerId: input.timerId as string })
+        return { success: true, data }
+      }
+
+      case 'resume_timer': {
+        const data = await this.caller.timer.resume({ timerId: input.timerId as string })
+        return { success: true, data }
+      }
+
+      case 'dismiss_timer': {
+        const data = await this.caller.timer.dismiss({ timerId: input.timerId as string })
         return { success: true, data }
       }
 
