@@ -9,6 +9,7 @@ import { z } from 'zod'
 import { router, protectedProcedure } from '../trpc'
 import { generateUniqueId, resolveDependenciesAgainstExisting, resolveStepDependencies } from '../../shared/step-id-utils'
 import { getCurrentTime } from '../../shared/time-provider'
+import { StepStatus } from '../../shared/enums'
 
 /**
  * Schema for adding a step to a workflow
@@ -227,6 +228,45 @@ export const workflowRouter = router({
       where: { id: stepId },
       data,
     })
+
+    // Auto-create timer when step transitions to 'waiting' status
+    if (updates.status === 'waiting' || updates.status === StepStatus.Waiting) {
+      const now = getCurrentTime()
+      // Check if step has async wait time and no existing timer
+      const fullStep = await ctx.prisma.taskStep.findUnique({
+        where: { id: stepId },
+        select: { asyncWaitTime: true, name: true },
+      })
+      if (fullStep && fullStep.asyncWaitTime > 0) {
+        const existingTimer = await ctx.prisma.timer.findFirst({
+          where: { linkedStepId: stepId, status: { in: ['active', 'paused'] } },
+        })
+        if (!existingTimer) {
+          const { createTimerExpiresAt } = await import('../../shared/timer-types')
+          const task = await ctx.prisma.task.findUnique({
+            where: { id: taskId },
+            select: { sessionId: true },
+          })
+          if (task?.sessionId) {
+            await ctx.prisma.timer.create({
+              data: {
+                id: generateUniqueId('timer'),
+                sessionId: task.sessionId,
+                name: `Wait: ${fullStep.name}`,
+                status: 'active',
+                originalDurationMinutes: fullStep.asyncWaitTime,
+                startedAt: now,
+                expiresAt: createTimerExpiresAt(now, fullStep.asyncWaitTime),
+                linkedTaskId: taskId,
+                linkedStepId: stepId,
+                createdAt: now,
+                updatedAt: now,
+              },
+            })
+          }
+        }
+      }
+    }
 
     // Update task's overallStatus if step status changed
     if (updates.status) {
