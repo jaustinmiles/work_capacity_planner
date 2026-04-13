@@ -198,8 +198,17 @@ export function computeActionableNodeIds(
     if (node.task && node.task.completed) {
       completedNodeIds.add(nodeId)
     }
-    if (node.step && (node.step.status === StepStatus.Completed || node.step.status === StepStatus.Skipped)) {
+    if (node.step && (node.step.status === StepStatus.Completed || node.step.status === StepStatus.Skipped || node.step.status === StepStatus.Waiting)) {
       completedNodeIds.add(nodeId)
+    }
+  }
+
+  // Steps in waiting status have finished active work but are waiting on an async timer.
+  // They should NOT appear as actionable (can't start work on them).
+  const waitingNodeIds = new Set<string>()
+  for (const [nodeId, node] of nodes) {
+    if (node.step && node.step.status === StepStatus.Waiting) {
+      waitingNodeIds.add(nodeId)
     }
   }
 
@@ -213,10 +222,11 @@ export function computeActionableNodeIds(
   }
 
   // A node is actionable if:
-  // 1. Not completed itself
-  // 2. All dependencies (source nodes) are completed
+  // 1. Not completed or waiting itself
+  // 2. All dependencies (source nodes) are completed/waiting/skipped
   for (const [nodeId] of nodes) {
     if (completedNodeIds.has(nodeId)) continue
+    if (waitingNodeIds.has(nodeId)) continue
 
     const deps = nodeDependencies.get(nodeId)
     if (!deps || deps.size === 0) {
