@@ -39,6 +39,11 @@ interface TimerStoreState {
   /** Derived display states, updated every tick */
   displayStates: Map<string, TimerDisplayState>
 
+  /** Pre-computed arrays for selectors (stable references, updated by _refreshDisplayStates) */
+  activeTimersList: TimerDisplayState[]
+  expiredTimersList: TimerDisplayState[]
+  badgeCount: number
+
   /** Loading state */
   isLoading: boolean
   isInitialized: boolean
@@ -69,6 +74,9 @@ export const useTimerStore = create<TimerStoreState>()(
   subscribeWithSelector((set, get) => ({
     timers: new Map(),
     displayStates: new Map(),
+    activeTimersList: [],
+    expiredTimersList: [],
+    badgeCount: 0,
     isLoading: false,
     isInitialized: false,
     _tickTimerId: null,
@@ -224,6 +232,9 @@ export const useTimerStore = create<TimerStoreState>()(
       set({
         timers: new Map(),
         displayStates: new Map(),
+        activeTimersList: [],
+        expiredTimersList: [],
+        badgeCount: 0,
         isLoading: false,
         isInitialized: false,
       })
@@ -326,12 +337,33 @@ export const useTimerStore = create<TimerStoreState>()(
       const { timers } = get()
       const now = getCurrentTime()
       const displayStates = new Map<string, TimerDisplayState>()
+      const active: TimerDisplayState[] = []
+      const expired: TimerDisplayState[] = []
+      let badge = 0
 
       for (const [id, timer] of timers) {
-        displayStates.set(id, toTimerDisplayState(timer, now))
+        const ds = toTimerDisplayState(timer, now)
+        displayStates.set(id, ds)
+
+        if (ds.status === TimerStatus.Active || ds.status === TimerStatus.Paused) {
+          active.push(ds)
+        }
+        if (ds.status === TimerStatus.Expired) {
+          expired.push(ds)
+        }
+        if (ds.status === TimerStatus.Active || ds.status === TimerStatus.Expired) {
+          badge++
+        }
       }
 
-      set({ displayStates })
+      active.sort((a, b) => a.expiresAt.getTime() - b.expiresAt.getTime())
+
+      set({
+        displayStates,
+        activeTimersList: active,
+        expiredTimersList: expired,
+        badgeCount: badge,
+      })
     },
   })),
 )
@@ -342,39 +374,15 @@ export const useTimerStore = create<TimerStoreState>()(
 
 /** Get all active timer display states, sorted by expiration (soonest first) */
 export function useActiveTimers(): TimerDisplayState[] {
-  return useTimerStore((state) => {
-    const active: TimerDisplayState[] = []
-    for (const ds of state.displayStates.values()) {
-      if (ds.status === TimerStatus.Active || ds.status === TimerStatus.Paused) {
-        active.push(ds)
-      }
-    }
-    return active.sort((a, b) => a.expiresAt.getTime() - b.expiresAt.getTime())
-  })
+  return useTimerStore((state) => state.activeTimersList)
 }
 
 /** Get all expired (not yet dismissed) timer display states */
 export function useExpiredTimers(): TimerDisplayState[] {
-  return useTimerStore((state) => {
-    const expired: TimerDisplayState[] = []
-    for (const ds of state.displayStates.values()) {
-      if (ds.status === TimerStatus.Expired) {
-        expired.push(ds)
-      }
-    }
-    return expired
-  })
+  return useTimerStore((state) => state.expiredTimersList)
 }
 
 /** Get count of active + expired timers (for badge display) */
 export function useTimerBadgeCount(): number {
-  return useTimerStore((state) => {
-    let count = 0
-    for (const ds of state.displayStates.values()) {
-      if (ds.status === TimerStatus.Active || ds.status === TimerStatus.Expired) {
-        count++
-      }
-    }
-    return count
-  })
+  return useTimerStore((state) => state.badgeCount)
 }
