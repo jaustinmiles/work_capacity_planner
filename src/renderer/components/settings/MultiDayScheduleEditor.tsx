@@ -4,24 +4,22 @@ import {
   Space,
   Button,
   Typography,
-  Grid,
-  DatePicker,
-  Tabs,
-  Badge,
   Spin,
   Tag,
-  Tooltip,
-  Divider,
+  Dropdown,
+  Menu,
   Popconfirm,
 } from '@arco-design/web-react'
 import {
-  IconCalendar,
+  IconLeft,
+  IconRight,
+  IconMore,
   IconCopy,
   IconPaste,
   IconDelete,
+  IconSync,
 } from '@arco-design/web-react/icon'
 import { WorkBlock, WorkMeeting, DailyWorkPattern } from '@shared/work-blocks-types'
-import { calculateDuration } from '@shared/time-utils'
 import { getDatabase } from '../../services/database'
 import { WorkBlocksEditor } from './WorkBlocksEditor'
 import { Message } from '../common/Message'
@@ -35,9 +33,7 @@ import { useResponsive } from '../../providers/ResponsiveProvider'
 
 dayjs.extend(isSameOrBefore)
 
-const { Title, Text } = Typography
-const { Row, Col } = Grid
-const { RangePicker } = DatePicker
+const { Text } = Typography
 
 interface MultiDayScheduleEditorProps {
   visible: boolean
@@ -47,7 +43,7 @@ interface MultiDayScheduleEditorProps {
 
 export function MultiDayScheduleEditor({ visible, onClose: _onClose, onSave }: MultiDayScheduleEditorProps) {
   const currentTime = getCurrentTime()
-  const { isMobile, isCompact, isUltraWide, isSuperUltraWide } = useResponsive()
+  const { isUltraWide, isSuperUltraWide } = useResponsive()
 
   // Dynamic max-width for ultra-wide screens
   const maxWidth = useMemo(() => {
@@ -56,14 +52,7 @@ export function MultiDayScheduleEditor({ visible, onClose: _onClose, onSave }: M
     return 1200
   }, [isUltraWide, isSuperUltraWide])
 
-  // Dynamic column span based on screen size
-  const columnSpan = useMemo(() => {
-    if (isMobile) return 24           // 1 column (stacked)
-    if (isCompact) return 12          // 2 columns
-    if (isSuperUltraWide) return 6    // 4 columns (6+6+6+6=24)
-    if (isUltraWide) return 6         // 4 columns
-    return 8                          // 3 columns (8+8+8=24)
-  }, [isMobile, isCompact, isUltraWide, isSuperUltraWide])
+  const [showClearConfirm, setShowClearConfirm] = useState(false)
   const [dateRange, setDateRange] = useState<[dayjs.Dayjs, dayjs.Dayjs]>([
     dayjs(currentTime),
     dayjs(currentTime).add(6, 'day'),
@@ -344,269 +333,174 @@ export function MultiDayScheduleEditor({ visible, onClose: _onClose, onSave }: M
     }
   }
 
-  const getDayStatus = (date: string) => {
-    const pattern = patterns.get(date)
-    if (!pattern || pattern.blocks.length === 0) return 'empty'
+  const navigateDay = (direction: 1 | -1): void => {
+    const newDate = dayjs(selectedDate).add(direction, 'day').format('YYYY-MM-DD')
+    setSelectedDate(newDate)
 
-    const totalMinutes = pattern.blocks.reduce((acc, block) => {
-      return acc + calculateDuration(block.startTime, block.endTime)
-    }, 0)
-
-    if (totalMinutes >= 480) return 'full' // 8+ hours
-    if (totalMinutes >= 240) return 'partial' // 4+ hours
-    return 'light' // Less than 4 hours
-  }
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'full': return 'green'
-      case 'partial': return 'blue'
-      case 'light': return 'orange'
-      default: return 'gray'
+    // Expand date range if navigating outside it
+    const newDayjs = dayjs(newDate)
+    if (newDayjs.isBefore(dateRange[0], 'day')) {
+      setDateRange([newDayjs, dateRange[1]])
+    } else if (newDayjs.isAfter(dateRange[1], 'day')) {
+      setDateRange([dateRange[0], newDayjs])
     }
   }
 
-  const generateDateTabs = () => {
-    const tabs: React.ReactElement[] = []
-    const startDate = dayjs(dateRange[0])
-    const endDate = dayjs(dateRange[1])
+  const handleApplyToAll = async (): Promise<void> => {
+    const currentPattern = patterns.get(selectedDate)
+    if (!currentPattern) {
+      Message.warning('No schedule to apply')
+      return
+    }
+
+    const startDate = dateRange[0]
+    const endDate = dateRange[1]
     let currentDate = startDate
+    let appliedCount = 0
 
     while (currentDate.isSameOrBefore(endDate, 'day')) {
       const dateStr = currentDate.format('YYYY-MM-DD')
-      const dayName = currentDate.format('ddd')
-      const dayNum = currentDate.format('D')
-      const isWeekend = currentDate.day() === 0 || currentDate.day() === 6
-      const status = getDayStatus(dateStr)
 
-      tabs.push(
-        <Tabs.TabPane
-          key={dateStr}
-          title={
-            <div style={{ textAlign: 'center' }}>
-              <div style={{ fontWeight: isWeekend ? 'normal' : 'bold' }}>
-                {dayName}
-              </div>
-              <Badge
-                color={getStatusColor(status)}
-                text={dayNum}
-                style={{ marginTop: 4 }}
-              />
-            </div>
-          }
-        />,
-      )
-
+      if (dateStr !== selectedDate) {
+        const newBlocks = currentPattern.blocks.map((b, index) => ({
+          ...b,
+          id: `block-${Date.now()}-${dateStr}-${index}`,
+        }))
+        const newMeetings = currentPattern.meetings.map((m, index) => ({
+          ...m,
+          id: `meeting-${Date.now()}-${dateStr}-${index}-${Math.random().toString(36).substr(2, 9)}`,
+        }))
+        await handleSavePattern(dateStr, newBlocks, newMeetings)
+        appliedCount++
+      }
       currentDate = currentDate.add(1, 'day')
     }
 
-    return tabs
+    if (appliedCount > 0) {
+      Message.success(`Applied schedule to ${appliedCount} days`)
+    }
   }
 
+  const selectedDayjs = dayjs(selectedDate)
+  const isToday = selectedDayjs.isSame(dayjs(currentTime), 'day')
+  const hasBlocks = (patterns.get(selectedDate)?.blocks.length ?? 0) > 0
+
   return (
-    <Card
-      style={{
-        width: '100%',
-        maxWidth,
-        margin: '0 auto',
-      }}
-      title={
-        <Space>
-          <IconCalendar style={{ fontSize: 24 }} />
-          <Title heading={4} style={{ margin: 0 }}>Multi-Day Schedule Editor</Title>
-        </Space>
-      }
-    >
-      <Space direction="vertical" style={{ width: '100%' }} size="large">
-        {/* Date Range Selector */}
-        <Card>
-          <Row gutter={16} align="center">
-            <Col span={12}>
-              <RangePicker
-                value={dateRange}
-                onChange={(dates: any) => {
-                  if (dates && dates[0] && dates[1]) {
-                    setDateRange([dates[0], dates[1]])
-                  }
-                }}
-                shortcuts={[
-                  {
-                    text: 'This Week',
-                    value: () => [dayjs().startOf('week'), dayjs().endOf('week')],
-                  },
-                  {
-                    text: 'Next Week',
-                    value: () => [
-                      dayjs().add(1, 'week').startOf('week'),
-                      dayjs().add(1, 'week').endOf('week'),
-                    ],
-                  },
-                  {
-                    text: 'Next 2 Weeks',
-                    value: () => [dayjs(), dayjs().add(13, 'day')],
-                  },
-                ]}
-                style={{ width: '100%' }}
-              />
-            </Col>
-          </Row>
-
-          {/* Button Groups - Better organized */}
-          <Divider style={{ margin: '16px 0' }} />
-
-          <Row gutter={16}>
-            <Col span={columnSpan}>
-              <Space direction="vertical" style={{ width: '100%' }}>
-                <Text type="secondary">Copy/Paste</Text>
-                <Space>
-                  <Tooltip content="Copy current day's schedule">
-                    <Button
-                      icon={<IconCopy />}
-                      onClick={() => handleCopyPattern(selectedDate)}
-                      disabled={!patterns.get(selectedDate)?.blocks.length}
-                    >
-                      Copy Day
-                    </Button>
-                  </Tooltip>
-                  <Tooltip content="Paste schedule to current day">
-                    <Button
-                      icon={<IconPaste />}
-                      onClick={() => handlePastePattern(selectedDate)}
-                      disabled={!copiedPattern}
-                    >
-                      Paste
-                    </Button>
-                  </Tooltip>
-                </Space>
-              </Space>
-            </Col>
-
-            <Col span={columnSpan}>
-              <Space direction="vertical" style={{ width: '100%' }}>
-                <Text type="secondary">Apply to Multiple Days</Text>
-                <Space>
-                  <Button
-                    type="primary"
-                    onClick={handleApplyToWeekdays}
-                    disabled={!patterns.get(selectedDate)?.blocks.length}
-                  >
-                    Apply to Weekdays
-                  </Button>
-                  <Button
-                    onClick={async () => {
-                      const currentPattern = patterns.get(selectedDate)
-                      if (!currentPattern) {
-                        Message.warning('No schedule to apply')
-                        return
-                      }
-
-                      const startDate = dateRange[0]
-                      const endDate = dateRange[1]
-                      let currentDate = startDate
-                      let appliedCount = 0
-
-                      while (currentDate.isSameOrBefore(endDate, 'day')) {
-                        const dateStr = currentDate.format('YYYY-MM-DD')
-
-                        // Skip only the current date
-                        if (dateStr !== selectedDate) {
-                          const newBlocks = currentPattern.blocks.map((b, index) => ({
-                            ...b,
-                            id: `block-${Date.now()}-${dateStr}-${index}`,
-                          }))
-
-                          const newMeetings = currentPattern.meetings.map((m, index) => ({
-                            ...m,
-                            id: `meeting-${Date.now()}-${dateStr}-${index}-${Math.random().toString(36).substr(2, 9)}`,
-                          }))
-
-                          await handleSavePattern(dateStr, newBlocks, newMeetings)
-                          appliedCount++
-                        }
-
-                        currentDate = currentDate.add(1, 'day')
-                      }
-
-                      if (appliedCount > 0) {
-                        Message.success(`Applied schedule to ${appliedCount} days`)
-                      }
-                    }}
-                    disabled={!patterns.get(selectedDate)?.blocks.length}
-                  >
-                    Apply to ALL
-                  </Button>
-                </Space>
-              </Space>
-            </Col>
-
-            <Col span={columnSpan}>
-              <Space direction="vertical" style={{ width: '100%' }}>
-                <Text type="secondary">Clear Schedules</Text>
-                <Popconfirm
-                  title="Clear All Future Schedules?"
-                  content="This will delete ALL schedules for all future days. This cannot be undone."
-                  okText="Clear All"
-                  cancelText="Cancel"
-                  okButtonProps={{ status: 'danger' }}
-                  onOk={handleClearAllSchedules}
-                >
-                  <Tooltip content="Delete ALL schedules for all future days">
-                    <Button
-                      status="danger"
-                      icon={<IconDelete />}
-                    >
-                      Clear All Future Schedules
-                    </Button>
-                  </Tooltip>
-                </Popconfirm>
-              </Space>
-            </Col>
-          </Row>
-        </Card>
-
-        {/* Day Tabs */}
-        {loading ? (
-          <Card style={{ textAlign: 'center', padding: 40 }}>
-            <Spin size={40} />
-            <div style={{ marginTop: 16 }}>Loading schedules...</div>
-          </Card>
-        ) : (
-          <Tabs
-            activeTab={selectedDate}
-            onChange={setSelectedDate}
-            type="card-gutter"
-            size="large"
-          >
-            {generateDateTabs()}
-          </Tabs>
-        )}
-
-        {/* Schedule Editor for Selected Day */}
-        {selectedDate && !loading && (
-          <WorkBlocksEditor
-            date={selectedDate}
-            pattern={{
-              blocks: patterns.get(selectedDate)?.blocks || [],
-              meetings: patterns.get(selectedDate)?.meetings || [],
-            }}
-            accumulated={patterns.get(selectedDate)?.accumulated || {}}
-            onSave={(blocks, meetings) => handleSavePattern(selectedDate, blocks, meetings)}
+    <div style={{ width: '100%', maxWidth, margin: '0 auto' }}>
+      {/* Compact header: arrows + date + actions dropdown */}
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          padding: '12px 16px',
+          marginBottom: 12,
+          background: 'var(--color-bg-2)',
+          borderRadius: 8,
+        }}
+      >
+        {/* Left: day navigation */}
+        <Space size={8}>
+          <Button
+            shape="circle"
+            size="small"
+            icon={<IconLeft />}
+            onClick={() => navigateDay(-1)}
           />
-        )}
+          <div style={{ textAlign: 'center', minWidth: 140 }}>
+            <Text style={{ fontSize: 16, fontWeight: 600 }}>
+              {selectedDayjs.format('ddd, MMM D')}
+            </Text>
+            {isToday && (
+              <Tag color="arcoblue" size="small" style={{ marginLeft: 8 }}>
+                Today
+              </Tag>
+            )}
+          </div>
+          <Button
+            shape="circle"
+            size="small"
+            icon={<IconRight />}
+            onClick={() => navigateDay(1)}
+          />
+          {!isToday && (
+            <Button
+              size="small"
+              onClick={() => setSelectedDate(dayjs(currentTime).format('YYYY-MM-DD'))}
+            >
+              Today
+            </Button>
+          )}
+        </Space>
 
-        {/* Legend - wraps on small screens */}
-        <Card size="small">
-          <Space direction={isMobile || isCompact ? 'vertical' : 'horizontal'} wrap>
-            <Text type="secondary" style={{ whiteSpace: 'nowrap' }}>Schedule Status:</Text>
-            <Space wrap size="small">
-              <Tag color="green">Full Day (8+ hours)</Tag>
-              <Tag color="blue">Partial Day (4-8 hours)</Tag>
-              <Tag color="orange">Light Day (&lt;4 hours)</Tag>
-              <Tag color="gray">No Schedule</Tag>
-            </Space>
-          </Space>
+        {/* Right: actions dropdown */}
+        <Dropdown
+          droplist={
+            <Menu onClickMenuItem={(key) => {
+              switch (key) {
+                case 'copy': handleCopyPattern(selectedDate); break
+                case 'paste': handlePastePattern(selectedDate); break
+                case 'apply-weekdays': handleApplyToWeekdays(); break
+                case 'apply-all': handleApplyToAll(); break
+                case 'clear': setShowClearConfirm(true); break
+              }
+            }}>
+              <Menu.Item key="copy" disabled={!hasBlocks}>
+                <IconCopy style={{ marginRight: 8 }} />Copy Day
+              </Menu.Item>
+              <Menu.Item key="paste" disabled={!copiedPattern}>
+                <IconPaste style={{ marginRight: 8 }} />Paste
+              </Menu.Item>
+              <Menu.SubMenu key="apply" title={<><IconSync style={{ marginRight: 8 }} />Apply to...</>}>
+                <Menu.Item key="apply-weekdays" disabled={!hasBlocks}>Weekdays in range</Menu.Item>
+                <Menu.Item key="apply-all" disabled={!hasBlocks}>All days in range</Menu.Item>
+              </Menu.SubMenu>
+              <Menu.Item key="clear" className="arco-menu-danger">
+                <IconDelete style={{ marginRight: 8, color: 'var(--color-danger-6)' }} />Clear All Future
+              </Menu.Item>
+            </Menu>
+          }
+          position="br"
+        >
+          <Button icon={<IconMore />} size="small">
+            Actions
+          </Button>
+        </Dropdown>
+      </div>
+
+      {/* Clear confirmation (triggered from dropdown) */}
+      {showClearConfirm && (
+        <Popconfirm
+          title="Clear All Future Schedules?"
+          content="This will delete ALL schedules for all future days. This cannot be undone."
+          okText="Clear All"
+          cancelText="Cancel"
+          okButtonProps={{ status: 'danger' }}
+          onOk={() => { handleClearAllSchedules(); setShowClearConfirm(false) }}
+          onCancel={() => setShowClearConfirm(false)}
+          popupVisible={showClearConfirm}
+        >
+          <span />
+        </Popconfirm>
+      )}
+
+      {/* Schedule Editor for Selected Day */}
+      {loading ? (
+        <Card style={{ textAlign: 'center', padding: 40 }}>
+          <Spin size={40} />
+          <div style={{ marginTop: 16 }}>Loading schedule...</div>
         </Card>
-      </Space>
-    </Card>
+      ) : selectedDate ? (
+        <WorkBlocksEditor
+          date={selectedDate}
+          pattern={{
+            blocks: patterns.get(selectedDate)?.blocks || [],
+            meetings: patterns.get(selectedDate)?.meetings || [],
+          }}
+          accumulated={patterns.get(selectedDate)?.accumulated || {}}
+          onSave={(blocks, meetings) => handleSavePattern(selectedDate, blocks, meetings)}
+        />
+      ) : null}
+    </div>
   )
 }

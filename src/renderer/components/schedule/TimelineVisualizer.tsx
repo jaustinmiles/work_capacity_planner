@@ -187,6 +187,17 @@ export function TimelineVisualizer({
     return undefined
   }, [dragState])
 
+  // Auto-scroll to current time on mount
+  useEffect(() => {
+    if (containerRef.current) {
+      const now = getCurrentTime()
+      const currentHour = now.getHours()
+      // Scroll so current time is roughly 1/3 from the top
+      const scrollTarget = Math.max(0, (currentHour - startHour - 2) * HOUR_HEIGHT)
+      containerRef.current.scrollTop = scrollTarget
+    }
+  }, [startHour, HOUR_HEIGHT])
+
   const getBlockColor = (typeConfig: WorkBlock['typeConfig']) => {
     if (isSystemBlock(typeConfig)) {
       return '#86909C' // Gray for system blocks
