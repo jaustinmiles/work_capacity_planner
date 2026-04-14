@@ -1687,6 +1687,14 @@ export class TrpcDatabaseService {
   async getDecisionSessions(): Promise<Record<string, unknown>[]> {
     return this.client.decision.getSessions.query() as Promise<Record<string, unknown>[]>
   }
+
+  // ===========================================================================
+  // TTS
+  // ===========================================================================
+
+  async synthesizeSpeech(text: string, voice?: string): Promise<Record<string, unknown>> {
+    return this.client.speech.synthesize.mutate({ text, voice: voice as Parameters<typeof this.client.speech.synthesize.mutate>[0]['voice'] }) as Promise<Record<string, unknown>>
+  }
 }
 
 /**

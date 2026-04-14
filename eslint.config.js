@@ -65,6 +65,10 @@ module.exports = [
         TextDecoder: 'readonly',
         SVGSVGElement: 'readonly',
         SVGGElement: 'readonly',
+        HTMLAudioElement: 'readonly',
+        Audio: 'readonly',
+        URL: 'readonly',
+        atob: 'readonly',
       },
     },
     plugins: {
