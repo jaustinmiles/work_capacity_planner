@@ -1045,6 +1045,121 @@ Make questions specific and actionable. Avoid generic questions.
 
     return response
   }
+
+  // ==========================================================================
+  // Decision Helper Methods
+  // ==========================================================================
+
+  /**
+   * Socratic reflection: send conversation + state to Claude, get a question + visual data.
+   * Uses the strict Socratic prompt that produces zero-opinion, graph-building responses.
+   */
+  async reflectOnDecision(
+    history: Array<{ role: 'user' | 'assistant'; content: string }>,
+    currentState: import('./decision-types').DecisionState,
+  ): Promise<{ question: string; visual: import('./decision-types').ClaudeVisualResponse }> {
+    const { getSocraticSystemPrompt, buildStateContext } = await import('./decision-prompts')
+    const { computeConnectivity } = await import('./decision-connectivity')
+
+    const stateContext = buildStateContext(currentState)
+    const connectivity = computeConnectivity(currentState)
+
+    let densityWarning = ''
+    if (connectivity.score < 0.3 && currentState.tree.nodes.length > 2) {
+      densityWarning = `\n\nGRAPH DENSITY WARNING: The current graph has ${currentState.tree.nodes.length} nodes but only ${currentState.tree.edges.length} edges (connectivity: ${(connectivity.score * 100).toFixed(0)}%). This is too sparse. Focus on adding EDGES between existing nodes this turn. Look for implied relationships in the conversation history.`
+    }
+
+    const messages: Anthropic.MessageParam[] = history.map(h => ({
+      role: h.role,
+      content: h.content,
+    }))
+
+    const response = await this.anthropic.messages.create({
+      model: 'claude-opus-4-6',
+      max_tokens: 2048,
+      system: getSocraticSystemPrompt(stateContext, densityWarning),
+      messages,
+    })
+
+    const text = this.extractTextFromResponse(response)
+
+    try {
+      const jsonStr = text.replace(/^```json\s*/, '').replace(/\s*```$/, '')
+      const parsed = JSON.parse(jsonStr)
+      return {
+        question: parsed.question || 'What else is on your mind about this?',
+        visual: parsed.visual || {},
+      }
+    } catch {
+      // If JSON parse fails, treat the whole response as the question
+      return {
+        question: text.slice(0, 200),
+        visual: {},
+      }
+    }
+  }
+
+  /**
+   * Neutral summary of the current decision state.
+   */
+  async summarizeDecision(
+    history: Array<{ role: 'user' | 'assistant'; content: string }>,
+    currentState: import('./decision-types').DecisionState,
+  ): Promise<string> {
+    const { getSummaryPrompt, buildStateContext } = await import('./decision-prompts')
+
+    const stateContext = buildStateContext(currentState)
+    const conversationText = history.map(h => `${h.role.toUpperCase()}: ${h.content}`).join('\n\n')
+
+    const response = await this.anthropic.messages.create({
+      model: 'claude-opus-4-6',
+      max_tokens: 512,
+      system: getSummaryPrompt(),
+      messages: [
+        {
+          role: 'user',
+          content: `Here is the conversation so far:\n\n${conversationText}\n\nCurrent decision state:\n${stateContext}\n\nSummarize this in 200 words or less.`,
+        },
+      ],
+    })
+
+    return this.extractTextFromResponse(response)
+  }
+
+  /**
+   * Extract tasks/workflows from a completed decision session.
+   */
+  async extractDecisionToTasks(
+    history: Array<{ role: 'user' | 'assistant'; content: string }>,
+    currentState: import('./decision-types').DecisionState,
+    existingTasks: Array<{ id: string; name: string; importance: number; urgency: number }>,
+  ): Promise<import('./decision-types').DecisionExtraction> {
+    const { getExtractionPrompt, buildStateContext } = await import('./decision-prompts')
+
+    const stateContext = buildStateContext(currentState)
+    const conversationText = history.map(h => `${h.role.toUpperCase()}: ${h.content}`).join('\n\n')
+    const taskList = existingTasks.map(t => `- ${t.name} (id: ${t.id}, importance: ${t.importance}, urgency: ${t.urgency})`).join('\n')
+
+    const response = await this.anthropic.messages.create({
+      model: 'claude-opus-4-6',
+      max_tokens: 4000,
+      system: getExtractionPrompt(),
+      messages: [
+        {
+          role: 'user',
+          content: `Decision graph:\n${stateContext}\n\nConversation:\n${conversationText}\n\nExisting tasks:\n${taskList || 'No existing tasks.'}\n\nExtract actionable items from this decision session.`,
+        },
+      ],
+    })
+
+    const text = this.extractTextFromResponse(response)
+    try {
+      const jsonStr = text.replace(/^```json\s*/, '').replace(/\s*```$/, '')
+      return JSON.parse(jsonStr)
+    } catch {
+      return { newTasks: [], newWorkflows: [], taskUpdates: [], priorityReassignments: [] }
+    }
+  }
 }
 
 /**

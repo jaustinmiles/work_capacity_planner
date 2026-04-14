@@ -271,6 +271,34 @@ export enum ViewType {
   DeepWork = 'deepWork',
   Timers = 'timers',
   Memory = 'memory',
+  Decision = 'decision',
+}
+
+// Decision tree node types
+export enum TreeNodeType {
+  Option = 'option',
+  Factor = 'factor',
+  Question = 'question',
+  Insight = 'insight',
+  Risk = 'risk',
+  Milestone = 'milestone',
+}
+
+// Decision thinking sentiment
+export enum ThinkingSentiment {
+  Exploring = 'exploring',
+  Uncertain = 'uncertain',
+  Energized = 'energized',
+  Conflicted = 'conflicted',
+  Clarifying = 'clarifying',
+}
+
+// TTS voice options (OpenAI)
+export enum TTSVoice {
+  Nova = 'nova',
+  Onyx = 'onyx',
+  Echo = 'echo',
+  Shimmer = 'shimmer',
 }
 
 // Sprint filter modes for task list views

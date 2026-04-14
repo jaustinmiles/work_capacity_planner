@@ -27,6 +27,7 @@ import { pomodoroRouter } from './pomodoro'
 import { agentRouter } from './agent'
 import { timerRouter } from './timer'
 import { memoryRouter } from './memory'
+import { decisionRouter } from './decision'
 
 /**
  * Main application router
@@ -73,6 +74,7 @@ export const appRouter = router({
   agent: agentRouter,
   timer: timerRouter,
   memory: memoryRouter,
+  decision: decisionRouter,
 })
 
 /**
