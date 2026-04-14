@@ -126,6 +126,9 @@ interface ConversationState {
   /** Whether agent mode is active (vs legacy amendment chat) */
   isAgentMode: boolean
 
+  /** Auto-approve all agent write tool proposals without user confirmation */
+  autoApproveMode: boolean
+
   /** Pending write tool proposals awaiting user approval */
   pendingActions: AgentProposedActionEvent[]
 
@@ -174,6 +177,7 @@ interface ConversationState {
 
   // Agent mode actions
   setAgentMode: (enabled: boolean) => void
+  setAutoApproveMode: (enabled: boolean) => void
   addPendingAction: (action: AgentProposedActionEvent) => void
   removePendingAction: (proposalId: string) => void
   updatePendingActionStatus: (proposalId: string, status: 'applied' | 'rejected' | 'error' | 'timeout') => void
@@ -216,6 +220,7 @@ export const useConversationStore = create<ConversationState>()(
 
       // Agent mode state
       isAgentMode: false,
+      autoApproveMode: false,
       pendingActions: [],
       activeToolStatuses: [],
 
@@ -553,6 +558,10 @@ export const useConversationStore = create<ConversationState>()(
         set({ isAgentMode: enabled })
       },
 
+      setAutoApproveMode: (enabled) => {
+        set({ autoApproveMode: enabled })
+      },
+
       addPendingAction: (action) => {
         set((state) => ({
           pendingActions: [...state.pendingActions, action],
@@ -603,6 +612,7 @@ export const useConversationStore = create<ConversationState>()(
         sidebarOpen: state.sidebarOpen,
         sidebarWidth: state.sidebarWidth,
         isAgentMode: state.isAgentMode,
+        autoApproveMode: state.autoApproveMode,
       }),
     },
   ),

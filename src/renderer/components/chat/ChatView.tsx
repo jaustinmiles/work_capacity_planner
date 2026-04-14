@@ -79,6 +79,8 @@ export function ChatView({ onNavigateToView }: ChatViewProps): React.ReactElemen
     setError,
     isAgentMode,
     setAgentMode,
+    autoApproveMode,
+    setAutoApproveMode,
     pendingActions,
     activeToolStatuses,
     addPendingAction,
@@ -263,7 +265,13 @@ export function ChatView({ onNavigateToView }: ChatViewProps): React.ReactElemen
             }
           },
           onProposedAction: (event) => {
-            addPendingAction(event)
+            const { autoApproveMode: autoApprove } = useConversationStore.getState()
+            if (autoApprove) {
+              // Auto-approve without showing card
+              approveAgentAction(event.proposalId)
+            } else {
+              addPendingAction(event)
+            }
           },
           onActionResult: (event) => {
             removePendingAction(event.proposalId)
@@ -354,6 +362,16 @@ export function ChatView({ onNavigateToView }: ChatViewProps): React.ReactElemen
           checked={isAgentMode}
           onChange={setAgentMode}
         />
+        {isAgentMode && (
+          <>
+            <span style={{ marginLeft: 12 }}>Auto-approve</span>
+            <Switch
+              size="small"
+              checked={autoApproveMode}
+              onChange={setAutoApproveMode}
+            />
+          </>
+        )}
       </div>
 
       {/* Messages */}
