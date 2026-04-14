@@ -63,6 +63,8 @@ module.exports = [
         AbortController: 'readonly',
         AbortSignal: 'readonly',
         TextDecoder: 'readonly',
+        SVGSVGElement: 'readonly',
+        SVGGElement: 'readonly',
       },
     },
     plugins: {

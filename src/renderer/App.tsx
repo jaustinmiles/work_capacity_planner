@@ -34,6 +34,7 @@ import { DeepWorkBoardView } from './components/deep-work/DeepWorkBoardView'
 import { TimerTab } from './components/timers/TimerTab'
 import { useTimerStore } from './store/useTimerStore'
 import { MemoryPanel } from './components/memory/MemoryPanel'
+import { DecisionView } from './components/decision/DecisionView'
 import { DevTools } from './components/dev/DevTools'
 import { TimeSinkManager } from './components/time-sinks/TimeSinkManager'
 import { TimeSinkLogger } from './components/time-sinks/TimeSinkLogger'
@@ -665,6 +666,15 @@ function AppContent() {
                   }
                 />
                 <Tabs.TabPane
+                  key={ViewType.Decision}
+                  title={
+                    <Space>
+                      <IconStar />
+                      {!isMobile && <span>Decide</span>}
+                    </Space>
+                  }
+                />
+                <Tabs.TabPane
                   key={ViewType.Calendar}
                   title={
                     <Space>
@@ -798,6 +808,12 @@ function AppContent() {
                     {activeView === ViewType.Memory && (
                       <ErrorBoundary>
                         <MemoryPanel />
+                      </ErrorBoundary>
+                    )}
+
+                    {activeView === ViewType.Decision && (
+                      <ErrorBoundary>
+                        <DecisionView />
                       </ErrorBoundary>
                     )}
 

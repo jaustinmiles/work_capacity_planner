@@ -1659,6 +1659,34 @@ export class TrpcDatabaseService {
   async getConversationSummaries(): Promise<Record<string, unknown>[]> {
     return this.client.memory.getAllSummaries.query() as Promise<Record<string, unknown>[]>
   }
+
+  // ===========================================================================
+  // Decision Sessions
+  // ===========================================================================
+
+  async startDecisionSession(conversationId?: string): Promise<Record<string, unknown>> {
+    return this.client.decision.startSession.mutate(conversationId ? { conversationId } : undefined) as Promise<Record<string, unknown>>
+  }
+
+  async endDecisionSession(id: string): Promise<Record<string, unknown>> {
+    return this.client.decision.endSession.mutate({ id }) as Promise<Record<string, unknown>>
+  }
+
+  async reflectDecision(id: string, text: string): Promise<Record<string, unknown>> {
+    return this.client.decision.reflect.mutate({ id, text }) as Promise<Record<string, unknown>>
+  }
+
+  async summarizeDecision(id: string): Promise<Record<string, unknown>> {
+    return this.client.decision.summarize.mutate({ id }) as Promise<Record<string, unknown>>
+  }
+
+  async getDecisionState(id: string): Promise<Record<string, unknown> | null> {
+    return this.client.decision.getState.query({ id }) as Promise<Record<string, unknown> | null>
+  }
+
+  async getDecisionSessions(): Promise<Record<string, unknown>[]> {
+    return this.client.decision.getSessions.query() as Promise<Record<string, unknown>[]>
+  }
 }
 
 /**
