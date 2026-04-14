@@ -137,6 +137,7 @@ model Session {
   Timer                 Timer[]
   AgentMemory           AgentMemory[]
   ConversationSummary   ConversationSummary[]
+  DecisionSession       DecisionSession[]
 }
 
 // Schedule Snapshot - Captures schedule state at a point in time
@@ -449,6 +450,7 @@ model Conversation {
   JobContext   JobContext?   @relation(fields: [jobContextId], references: [id], onDelete: SetNull)
   ChatMessage          ChatMessage[]
   ConversationSummary  ConversationSummary?
+  DecisionSession      DecisionSession[]
 
   @@index([sessionId])
   @@index([createdAt])
@@ -701,4 +703,24 @@ model ConversationSummary {
 
   @@index([sessionId])
   @@index([createdAt])
+}
+
+// DecisionSession — A Socratic decision brainstorming session
+// Stores the decision graph state as JSON. The graph is consumed by
+// D3 force-directed visualization and the task extraction engine.
+model DecisionSession {
+  id             String        @id
+  sessionId      String
+  topic          String?
+  decisionState  String        @default("{}")    // JSON: DecisionState shape
+  connectivity   Float         @default(0)
+  isActive       Boolean       @default(true)
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+  conversationId String?
+  Session        Session       @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  Conversation   Conversation? @relation(fields: [conversationId], references: [id])
+
+  @@index([sessionId])
+  @@index([isActive])
 }
