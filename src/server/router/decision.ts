@@ -32,6 +32,21 @@ export const decisionRouter = router({
       const id = generateUniqueId('decision')
       const now = getCurrentTime()
 
+      // Auto-create a conversation if none provided, so chat history persists
+      let conversationId = input?.conversationId ?? null
+      if (!conversationId) {
+        const conversation = await ctx.prisma.conversation.create({
+          data: {
+            id: generateUniqueId('conv'),
+            sessionId: ctx.sessionId,
+            title: 'Decision Session',
+            createdAt: now,
+            isArchived: false,
+          },
+        })
+        conversationId = conversation.id
+      }
+
       const session = await ctx.prisma.decisionSession.create({
         data: {
           id,
@@ -39,13 +54,14 @@ export const decisionRouter = router({
           decisionState: JSON.stringify(emptyDecisionState()),
           connectivity: 0,
           isActive: true,
-          conversationId: input?.conversationId ?? null,
+          conversationId,
           createdAt: now,
         },
       })
 
       return {
         id: session.id,
+        conversationId,
         decisionState: emptyDecisionState(),
         connectivity: computeConnectivity(null),
       }
