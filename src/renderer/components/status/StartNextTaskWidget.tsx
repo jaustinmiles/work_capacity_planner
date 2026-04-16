@@ -232,21 +232,18 @@ export function StartNextTaskWidget(): ReactElement {
                     {progress.isPaused ? '⏸️ Paused: ' : '▶️ Working on: '}
                     {activeSession.taskName || activeSession.stepName || 'Unknown'}
                   </Text>
-                  <Space wrap>
-                    <Tag color={isOverdue ? 'red' : 'blue'}>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+                    <Tag size="small" color={isOverdue ? 'red' : 'blue'}>
                       {!hasEstimate
-                        ? 'No estimate'
+                        ? 'No est.'
                         : isOverdue
                           ? `⚠️ ${formatMinutes(progress.elapsedMinutes - plannedMinutes)} over`
-                          : `${formatMinutes(remainingMinutes)} remaining`}
+                          : `${formatMinutes(remainingMinutes)} left`}
                     </Tag>
-                    <Tag color="gray">
-                      {formatMinutes(progress.elapsedMinutes)} elapsed
+                    <Tag size="small" color="gray">
+                      {formatMinutes(progress.elapsedMinutes)}
                     </Tag>
-                    <Tag color={activeSession.stepId ? 'purple' : 'green'}>
-                      {activeSession.stepId ? '🔄 Step' : '📋 Task'}
-                    </Tag>
-                  </Space>
+                  </div>
                 </Space>
               )
             } else if (nextTask) {
@@ -262,23 +259,20 @@ export function StartNextTaskWidget(): ReactElement {
                       Workflow: {nextTask.workflowName}
                     </Text>
                   )}
-                  <Space wrap>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
                     {hasLoggedTime ? (
                       <>
-                        <Tag color={isOverdue ? 'red' : 'blue'}>
-                          {isOverdue ? '⚠️ Overdue' : `${formatMinutes(remainingMinutes)} remaining`}
+                        <Tag size="small" color={isOverdue ? 'red' : 'blue'}>
+                          {isOverdue ? '⚠️ Over' : `${formatMinutes(remainingMinutes)} left`}
                         </Tag>
-                        <Tag color="gray">
-                          {formatMinutes(nextTask.loggedMinutes)} logged
+                        <Tag size="small" color="gray">
+                          {formatMinutes(nextTask.loggedMinutes)}
                         </Tag>
                       </>
                     ) : (
-                      <Tag color="blue">{formatMinutes(nextTask.estimatedDuration)}</Tag>
+                      <Tag size="small" color="blue">{formatMinutes(nextTask.estimatedDuration)}</Tag>
                     )}
-                    <Tag color={nextTask.type === 'step' ? 'purple' : 'green'}>
-                      {nextTask.type === 'step' ? '🔄 Step' : '📋 Task'}
-                    </Tag>
-                  </Space>
+                  </div>
                 </Space>
               )
             } else {
@@ -288,16 +282,17 @@ export function StartNextTaskWidget(): ReactElement {
 
           {/* Action buttons */}
           {hasActiveSession ? (
-            <Space style={{ width: '100%', marginTop: 8 }}>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginTop: 8 }}>
               <Button
+                size="small"
                 type="outline"
                 status="warning"
                 icon={<IconPause />}
                 loading={isProcessing}
                 onClick={handlePauseCurrentTask}
-                style={{ flex: 1 }}
+                style={{ flex: '1 1 auto', minWidth: 0 }}
               >
-                Pause
+                {isCompact ? '' : 'Pause'}
               </Button>
               <Popover
                 trigger="click"
@@ -315,31 +310,33 @@ export function StartNextTaskWidget(): ReactElement {
                       style={{ width: 100 }}
                     />
                     <Button size="small" type="primary" onClick={handleStartWait} loading={isProcessing}>
-                      Start Wait
+                      Start
                     </Button>
                   </Space>
                 }
               >
                 <Button
+                  size="small"
                   type="outline"
                   icon={<IconClockCircle />}
                   loading={isProcessing}
-                  style={{ flex: 1 }}
+                  style={{ flex: '1 1 auto', minWidth: 0 }}
                 >
-                  Wait
+                  {isCompact ? '' : 'Wait'}
                 </Button>
               </Popover>
               <Button
+                size="small"
                 type="primary"
                 status="success"
                 icon={<IconCheck />}
                 loading={isProcessing}
                 onClick={handleCompleteCurrentTask}
-                style={{ flex: 1 }}
+                style={{ flex: '1 1 auto', minWidth: 0 }}
               >
-                Complete
+                {isCompact ? '' : 'Done'}
               </Button>
-            </Space>
+            </div>
           ) : (
             <Button
               type="primary"

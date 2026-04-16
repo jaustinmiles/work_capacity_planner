@@ -64,6 +64,7 @@ interface SchedulerStoreState {
     schedulingPreferences?: SchedulingPrefs
   }) => void
   setNextTaskSkipIndex: (index: number) => void
+  setNextScheduledItem: (item: NextScheduledItem | null) => void
   recomputeSchedule: () => void
   clearSchedule: () => void
 }
@@ -428,6 +429,10 @@ export const useSchedulerStore = create<SchedulerStoreState>()(
       } else {
         set(inputs)
       }
+    },
+
+    setNextScheduledItem: (item) => {
+      set({ nextScheduledItem: item })
     },
 
     setNextTaskSkipIndex: (index) => {

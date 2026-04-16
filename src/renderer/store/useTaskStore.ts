@@ -414,6 +414,9 @@ export const useTaskStore = create<TaskStore>()(
             error: null,
           }
         })
+
+        // Immediately invalidate nextScheduledItem so widget doesn't show stale data
+        useSchedulerStore.getState().setNextScheduledItem(null)
       } else {
         set((state) => ({
           tasks: state.tasks.map(task =>
@@ -1217,6 +1220,10 @@ export const useTaskStore = create<TaskStore>()(
           nextTaskSkipIndex: 0,
         }
       })
+
+      // Immediately invalidate nextScheduledItem so widget doesn't show stale data
+      // while the storeConnector's debounced recompute is pending
+      useSchedulerStore.getState().setNextScheduledItem(null)
 
       logger.ui.info('[completeStep] Step completion successful', {
         stepId,
