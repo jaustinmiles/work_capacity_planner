@@ -1563,6 +1563,7 @@ export class TrpcDatabaseService {
   async startPomodoroCycle(input: {
     workDurationMinutes?: number
     breakDurationMinutes?: number
+    cycleNumber?: number
   }): Promise<Record<string, unknown>> {
     return this.client.pomodoro.startCycle.mutate(input)
   }
