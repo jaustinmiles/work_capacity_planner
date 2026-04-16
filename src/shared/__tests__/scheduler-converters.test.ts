@@ -236,9 +236,9 @@ describe('scheduler-converters', () => {
 
       const { activeItems, completedItemIds } = convertToUnifiedItems([wf])
 
-      // Waiting steps go in completedItemIds (to unblock dependents)
-      expect(completedItemIds.has('step-1')).toBe(true)
-      // But remain in activeItems with isWaitingOnAsync flag
+      // Waiting steps do NOT go in completedItemIds — they block dependents
+      expect(completedItemIds.has('step-1')).toBe(false)
+      // But remain in activeItems with isWaitingOnAsync flag for display
       expect(activeItems).toHaveLength(1)
       expect(activeItems[0]!.isWaitingOnAsync).toBe(true)
       expect(activeItems[0]!.completedAt).toEqual(completedAt)
