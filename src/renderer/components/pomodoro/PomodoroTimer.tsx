@@ -47,7 +47,6 @@ export function PomodoroTimer() {
   const resumeCycle = usePomodoroStore((s) => s.resumeCycle)
   const endCycle = usePomodoroStore((s) => s.endCycle)
   const dismissPrompt = usePomodoroStore((s) => s.dismissPrompt)
-  const pendingPrompt = usePomodoroStore((s) => s.pendingPrompt)
   const transitionToBreak = usePomodoroStore((s) => s.transitionToBreak)
   const [isStarting, setIsStarting] = useState(false)
 
@@ -110,8 +109,8 @@ export function PomodoroTimer() {
   const hasTask = !!timerState.currentTaskName
   const isWorkPhase = timerState.currentPhase === PomodoroPhase.Work
 
-  // Detect "dismissed break prompt" state: work phase expired, no active timer, no pending prompt
-  const needsBreakStart = isWorkPhase && !timerState.isActive && timerState.remainingSeconds === 0 && !pendingPrompt
+  // Show "Start Break" whenever work phase is expired — whether or not the break prompt modal is showing
+  const needsBreakStart = isWorkPhase && !timerState.isActive && timerState.remainingSeconds === 0
 
   return (
     <div
