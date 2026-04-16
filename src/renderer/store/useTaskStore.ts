@@ -399,8 +399,8 @@ export const useTaskStore = create<TaskStore>()(
     try {
       const updatedTask = await getDatabase().updateTask(id, updates)
 
-      // If task is being marked as completed, clear its active work session
-      if (updates.completed || updates.overallStatus === TaskStatus.Completed) {
+      // If task is being marked as completed or waiting, clear its active work session
+      if (updates.completed || updates.overallStatus === TaskStatus.Completed || updates.overallStatus === TaskStatus.Waiting) {
         // Use atomic state update with function form to prevent race conditions
         set((state) => {
           const newSessions = new Map(state.activeWorkSessions)
