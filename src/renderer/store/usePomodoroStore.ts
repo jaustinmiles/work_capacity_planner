@@ -323,10 +323,11 @@ export const usePomodoroStore = create<PomodoroStoreState>()(
         // 2. End the current cycle in DB (work+break = one complete cycle)
         await getDatabase().endPomodoroCycle(activeCycle.id)
 
-        // 3. Start a NEW cycle from the server — server computes correct cycleNumber
+        // 3. Start a NEW cycle — pass incremented cycleNumber explicitly
         const effectiveSettings = getEffectiveSettings(usePomodoroStore.getState().settings)
         const newCycleRaw = await getDatabase().startPomodoroCycle({
           workDurationMinutes: effectiveSettings.workDurationMinutes,
+          cycleNumber: activeCycle.cycleNumber + 1,
         })
         const newCycle = fromDatabasePomodoroCycle(newCycleRaw)
 
