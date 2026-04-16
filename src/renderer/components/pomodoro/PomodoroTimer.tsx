@@ -47,6 +47,8 @@ export function PomodoroTimer() {
   const resumeCycle = usePomodoroStore((s) => s.resumeCycle)
   const endCycle = usePomodoroStore((s) => s.endCycle)
   const dismissPrompt = usePomodoroStore((s) => s.dismissPrompt)
+  const pendingPrompt = usePomodoroStore((s) => s.pendingPrompt)
+  const transitionToBreak = usePomodoroStore((s) => s.transitionToBreak)
   const [isStarting, setIsStarting] = useState(false)
 
   // ── Idle state: no active cycle ──
@@ -108,6 +110,9 @@ export function PomodoroTimer() {
   const hasTask = !!timerState.currentTaskName
   const isWorkPhase = timerState.currentPhase === PomodoroPhase.Work
 
+  // Detect "dismissed break prompt" state: work phase expired, no active timer, no pending prompt
+  const needsBreakStart = isWorkPhase && !timerState.isActive && timerState.remainingSeconds === 0 && !pendingPrompt
+
   return (
     <div
       style={{
@@ -134,10 +139,22 @@ export function PomodoroTimer() {
         </Space>
 
         {/* Hint when work phase active but no task started yet */}
-        {isWorkPhase && !hasTask && (
+        {isWorkPhase && !hasTask && !needsBreakStart && (
           <Text type="secondary" style={{ fontSize: 12, fontStyle: 'italic' }}>
             Start any task to link it to this cycle
           </Text>
+        )}
+
+        {/* Start Break button — shown when break prompt was dismissed */}
+        {needsBreakStart && (
+          <Button
+            long
+            type="primary"
+            style={{ background: '#52c41a', borderColor: '#52c41a' }}
+            onClick={() => transitionToBreak()}
+          >
+            Start Break ({settings.shortBreakMinutes} min)
+          </Button>
         )}
 
         {/* Timer display + progress */}
