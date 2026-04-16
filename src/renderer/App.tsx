@@ -33,6 +33,7 @@ import { EndeavorGraphView } from './components/endeavors/graph/EndeavorGraphVie
 import { DeepWorkBoardView } from './components/deep-work/DeepWorkBoardView'
 import { TimerTab } from './components/timers/TimerTab'
 import { useTimerStore } from './store/useTimerStore'
+import { usePomodoroStore } from './store/usePomodoroStore'
 import { MemoryPanel } from './components/memory/MemoryPanel'
 import { DecisionView } from './components/decision/DecisionView'
 import { DevTools } from './components/dev/DevTools'
@@ -93,6 +94,9 @@ function AppContent() {
 
         // Initialize user task types (needed for task type display)
         await useUserTaskTypeStore.getState().loadTypes()
+
+        // Initialize Pomodoro (restores active cycle if app was refreshed mid-pomodoro)
+        await usePomodoroStore.getState().initialize()
 
         // Initialize timers (loads active timers, catches up expired ones)
         await useTimerStore.getState().initialize()
