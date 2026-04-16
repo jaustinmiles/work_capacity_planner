@@ -240,6 +240,14 @@ const extractNextScheduledItem = (
 ): NextScheduledItem | null => {
   if (!scheduleResult) return null
 
+  // Build set of item IDs that are currently waiting (blocked on timer)
+  // These items have NOT completed their work — their dependents can't start
+  const waitingItemIds = new Set(
+    scheduleResult.scheduled
+      .filter(item => item.isWaitingOnAsync)
+      .map(item => item.originalTaskId || item.id),
+  )
+
   // Filter and sort scheduled items to find work items (exclude wait blocks and non-work items)
   const workItems = scheduleResult.scheduled
     .filter(item => {
@@ -248,6 +256,13 @@ const extractNextScheduledItem = (
       // Filter out non-work items (wait blocks, meetings, breaks, blocked time)
       if (isNonWorkItem(item)) {
         return false
+      }
+
+      // Filter out items whose dependencies include a waiting item
+      // These items can't be started yet — their deps haven't finished
+      if (item.dependencies && item.dependencies.length > 0) {
+        const hasWaitingDep = item.dependencies.some(depId => waitingItemIds.has(depId))
+        if (hasWaitingDep) return false
       }
 
       return true
