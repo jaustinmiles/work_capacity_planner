@@ -13,9 +13,11 @@
 import { useState } from 'react'
 import { Space, Button, Tag, Typography, Progress } from '@arco-design/web-react'
 import { IconPause, IconPlayArrow, IconSkipNext, IconClose } from '@arco-design/web-react/icon'
-import { PomodoroPhase } from '@shared/enums'
+import { PomodoroPhase, PomodoroPromptType } from '@shared/enums'
 import { formatPomodoroTime } from '@shared/pomodoro-types'
 import { usePomodoroStore, usePomodoroTimer, usePomodoroSettings } from '../../store/usePomodoroStore'
+import { BreakActivityModal } from './BreakActivityModal'
+import { NextTaskModal } from './NextTaskModal'
 import { logger } from '@/logger'
 
 const { Text } = Typography
@@ -48,6 +50,7 @@ export function PomodoroTimer() {
   const endCycle = usePomodoroStore((s) => s.endCycle)
   const dismissPrompt = usePomodoroStore((s) => s.dismissPrompt)
   const transitionToBreak = usePomodoroStore((s) => s.transitionToBreak)
+  const pendingPrompt = usePomodoroStore((s) => s.pendingPrompt)
   const [isStarting, setIsStarting] = useState(false)
 
   // ── Idle state: no active cycle ──
@@ -198,6 +201,16 @@ export function PomodoroTimer() {
           </Space>
         </div>
       </Space>
+
+      {/* Pomodoro modals — mounted here for global visibility (any tab) */}
+      <BreakActivityModal
+        visible={pendingPrompt === PomodoroPromptType.BreakActivity}
+        onClose={() => dismissPrompt()}
+      />
+      <NextTaskModal
+        visible={pendingPrompt === PomodoroPromptType.NextTask}
+        onClose={() => dismissPrompt()}
+      />
     </div>
   )
 }
