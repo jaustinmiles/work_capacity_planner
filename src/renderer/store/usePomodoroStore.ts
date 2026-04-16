@@ -260,10 +260,13 @@ export const usePomodoroStore = create<PomodoroStoreState>()(
           await workService.pauseWorkSession(activeSession.id)
         }
 
-        // 2. Determine break type
+        // 2. Determine break type and duration
         const breakPhase = activeCycle.cycleNumber % effectiveSettings.cyclesBeforeLongBreak === 0
           ? PomodoroPhase.LongBreak
           : PomodoroPhase.ShortBreak
+        const breakDurationMinutes = breakPhase === PomodoroPhase.LongBreak
+          ? effectiveSettings.longBreakMinutes
+          : effectiveSettings.shortBreakMinutes
 
         // 3. Update cycle phase in database
         await getDatabase().updatePomodoroCyclePhase({
@@ -284,13 +287,13 @@ export const usePomodoroStore = create<PomodoroStoreState>()(
 
         // 6. Update local state
         usePomodoroStore.setState({
-          activeCycle: { ...activeCycle, status: breakPhase, phaseStartTime: now, breakTimeSinkId: sinkId ?? null },
+          activeCycle: { ...activeCycle, status: breakPhase, phaseStartTime: now, breakTimeSinkId: sinkId ?? null, breakDurationMinutes },
           timerState: {
             ...usePomodoroStore.getState().timerState,
             isActive: true, // CRITICAL: tick engine checks this — must be true for break to count down
             currentPhase: breakPhase,
-            remainingSeconds: phaseDurationToSeconds(activeCycle.breakDurationMinutes),
-            totalSeconds: phaseDurationToSeconds(activeCycle.breakDurationMinutes),
+            remainingSeconds: phaseDurationToSeconds(breakDurationMinutes),
+            totalSeconds: phaseDurationToSeconds(breakDurationMinutes),
             currentTaskId: null,
             currentTaskName: null,
           },
