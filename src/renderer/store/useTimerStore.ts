@@ -332,6 +332,12 @@ export const useTimerStore = create<TimerStoreState>()(
         `"${timer.name}" has finished.`,
         { tag: `timer-${timerId}` },
       )
+
+      // Refresh task store — server transitioned linked step/task status
+      if (timer.linkedTaskId || timer.linkedStepId) {
+        const { useTaskStore } = await import('./useTaskStore')
+        await useTaskStore.getState().refreshAllData()
+      }
     },
 
     _refreshDisplayStates: (): void => {
