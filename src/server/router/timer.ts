@@ -27,6 +27,7 @@ export const timerRouter = router({
       durationMinutes: z.number().positive(),
       linkedTaskId: z.string().optional(),
       linkedStepId: z.string().optional(),
+      resumeToStatus: z.string().optional(),
     }))
     .mutation(async ({ ctx, input }) => {
       const now = getCurrentTime()
@@ -41,6 +42,7 @@ export const timerRouter = router({
           originalDurationMinutes: input.durationMinutes,
           startedAt: now,
           expiresAt,
+          resumeToStatus: input.resumeToStatus ?? null,
           linkedTaskId: input.linkedTaskId ?? null,
           linkedStepId: input.linkedStepId ?? null,
           createdAt: now,
@@ -169,7 +171,9 @@ export const timerRouter = router({
 
   /**
    * Mark a timer as expired.
-   * If linked to a step/task, transitions it from 'waiting' to 'completed'.
+   * If linked to a step/task, transitions based on resumeToStatus:
+   * - null/'completed' (default): waiting → completed (post-completion async wait)
+   * - 'in_progress': waiting → in_progress (mid-work wait, resume work)
    */
   expire: protectedProcedure
     .input(z.object({ timerId: z.string() }))
@@ -185,27 +189,73 @@ export const timerRouter = router({
         },
       })
 
-      // Transition linked step from waiting → completed
+      // Determine target status based on resumeToStatus field
+      const shouldResume = timer.resumeToStatus === 'in_progress'
+
+      // Transition linked step
       if (timer.linkedStepId) {
         const step = await ctx.prisma.taskStep.findUnique({
           where: { id: timer.linkedStepId },
         })
         if (step && step.status === StepStatus.Waiting) {
+          const targetStepStatus = shouldResume ? StepStatus.InProgress : StepStatus.Completed
+
           await ctx.prisma.taskStep.update({
             where: { id: timer.linkedStepId },
-            data: { status: StepStatus.Completed },
+            data: { status: targetStepStatus },
           })
 
           // Recalculate workflow overallStatus
           const allSteps = await ctx.prisma.taskStep.findMany({
             where: { taskId: step.taskId },
           })
-          const allDone = allSteps.every(
-            (s) => s.status === 'completed' || s.status === 'skipped',
-          )
-          if (allDone) {
+
+          if (shouldResume) {
+            // Mid-work resume: workflow goes back to in_progress
             await ctx.prisma.task.update({
               where: { id: step.taskId },
+              data: {
+                overallStatus: TaskStatus.InProgress,
+                updatedAt: now,
+              },
+            })
+          } else {
+            // Post-completion: check if all steps done
+            const allDone = allSteps.every(
+              (s) => s.status === 'completed' || s.status === 'skipped',
+            )
+            if (allDone) {
+              await ctx.prisma.task.update({
+                where: { id: step.taskId },
+                data: {
+                  overallStatus: TaskStatus.Completed,
+                  completed: true,
+                  completedAt: now,
+                  updatedAt: now,
+                },
+              })
+            }
+          }
+        }
+      }
+
+      // Transition linked task (no step)
+      if (timer.linkedTaskId && !timer.linkedStepId) {
+        const task = await ctx.prisma.task.findUnique({
+          where: { id: timer.linkedTaskId },
+        })
+        if (task && task.overallStatus === TaskStatus.Waiting) {
+          if (shouldResume) {
+            await ctx.prisma.task.update({
+              where: { id: timer.linkedTaskId },
+              data: {
+                overallStatus: TaskStatus.InProgress,
+                updatedAt: now,
+              },
+            })
+          } else {
+            await ctx.prisma.task.update({
+              where: { id: timer.linkedTaskId },
               data: {
                 overallStatus: TaskStatus.Completed,
                 completed: true,
@@ -214,24 +264,6 @@ export const timerRouter = router({
               },
             })
           }
-        }
-      }
-
-      // Transition linked task (no step) from waiting → completed
-      if (timer.linkedTaskId && !timer.linkedStepId) {
-        const task = await ctx.prisma.task.findUnique({
-          where: { id: timer.linkedTaskId },
-        })
-        if (task && task.overallStatus === TaskStatus.Waiting) {
-          await ctx.prisma.task.update({
-            where: { id: timer.linkedTaskId },
-            data: {
-              overallStatus: TaskStatus.Completed,
-              completed: true,
-              completedAt: now,
-              updatedAt: now,
-            },
-          })
         }
       }
 

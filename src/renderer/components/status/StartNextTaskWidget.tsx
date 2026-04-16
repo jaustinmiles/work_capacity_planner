@@ -1,6 +1,6 @@
 import { useState, useMemo, ReactElement } from 'react'
-import { Space, Typography, Button, Tag, Alert } from '@arco-design/web-react'
-import { IconPlayArrow, IconPause, IconCheck, IconSkipNext } from '@arco-design/web-react/icon'
+import { Space, Typography, Button, Tag, Alert, Popover, InputNumber } from '@arco-design/web-react'
+import { IconPlayArrow, IconPause, IconCheck, IconSkipNext, IconClockCircle } from '@arco-design/web-react/icon'
 import { useResponsive } from '../../providers/ResponsiveProvider'
 import { useTaskStore } from '../../store/useTaskStore'
 import { useSchedulerStore } from '../../store/useSchedulerStore'
@@ -36,6 +36,8 @@ export function StartNextTaskWidget(): ReactElement {
   const startNextTask = useTaskStore(state => state.startNextTask)
   const pauseWorkOnTask = useTaskStore(state => state.pauseWorkOnTask)
   const pauseWorkOnStep = useTaskStore(state => state.pauseWorkOnStep)
+  const startWaitOnStep = useTaskStore(state => state.startWaitOnStep)
+  const startWaitOnTask = useTaskStore(state => state.startWaitOnTask)
   const completeStep = useTaskStore(state => state.completeStep)
   const tasks = useTaskStore(state => state.tasks)
   const updateTask = useTaskStore(state => state.updateTask)
@@ -93,6 +95,30 @@ export function StartNextTaskWidget(): ReactElement {
       const errorMessage = error instanceof Error ? error.message : 'Failed to start work session'
       logger.ui.error('Failed to start task', { error: errorMessage })
       showNotification(errorMessage, NotificationType.Error)
+    } finally {
+      setIsProcessing(false)
+    }
+  }
+
+  const [waitMinutes, setWaitMinutes] = useState(30)
+  const [showWaitPopover, setShowWaitPopover] = useState(false)
+
+  const handleStartWait = async (): Promise<void> => {
+    if (!activeSession || waitMinutes <= 0) return
+
+    try {
+      setIsProcessing(true)
+      if (activeSession.stepId) {
+        await startWaitOnStep(activeSession.stepId, waitMinutes)
+        showNotification(`Started ${waitMinutes}min wait on: ${activeSession.stepName || 'Step'}`, NotificationType.Success)
+      } else if (activeSession.taskId) {
+        await startWaitOnTask(activeSession.taskId, waitMinutes)
+        showNotification(`Started ${waitMinutes}min wait on: ${activeSession.taskName || 'Task'}`, NotificationType.Success)
+      }
+      setShowWaitPopover(false)
+    } catch (error) {
+      logger.ui.error('Failed to start wait', { error })
+      showNotification('Failed to start wait', NotificationType.Error)
     } finally {
       setIsProcessing(false)
     }
@@ -273,6 +299,36 @@ export function StartNextTaskWidget(): ReactElement {
               >
                 Pause
               </Button>
+              <Popover
+                trigger="click"
+                popupVisible={showWaitPopover}
+                onVisibleChange={setShowWaitPopover}
+                content={
+                  <Space>
+                    <InputNumber
+                      size="small"
+                      value={waitMinutes}
+                      onChange={(val) => setWaitMinutes(val ?? 30)}
+                      min={1}
+                      max={10080}
+                      suffix="min"
+                      style={{ width: 100 }}
+                    />
+                    <Button size="small" type="primary" onClick={handleStartWait} loading={isProcessing}>
+                      Start Wait
+                    </Button>
+                  </Space>
+                }
+              >
+                <Button
+                  type="outline"
+                  icon={<IconClockCircle />}
+                  loading={isProcessing}
+                  style={{ flex: 1 }}
+                >
+                  Wait
+                </Button>
+              </Popover>
               <Button
                 type="primary"
                 status="success"

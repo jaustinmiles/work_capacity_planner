@@ -1601,6 +1601,7 @@ export class TrpcDatabaseService {
     durationMinutes: number
     linkedTaskId?: string
     linkedStepId?: string
+    resumeToStatus?: string
   }): Promise<Record<string, unknown>> {
     return this.client.timer.create.mutate(input) as Promise<Record<string, unknown>>
   }

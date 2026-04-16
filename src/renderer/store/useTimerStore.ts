@@ -50,7 +50,7 @@ interface TimerStoreState {
 
   // Actions
   initialize: () => Promise<void>
-  createTimer: (name: string, durationMinutes: number, linkedTaskId?: string, linkedStepId?: string) => Promise<Timer>
+  createTimer: (name: string, durationMinutes: number, linkedTaskId?: string, linkedStepId?: string, resumeToStatus?: string) => Promise<Timer>
   extendTimer: (timerId: string, addMinutes: number) => Promise<void>
   pauseTimer: (timerId: string) => Promise<void>
   resumeTimer: (timerId: string) => Promise<void>
@@ -137,13 +137,14 @@ export const useTimerStore = create<TimerStoreState>()(
     // Timer Actions
     // ========================================================================
 
-    createTimer: async (name, durationMinutes, linkedTaskId, linkedStepId): Promise<Timer> => {
+    createTimer: async (name, durationMinutes, linkedTaskId, linkedStepId, resumeToStatus): Promise<Timer> => {
       const db = getDatabase()
       const raw = await db.createTimer({
         name,
         durationMinutes,
         linkedTaskId,
         linkedStepId,
+        resumeToStatus,
       })
 
       const timer = fromDatabaseTimer(raw as Record<string, unknown>)
