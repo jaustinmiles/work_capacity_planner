@@ -314,22 +314,23 @@ export const usePomodoroStore = create<PomodoroStoreState>()(
 
         _stopTick()
 
-        const now = getCurrentTime()
-
         // 1. Stop the break TimeSinkSession (if any)
         const timeSinkState = useTimeSinkStore.getState()
         if (timeSinkState.activeSinkSession) {
           await timeSinkState.stopSession()
         }
 
-        // 2. Update cycle phase to Work in database
-        await getDatabase().updatePomodoroCyclePhase({
-          cycleId: activeCycle.id,
-          status: PomodoroPhase.Work,
-          phaseStartTime: now,
-        })
+        // 2. End the current cycle in DB (work+break = one complete cycle)
+        await getDatabase().endPomodoroCycle(activeCycle.id)
 
-        // 3. Start work via task store — WorkTrackingService will auto-link to this cycle
+        // 3. Start a NEW cycle from the server — server computes correct cycleNumber
+        const effectiveSettings = getEffectiveSettings(usePomodoroStore.getState().settings)
+        const newCycleRaw = await getDatabase().startPomodoroCycle({
+          workDurationMinutes: effectiveSettings.workDurationMinutes,
+        })
+        const newCycle = fromDatabasePomodoroCycle(newCycleRaw)
+
+        // 4. Start work via task store
         const { useTaskStore } = await import('./useTaskStore')
         if (stepId) {
           await useTaskStore.getState().startWorkOnStep(stepId, taskId)
@@ -337,24 +338,22 @@ export const usePomodoroStore = create<PomodoroStoreState>()(
           await useTaskStore.getState().startWorkOnTask(taskId)
         }
 
-        // 4. Increment cycle number (each work phase = new cycle)
-        const newCycleNumber = activeCycle.cycleNumber + 1
-
-        // 5. Update local state
+        // 5. Update local state from server-authoritative cycle
         usePomodoroStore.setState({
-          activeCycle: { ...activeCycle, status: PomodoroPhase.Work, phaseStartTime: now, cycleNumber: newCycleNumber },
+          activeCycle: newCycle,
           timerState: {
             ...usePomodoroStore.getState().timerState,
-            isActive: true, // CRITICAL: tick engine needs this
+            isActive: true,
             currentPhase: PomodoroPhase.Work,
-            cycleNumber: newCycleNumber,
-            remainingSeconds: phaseDurationToSeconds(activeCycle.workDurationMinutes),
-            totalSeconds: phaseDurationToSeconds(activeCycle.workDurationMinutes),
+            currentCycleId: newCycle.id,
+            cycleNumber: newCycle.cycleNumber,
+            remainingSeconds: phaseDurationToSeconds(newCycle.workDurationMinutes),
+            totalSeconds: phaseDurationToSeconds(newCycle.workDurationMinutes),
           },
           pendingPrompt: null,
         })
 
-        // 6. Restart timer for work phase
+        // 6. Restart timer
         _startTick()
       },
       (taskId) => ({ taskId }),
@@ -488,7 +487,16 @@ export const usePomodoroStore = create<PomodoroStoreState>()(
     // ==========================================================================
 
     dismissPrompt: (): void => {
-      set({ pendingPrompt: null })
+      const { pendingPrompt } = get()
+      if (pendingPrompt === PomodoroPromptType.BreakActivity) {
+        // Auto-start break with no activity (skip break)
+        get().transitionToBreak()
+      } else if (pendingPrompt === PomodoroPromptType.NextTask) {
+        // End the cycle cleanly
+        get().endCycle()
+      } else {
+        set({ pendingPrompt: null })
+      }
     },
 
     // ==========================================================================
