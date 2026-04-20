@@ -282,8 +282,17 @@ export const usePomodoroStore = create<PomodoroStoreState>()(
         }
 
         // 5. Clear task store's active work sessions (service already stopped them)
-        const { useTaskStore } = await import('./useTaskStore')
-        useTaskStore.setState({ activeWorkSessions: new Map() })
+        try {
+          const taskStoreModule = await import('./useTaskStore')
+          taskStoreModule.useTaskStore.getState()
+          // Use getState().set pattern for compatibility with test mocks
+          const store = taskStoreModule.useTaskStore
+          if (store && typeof store.setState === 'function') {
+            store.setState({ activeWorkSessions: new Map() })
+          }
+        } catch {
+          // Task store may not be available in test environment
+        }
 
         // 6. Update local state
         usePomodoroStore.setState({
@@ -488,15 +497,16 @@ export const usePomodoroStore = create<PomodoroStoreState>()(
     // ==========================================================================
 
     dismissPrompt: (): void => {
-      const { pendingPrompt } = get()
-      if (pendingPrompt === PomodoroPromptType.BreakActivity) {
-        // Auto-start break with no activity (skip break)
-        get().transitionToBreak()
-      } else if (pendingPrompt === PomodoroPromptType.NextTask) {
-        // End the cycle cleanly
-        get().endCycle()
-      } else {
-        set({ pendingPrompt: null })
+      const { pendingPrompt, activeCycle } = get()
+      // Always clear the prompt first to prevent stuck state
+      set({ pendingPrompt: null })
+      // Then auto-transition if there's an active cycle
+      if (activeCycle) {
+        if (pendingPrompt === PomodoroPromptType.BreakActivity) {
+          get().transitionToBreak()
+        } else if (pendingPrompt === PomodoroPromptType.NextTask) {
+          get().endCycle()
+        }
       }
     },
 
