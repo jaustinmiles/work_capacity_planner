@@ -1298,8 +1298,14 @@ export class UnifiedScheduler {
         return true
       }
 
-      // Check if it's scheduled in this run (including wait blocks which use same ID)
+      // Check if it's scheduled in this run
       const dependency = scheduled.find(s => s.id === depId || s.originalTaskId === depId)
+
+      // AsyncWait blocks do NOT satisfy dependencies — the actual work hasn't completed,
+      // we're just visualizing the wait period. Dependents must wait until the timer expires.
+      if (dependency?.type === UnifiedScheduleItemType.AsyncWait) {
+        return false
+      }
 
       // Must be scheduled with an end time to satisfy the dependency
       return dependency && dependency.endTime !== undefined
