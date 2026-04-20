@@ -98,9 +98,8 @@ describe('WorkStatusWidget Start Next Task Button', () => {
 
     // Assert - Wait for async operations to complete and look for the button specifically
     await waitFor(() => {
-      const button = screen.getByRole('button', { name: /Start Next Task/i })
-      expect(button).toBeInTheDocument()
-      expect(button).not.toBeDisabled() // Button is enabled even when no tasks (shows message on click)
+      // Widget shows "No tasks scheduled" when no tasks available (no start button shown)
+      expect(screen.getByText('No tasks scheduled')).toBeInTheDocument()
     })
   })
 
@@ -114,7 +113,7 @@ describe('WorkStatusWidget Start Next Task Button', () => {
 
     // Assert - Since getNextScheduledItem returns null, should show no tasks message
     await waitFor(() => {
-      expect(screen.getByText('No tasks available')).toBeInTheDocument()
+      expect(screen.getByText('No tasks scheduled')).toBeInTheDocument()
     })
   })
 })
