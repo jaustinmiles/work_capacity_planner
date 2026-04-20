@@ -656,36 +656,38 @@ export class UnifiedScheduler {
             continue // Skip this item, try next
           }
 
-          // Special handling for items that are waiting on async work
-          if (item.isWaitingOnAsync && item.asyncWaitTime && item.asyncWaitTime > 0) {
-            // This item is already completed and in waiting status
-            // Create wait block with SAME ID as parent task so dependencies flow naturally
-            const waitStartTime = item.completedAt ? new Date(item.completedAt) : (config.currentTime || currentDate)
-
-            // Find the block containing the wait start time for proper block association
-            const containingBlock = dayBlocks.find(block =>
-              waitStartTime >= block.startTime && waitStartTime < block.endTime,
-            )
-
-            const waitTimeItem: UnifiedScheduleItem = {
-              id: item.id, // Use same ID as parent task for natural dependency flow
-              name: `⏳ Waiting: ${item.name}`,
-              type: UnifiedScheduleItemType.AsyncWait,
-              duration: item.asyncWaitTime,
-              priority: 0,
-              startTime: waitStartTime,
-              endTime: new Date(waitStartTime.getTime() + item.asyncWaitTime * 60000),
-              isWaitTime: true,
-              blockId: containingBlock?.blockId, // Associate with containing block
-              ...(item.workflowId && { workflowId: item.workflowId }),
-              ...(item.workflowName && { workflowName: item.workflowName }),
-              ...(item.originalItem && { originalItem: item.originalItem }),
+          // Special handling for items that are waiting on async work.
+          // If isWaitingOnAsync is true, this item MUST NOT be scheduled as regular work.
+          // It either gets a wait block (if asyncWaitTime > 0) or is simply removed.
+          if (item.isWaitingOnAsync) {
+            if (item.asyncWaitTime && item.asyncWaitTime > 0) {
+              const waitStartTime = item.completedAt ? new Date(item.completedAt) : (config.currentTime || currentDate)
+              const containingBlock = dayBlocks.find(block =>
+                waitStartTime >= block.startTime && waitStartTime < block.endTime,
+              )
+              const waitTimeItem: UnifiedScheduleItem = {
+                id: item.id,
+                name: `⏳ Waiting: ${item.name}`,
+                type: UnifiedScheduleItemType.AsyncWait,
+                duration: item.asyncWaitTime,
+                priority: 0,
+                startTime: waitStartTime,
+                endTime: new Date(waitStartTime.getTime() + item.asyncWaitTime * 60000),
+                isWaitTime: true,
+                blockId: containingBlock?.blockId,
+                ...(item.workflowId && { workflowId: item.workflowId }),
+                ...(item.workflowName && { workflowName: item.workflowName }),
+                ...(item.originalItem && { originalItem: item.originalItem }),
+              }
+              scheduled.push(waitTimeItem)
+              scheduledItemsToday = true
             }
-            scheduled.push(waitTimeItem)
+            // Whether or not a wait block was created, remove from remaining —
+            // waiting items must never be scheduled as regular work
             remaining.splice(itemIndex, 1)
-            scheduledItemsToday = true
+            itemIndex--
             madeProgress = true
-            continue // Move to next item
+            continue
           }
 
           // Try to fit item in available blocks
