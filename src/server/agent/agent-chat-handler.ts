@@ -100,6 +100,11 @@ export async function agentChatHandler(req: Request, res: Response): Promise<voi
       include: { Task: { select: { name: true } } },
     })
 
+    // Load active job context for the session
+    const activeJobContext = await prisma.jobContext.findFirst({
+      where: { sessionId: activeSessionId, isActive: true },
+    })
+
     // Run the agent loop
     const result = await runAgentLoop({
       userMessage,
@@ -108,6 +113,11 @@ export async function agentChatHandler(req: Request, res: Response): Promise<voi
         sessionName: session.name,
         sessionId: activeSessionId,
         activeWorkSessionTask: activeWorkSession?.Task?.name,
+        jobContext: activeJobContext ? {
+          name: activeJobContext.name,
+          description: activeJobContext.description,
+          context: activeJobContext.context,
+        } : undefined,
       },
       ctx,
       onEvent: (event: AgentSSEEvent) => {

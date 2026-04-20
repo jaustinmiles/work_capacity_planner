@@ -6,7 +6,7 @@
  */
 
 import React, { useRef, useEffect, useState, useCallback, useMemo } from 'react'
-import { Input, Button, Spin, Typography, Alert, Switch, Tag } from '@arco-design/web-react'
+import { Input, Button, Spin, Typography, Alert, Switch, Tag, Select } from '@arco-design/web-react'
 import { IconSend, IconVoice, IconPause, IconRobot } from '@arco-design/web-react/icon'
 import { useConversationStore, ConversationStatus } from '../../store/useConversationStore'
 import { useTaskStore } from '../../store/useTaskStore'
@@ -93,6 +93,51 @@ export function ChatView({ onNavigateToView }: ChatViewProps): React.ReactElemen
   } = useConversationStore()
 
   const [inputValue, setInputValue] = useState('')
+  const [jobContexts, setJobContexts] = useState<Array<{ id: string; name: string; isActive: boolean }>>([])
+  const [selectedContextId, setSelectedContextId] = useState<string | undefined>(undefined)
+
+  // Load job contexts on mount
+  useEffect(() => {
+    const loadContexts = async (): Promise<void> => {
+      try {
+        const db = (await import('../../services/database')).getDatabase()
+        const contexts = await db.getJobContexts() as Array<Record<string, unknown>>
+        const mapped = contexts.map(c => ({
+          id: c.id as string,
+          name: c.name as string,
+          isActive: c.isActive as boolean,
+        }))
+        setJobContexts(mapped)
+        const active = mapped.find(c => c.isActive)
+        if (active) setSelectedContextId(active.id)
+      } catch {
+        // Contexts are optional — don't block chat
+      }
+    }
+    loadContexts()
+  }, [])
+
+  // When user selects a context, persist it as active
+  const handleContextChange = useCallback(async (contextId: string | undefined) => {
+    setSelectedContextId(contextId)
+    try {
+      const db = (await import('../../services/database')).getDatabase()
+      // Deactivate all, activate selected
+      for (const ctx of jobContexts) {
+        if (ctx.isActive && ctx.id !== contextId) {
+          await db.updateJobContext(ctx.id, { isActive: false })
+        }
+      }
+      if (contextId) {
+        await db.updateJobContext(contextId, { isActive: true })
+      }
+      // Update local state
+      setJobContexts(prev => prev.map(c => ({ ...c, isActive: c.id === contextId })))
+    } catch {
+      // Best effort
+    }
+  }, [jobContexts])
+
   const messagesContainerRef = useRef<HTMLDivElement>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const wasAtBottomRef = useRef(true)
@@ -336,12 +381,12 @@ export function ChatView({ onNavigateToView }: ChatViewProps): React.ReactElemen
         overflow: 'hidden',
       }}
     >
-      {/* Agent mode toggle */}
+      {/* Chat header: context selector + agent toggles */}
       <div
         style={{
           display: 'flex',
           alignItems: 'center',
-          justifyContent: 'flex-end',
+          justifyContent: 'space-between',
           padding: '6px 16px',
           borderBottom: '1px solid var(--color-border)',
           gap: 8,
@@ -349,6 +394,22 @@ export function ChatView({ onNavigateToView }: ChatViewProps): React.ReactElemen
           color: 'var(--color-text-3)',
         }}
       >
+        {/* Context selector */}
+        <Select
+          size="small"
+          placeholder="No context"
+          value={selectedContextId}
+          onChange={handleContextChange}
+          allowClear
+          style={{ minWidth: 120, maxWidth: 200 }}
+        >
+          {jobContexts.map(ctx => (
+            <Select.Option key={ctx.id} value={ctx.id}>{ctx.name}</Select.Option>
+          ))}
+        </Select>
+
+        {/* Agent toggles */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
         <IconRobot style={{ fontSize: 14 }} />
         <span>Agent</span>
         <Switch
@@ -366,6 +427,7 @@ export function ChatView({ onNavigateToView }: ChatViewProps): React.ReactElemen
             />
           </>
         )}
+        </div>
       </div>
 
       {/* Messages */}

@@ -16,6 +16,11 @@ export interface AgentSessionInfo {
   sessionName: string
   sessionId: string
   activeWorkSessionTask?: string
+  jobContext?: {
+    name: string
+    description: string
+    context: string
+  }
 }
 
 /**
@@ -107,7 +112,11 @@ Frame as observations, never commands. One sentence. Accept "no" gracefully.
 
 - Today: ${today}
 - Time: ${timeStr}
-- Session: ${sessionInfo.sessionName}${sessionInfo.activeWorkSessionTask ? `\n- Currently working on: ${sessionInfo.activeWorkSessionTask}` : ''}
+- Session: ${sessionInfo.sessionName}${sessionInfo.activeWorkSessionTask ? `\n- Currently working on: ${sessionInfo.activeWorkSessionTask}` : ''}${sessionInfo.jobContext ? `
+
+## Active Context: ${sessionInfo.jobContext.name}
+${sessionInfo.jobContext.description}
+${sessionInfo.jobContext.context}` : ''}
 
 ## Rules
 
