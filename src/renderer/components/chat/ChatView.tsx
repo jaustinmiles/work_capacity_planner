@@ -95,6 +95,9 @@ export function ChatView({ onNavigateToView }: ChatViewProps): React.ReactElemen
   const [inputValue, setInputValue] = useState('')
   const [jobContexts, setJobContexts] = useState<Array<{ id: string; name: string; isActive: boolean }>>([])
   const [selectedContextId, setSelectedContextId] = useState<string | undefined>(undefined)
+  const [showNewContext, setShowNewContext] = useState(false)
+  const [newContextName, setNewContextName] = useState('')
+  const [newContextDesc, setNewContextDesc] = useState('')
 
   // Load job contexts on mount
   useEffect(() => {
@@ -137,6 +140,28 @@ export function ChatView({ onNavigateToView }: ChatViewProps): React.ReactElemen
       // Best effort
     }
   }, [jobContexts])
+
+  const handleCreateContext = useCallback(async () => {
+    if (!newContextName.trim()) return
+    try {
+      const db = (await import('../../services/database')).getDatabase()
+      const created = await db.createJobContext({
+        name: newContextName.trim(),
+        description: newContextDesc.trim(),
+        context: newContextDesc.trim(),
+        isActive: true,
+      }) as Record<string, unknown>
+      const newCtx = { id: created.id as string, name: created.name as string, isActive: true }
+      // Deactivate others
+      setJobContexts(prev => [...prev.map(c => ({ ...c, isActive: false })), newCtx])
+      setSelectedContextId(newCtx.id)
+      setNewContextName('')
+      setNewContextDesc('')
+      setShowNewContext(false)
+    } catch {
+      // Best effort
+    }
+  }, [newContextName, newContextDesc])
 
   const messagesContainerRef = useRef<HTMLDivElement>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
@@ -395,18 +420,27 @@ export function ChatView({ onNavigateToView }: ChatViewProps): React.ReactElemen
         }}
       >
         {/* Context selector */}
-        <Select
-          size="small"
-          placeholder="No context"
-          value={selectedContextId}
-          onChange={handleContextChange}
-          allowClear
-          style={{ minWidth: 120, maxWidth: 200 }}
-        >
-          {jobContexts.map(ctx => (
-            <Select.Option key={ctx.id} value={ctx.id}>{ctx.name}</Select.Option>
-          ))}
-        </Select>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+          <Select
+            size="small"
+            placeholder="No context"
+            value={selectedContextId}
+            onChange={(val) => {
+              if (val === '__new__') {
+                setShowNewContext(true)
+              } else {
+                handleContextChange(val)
+              }
+            }}
+            allowClear
+            style={{ minWidth: 120, maxWidth: 200 }}
+          >
+            {jobContexts.map(ctx => (
+              <Select.Option key={ctx.id} value={ctx.id}>{ctx.name}</Select.Option>
+            ))}
+            <Select.Option key="__new__" value="__new__">+ New Context...</Select.Option>
+          </Select>
+        </div>
 
         {/* Agent toggles */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -429,6 +463,36 @@ export function ChatView({ onNavigateToView }: ChatViewProps): React.ReactElemen
         )}
         </div>
       </div>
+
+      {/* New context form */}
+      {showNewContext && (
+        <div style={{ padding: '8px 16px', borderBottom: '1px solid var(--color-border)', background: 'var(--color-fill-1)' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            <Input
+              size="small"
+              placeholder="Context name (e.g., Q2 Launch, Mountain Trip)"
+              value={newContextName}
+              onChange={setNewContextName}
+              autoFocus
+            />
+            <TextArea
+              placeholder="Describe this context — what should the AI know?"
+              value={newContextDesc}
+              onChange={setNewContextDesc}
+              autoSize={{ minRows: 2, maxRows: 4 }}
+              style={{ fontSize: 12 }}
+            />
+            <div style={{ display: 'flex', gap: 4, justifyContent: 'flex-end' }}>
+              <Button size="small" onClick={() => { setShowNewContext(false); setNewContextName(''); setNewContextDesc('') }}>
+                Cancel
+              </Button>
+              <Button size="small" type="primary" onClick={handleCreateContext} disabled={!newContextName.trim()}>
+                Save Context
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Messages */}
       <div
