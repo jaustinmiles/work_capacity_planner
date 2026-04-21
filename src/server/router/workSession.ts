@@ -378,16 +378,27 @@ export const workSessionRouter = router({
         select: {
           taskId: true,
           actualMinutes: true,
+          startTime: true,
+          endTime: true,
         },
       })
 
       // Accumulate by type
+      // For sessions without actualMinutes, compute from startTime/endTime
       const byType = new Map<string, number>()
       let total = 0
+      const now = getCurrentTime()
 
       for (const session of sessions) {
         const type = taskMap.get(session.taskId) || 'unknown'
-        const minutes = session.actualMinutes || 0
+        let minutes = session.actualMinutes ?? 0
+
+        // If no actualMinutes, compute from time range
+        if (!session.actualMinutes && session.startTime) {
+          const end = session.endTime ? new Date(session.endTime) : now
+          minutes = Math.max(0, Math.floor((end.getTime() - new Date(session.startTime).getTime()) / 60000))
+        }
+
         byType.set(type, (byType.get(type) || 0) + minutes)
         total += minutes
       }
