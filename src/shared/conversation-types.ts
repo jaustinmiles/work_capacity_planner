@@ -13,6 +13,7 @@ import {
 } from './id-types'
 import { AmendmentCardStatus, ChatMessageRole, ViewType } from './enums'
 import { Amendment } from './amendment-types'
+import type { NoToolWarning } from './agent-types'
 
 // Re-export the enum for convenience (consumers can import from either location)
 export { AmendmentCardStatus }
@@ -110,6 +111,9 @@ export interface ChatMessageRecord {
 
   /** Embedded amendment cards (null if no amendments in this message) */
   amendments: AmendmentCard[] | null
+
+  /** Warning if the agent appeared to hallucinate tool use */
+  noToolWarning?: NoToolWarning | null
 
   /** When the message was created */
   createdAt: Date
@@ -215,12 +219,27 @@ export function toConversation(raw: RawConversation): Conversation {
 
 /**
  * Convert a raw database chat message to a typed ChatMessageRecord.
+ * Handles both legacy (bare array) and new (wrapper with noToolWarning) formats.
  */
 export function toChatMessageRecord(raw: RawChatMessage): ChatMessageRecord {
   let amendments: AmendmentCard[] | null = null
+  let noToolWarning: NoToolWarning | null = null
+
   if (raw.amendments) {
     try {
-      amendments = JSON.parse(raw.amendments)
+      const parsed = JSON.parse(raw.amendments)
+
+      // New wrapper format: { toolCalls: [...], noToolWarning: {...} }
+      if (parsed && typeof parsed === 'object' && !Array.isArray(parsed) && 'toolCalls' in parsed) {
+        amendments = Array.isArray(parsed.toolCalls) ? parsed.toolCalls : null
+        if (parsed.noToolWarning && typeof parsed.noToolWarning === 'object' &&
+            'confidence' in parsed.noToolWarning) {
+          noToolWarning = parsed.noToolWarning as NoToolWarning
+        }
+      } else if (Array.isArray(parsed)) {
+        // Legacy format: bare array
+        amendments = parsed
+      }
     } catch {
       console.error('Failed to parse amendments JSON:', raw.amendments)
     }
@@ -232,6 +251,7 @@ export function toChatMessageRecord(raw: RawChatMessage): ChatMessageRecord {
     role: raw.role as ChatMessageRole,
     content: raw.content,
     amendments,
+    noToolWarning,
     createdAt: raw.createdAt,
   }
 }

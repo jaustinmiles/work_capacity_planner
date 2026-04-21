@@ -125,14 +125,17 @@ export async function agentChatHandler(req: Request, res: Response): Promise<voi
       },
     })
 
-    // Save the assistant message with tool call history
+    // Save the assistant message with tool call history and warning metadata
+    const amendmentsData = result.noToolWarning
+      ? { toolCalls: result.toolCalls, noToolWarning: result.noToolWarning }
+      : result.toolCalls
     await prisma.chatMessage.create({
       data: {
         id: generateUniqueId('msg'),
         conversationId,
         role: ChatMessageRole.Assistant,
         content: result.responseText,
-        amendments: JSON.stringify(result.toolCalls),
+        amendments: JSON.stringify(amendmentsData),
         createdAt: getCurrentTime(),
       },
     })
@@ -169,6 +172,9 @@ function sendSSE(res: Response, event: AgentSSEEvent): void {
 /**
  * Load conversation history and convert to Anthropic message format.
  * Filters to user/assistant messages and pairs them correctly.
+ *
+ * If the last assistant message had a no-tool-call warning, appends
+ * a reminder so the agent is aware it may have hallucinated actions.
  */
 async function loadConversationHistory(
   conversationId: string,
@@ -184,7 +190,24 @@ async function loadConversationHistory(
     if (msg.role === ChatMessageRole.User) {
       history.push({ role: 'user', content: msg.content })
     } else if (msg.role === ChatMessageRole.Assistant) {
-      history.push({ role: 'assistant', content: msg.content })
+      let content = msg.content
+
+      // Check if this message had a hallucination warning
+      if (msg.amendments) {
+        try {
+          const parsed = JSON.parse(msg.amendments)
+          if (parsed && typeof parsed === 'object' && !Array.isArray(parsed) && parsed.noToolWarning) {
+            const warning = parsed.noToolWarning as { confidence: number; reasoning: string }
+            if (warning.confidence >= 0.5) {
+              content += `\n\n[SYSTEM NOTE: This response was flagged — no tools were called, but the text appears to describe completed actions (confidence: ${Math.round(warning.confidence * 100)}%). If the user repeats their request, use the available tools to actually perform the actions.]`
+            }
+          }
+        } catch {
+          // Ignore parse errors — old format
+        }
+      }
+
+      history.push({ role: 'assistant', content })
     }
   }
 
