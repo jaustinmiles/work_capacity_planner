@@ -22,6 +22,8 @@ export interface AgentStreamCallbacks {
   onProposedAction: (event: AgentProposedActionEvent) => void
   /** Result of an approved/rejected action */
   onActionResult: (event: AgentSSEEvent & { type: 'action_result' }) => void
+  /** Warning: agent may have hallucinated tool use (no tools called but text describes actions) */
+  onNoToolWarning: (confidence: number, reasoning: string) => void
   /** Agent has finished responding */
   onDone: (toolCallCount: number, loopIterations: number) => void
   /** Error from the agent */
@@ -148,6 +150,9 @@ function dispatchEvent(
       break
     case 'action_result':
       callbacks.onActionResult(event)
+      break
+    case 'no_tool_warning':
+      callbacks.onNoToolWarning(event.confidence, event.reasoning)
       break
     case 'done':
       callbacks.onDone(event.toolCallCount, event.loopIterations)

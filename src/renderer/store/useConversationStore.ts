@@ -15,7 +15,7 @@ import {
   CreateConversationInput,
 } from '@shared/conversation-types'
 import { ConversationId, ChatMessageId, toConversationId, toChatMessageId } from '@shared/id-types'
-import type { AgentProposedActionEvent } from '@shared/agent-types'
+import type { AgentProposedActionEvent, NoToolWarning } from '@shared/agent-types'
 import { getDatabase } from '../services/database'
 import { JobContextData } from '../services/chat-context-provider'
 
@@ -24,22 +24,51 @@ import { JobContextData } from '../services/chat-context-provider'
 // =============================================================================
 
 /**
- * Safely parses amendments from any input type.
- * Handles string (JSON), array, null, or undefined.
- * This is a defensive helper to prevent "amendments.map is not a function" errors.
+ * Result of parsing the amendments JSON field.
+ * Handles both legacy format (bare array) and new format (wrapper with noToolWarning).
  */
-function parseAmendments(amendments: unknown): AmendmentCard[] | null {
-  if (!amendments) return null
-  if (Array.isArray(amendments)) return amendments as AmendmentCard[]
-  if (typeof amendments === 'string') {
+interface ParsedAmendments {
+  amendments: AmendmentCard[] | null
+  noToolWarning: NoToolWarning | null
+}
+
+/**
+ * Safely parses amendments from any input type.
+ * Handles string (JSON), array, null, undefined, or wrapper object format.
+ * This is a defensive helper to prevent "amendments.map is not a function" errors.
+ *
+ * Supports two formats:
+ * - Legacy: StoredToolCall[] or AmendmentCard[] (bare array)
+ * - New: { toolCalls: StoredToolCall[], noToolWarning: NoToolWarning }
+ */
+function parseAmendmentsWithWarning(amendments: unknown): ParsedAmendments {
+  if (!amendments) return { amendments: null, noToolWarning: null }
+
+  let data = amendments
+  if (typeof data === 'string') {
     try {
-      const parsed = JSON.parse(amendments)
-      return Array.isArray(parsed) ? parsed : null
+      data = JSON.parse(data)
     } catch {
-      return null
+      return { amendments: null, noToolWarning: null }
     }
   }
-  return null
+
+  // New wrapper format: { toolCalls: [...], noToolWarning: {...} }
+  if (data && typeof data === 'object' && !Array.isArray(data) && 'toolCalls' in data) {
+    const wrapper = data as { toolCalls: unknown; noToolWarning?: unknown }
+    const toolCalls = Array.isArray(wrapper.toolCalls) ? wrapper.toolCalls as AmendmentCard[] : null
+    const warning = wrapper.noToolWarning &&
+      typeof wrapper.noToolWarning === 'object' &&
+      'confidence' in (wrapper.noToolWarning as Record<string, unknown>)
+      ? wrapper.noToolWarning as NoToolWarning
+      : null
+    return { amendments: toolCalls, noToolWarning: warning }
+  }
+
+  // Legacy format: bare array
+  if (Array.isArray(data)) return { amendments: data as AmendmentCard[], noToolWarning: null }
+
+  return { amendments: null, noToolWarning: null }
 }
 
 // =============================================================================
@@ -330,14 +359,18 @@ export const useConversationStore = create<ConversationState>()(
           const rawMessages = await db.getChatMessages(id as string)
 
           // Convert raw database records to typed ChatMessageRecords
-          const messages: ChatMessageRecord[] = rawMessages.map((raw: any) => ({
-            id: toChatMessageId(raw.id),
-            conversationId: toConversationId(raw.conversationId),
-            role: raw.role as ChatMessageRole,
-            content: raw.content,
-            amendments: parseAmendments(raw.amendments),
-            createdAt: new Date(raw.createdAt),
-          }))
+          const messages: ChatMessageRecord[] = rawMessages.map((raw: any) => {
+            const parsed = parseAmendmentsWithWarning(raw.amendments)
+            return {
+              id: toChatMessageId(raw.id),
+              conversationId: toConversationId(raw.conversationId),
+              role: raw.role as ChatMessageRole,
+              content: raw.content,
+              amendments: parsed.amendments,
+              noToolWarning: parsed.noToolWarning,
+              createdAt: new Date(raw.createdAt),
+            }
+          })
 
           set({ messages, status: ConversationStatus.Idle })
         } catch (error) {
@@ -443,12 +476,14 @@ export const useConversationStore = create<ConversationState>()(
           createdAt: string | Date
         }
 
+        const parsed = parseAmendmentsWithWarning(rawMessage.amendments)
         const message: ChatMessageRecord = {
           id: toChatMessageId(rawMessage.id),
           conversationId: toConversationId(rawMessage.conversationId),
           role: ChatMessageRole.Assistant,
           content: rawMessage.content,
-          amendments: parseAmendments(rawMessage.amendments),
+          amendments: parsed.amendments,
+          noToolWarning: parsed.noToolWarning,
           createdAt: new Date(rawMessage.createdAt),
         }
 

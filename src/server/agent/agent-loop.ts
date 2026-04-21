@@ -14,7 +14,7 @@
 import Anthropic from '@anthropic-ai/sdk'
 import type { Context } from '../trpc'
 import { getAIService } from '../../shared/ai-service'
-import type { AgentSSEEvent, StoredToolCall } from '../../shared/agent-types'
+import type { AgentSSEEvent, StoredToolCall, NoToolWarning } from '../../shared/agent-types'
 import {
   ApprovalDecision,
   ToolExecutionStatus,
@@ -24,6 +24,7 @@ import { ALL_TOOLS, READ_TOOL_NAMES, MEMORY_TOOL_NAMES, TOOL_REGISTRY } from './
 import { createToolExecutor } from './tool-executors'
 import { buildAgentSystemPrompt, AgentSessionInfo } from './agent-context'
 import { generateActionPreview, PreviewEntityContext, EntityNameMap } from './action-previews'
+import { checkForHallucination } from './hallucination-check'
 import { prisma } from '../prisma'
 import { generateUniqueId } from '../../shared/step-id-utils'
 import { getCurrentTime } from '../../shared/time-provider'
@@ -65,6 +66,8 @@ export interface AgentLoopResult {
   toolCalls: StoredToolCall[]
   /** Number of API round-trips */
   loopIterations: number
+  /** Warning if the agent may have hallucinated tool use */
+  noToolWarning: NoToolWarning | null
 }
 
 /**
@@ -324,6 +327,19 @@ export async function runAgentLoop(options: AgentLoopOptions): Promise<AgentLoop
     })
   }
 
+  // Check for hallucinated tool use when no tools were called
+  let noToolWarning: NoToolWarning | null = null
+  if (storedToolCalls.length === 0 && responseText.length > 0) {
+    noToolWarning = await checkForHallucination(userMessage, responseText)
+    if (noToolWarning) {
+      onEvent({
+        type: 'no_tool_warning',
+        confidence: noToolWarning.confidence,
+        reasoning: noToolWarning.reasoning,
+      })
+    }
+  }
+
   onEvent({
     type: 'done',
     toolCallCount: storedToolCalls.length,
@@ -334,6 +350,7 @@ export async function runAgentLoop(options: AgentLoopOptions): Promise<AgentLoop
     responseText,
     toolCalls: storedToolCalls,
     loopIterations,
+    noToolWarning,
   }
 }
 

@@ -11,6 +11,7 @@ import { IconSend, IconVoice, IconPause, IconRobot } from '@arco-design/web-reac
 import { useConversationStore, ConversationStatus } from '../../store/useConversationStore'
 import { useTaskStore } from '../../store/useTaskStore'
 import { ChatMessageRecord, AmendmentCard as AmendmentCardType } from '@shared/conversation-types'
+import type { NoToolWarning } from '@shared/agent-types'
 import { ChatMessageRole, ViewType, ToolExecutionStatus } from '@shared/enums'
 import { AmendmentCard } from './AmendmentCard'
 import { ProposedActionCard } from './ProposedActionCard'
@@ -98,6 +99,7 @@ export function ChatView({ onNavigateToView }: ChatViewProps): React.ReactElemen
   const [showNewContext, setShowNewContext] = useState(false)
   const [newContextName, setNewContextName] = useState('')
   const [newContextDesc, setNewContextDesc] = useState('')
+  const [streamingNoToolWarning, setStreamingNoToolWarning] = useState<NoToolWarning | null>(null)
 
   // Load job contexts on mount
   useEffect(() => {
@@ -297,6 +299,7 @@ export function ChatView({ onNavigateToView }: ChatViewProps): React.ReactElemen
     setInputValue('')
     setStatus(ConversationStatus.Sending)
     clearAgentState()
+    setStreamingNoToolWarning(null)
 
     try {
       // Add user message to LOCAL state only — server saves to DB
@@ -342,6 +345,9 @@ export function ChatView({ onNavigateToView }: ChatViewProps): React.ReactElemen
           },
           onActionResult: (event) => {
             removePendingAction(event.proposalId)
+          },
+          onNoToolWarning: (confidence, reasoning) => {
+            setStreamingNoToolWarning({ confidence, reasoning })
           },
           onDone: (toolCallCount) => {
             // Reload conversation messages from DB
@@ -552,6 +558,11 @@ export function ChatView({ onNavigateToView }: ChatViewProps): React.ReactElemen
               </div>
             )}
 
+            {/* Agent: no-tool-call warning (shown during/after streaming) */}
+            {streamingNoToolWarning && (
+              <NoToolWarningBanner warning={streamingNoToolWarning} />
+            )}
+
             {/* Agent: tool status indicators */}
             {isAgentMode && activeToolStatuses.length > 0 && (
               <ToolStatusIndicator statuses={activeToolStatuses} />
@@ -691,6 +702,11 @@ function MessageBubble({ message, onNavigateToView }: MessageBubbleProps): React
         )}
       </div>
 
+      {/* No-tool-call warning (persisted with the message) */}
+      {message.noToolWarning && (
+        <NoToolWarningBanner warning={message.noToolWarning} />
+      )}
+
       {/* Amendment cards (legacy) or agent tool call summaries */}
       {message.amendments && Array.isArray(message.amendments) && message.amendments.length > 0 && (
         <div
@@ -765,6 +781,62 @@ function MessageBubble({ message, onNavigateToView }: MessageBubbleProps): React
           minute: '2-digit',
         })}
       </Text>
+    </div>
+  )
+}
+
+// =============================================================================
+// NoToolWarningBanner Sub-component
+// =============================================================================
+
+interface NoToolWarningBannerProps {
+  warning: NoToolWarning
+}
+
+/**
+ * Compact warning banner shown when the agent made no tool calls
+ * but its text appears to describe completed actions.
+ * Confidence level drives the visual intensity.
+ */
+function NoToolWarningBanner({ warning }: NoToolWarningBannerProps): React.ReactElement {
+  const isHigh = warning.confidence >= 0.7
+  const borderColor = isHigh ? 'var(--color-warning-6)' : 'var(--color-text-4)'
+
+  return (
+    <div
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: 8,
+        padding: '6px 10px',
+        marginTop: 6,
+        borderRadius: 6,
+        background: isHigh ? 'var(--color-warning-light-1)' : 'var(--color-fill-1)',
+        borderLeft: `3px solid ${borderColor}`,
+        fontSize: 12,
+        color: 'var(--color-text-2)',
+        maxWidth: '85%',
+      }}
+      title={warning.reasoning}
+    >
+      <span style={{ fontSize: 14, flexShrink: 0 }}>
+        {isHigh ? '\u26A0' : '\u24D8'}
+      </span>
+      <span>
+        <strong>No tools called</strong>
+        {isHigh && (
+          <span style={{ color: 'var(--color-warning-6)', marginLeft: 4 }}>
+            — response may describe actions that were not performed
+          </span>
+        )}
+      </span>
+      <Tag
+        size="small"
+        color={isHigh ? 'orangered' : 'gray'}
+        style={{ fontSize: 10, marginLeft: 'auto', flexShrink: 0 }}
+      >
+        {Math.round(warning.confidence * 100)}%
+      </Tag>
     </div>
   )
 }
