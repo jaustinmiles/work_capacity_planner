@@ -7,6 +7,10 @@ import {
   getMissingComparisons,
   topologicalSort,
   mapToRankings,
+  selectNextPair,
+  insertNewItem,
+  getTournamentState,
+  hasPath,
   type ComparisonResult,
   type ItemId,
 } from '../comparison-graph'
@@ -705,5 +709,255 @@ describe('comparison-graph', () => {
       // Last item should have score of 1 (minimum)
       expect(rankings[9]!.score).toBe(1)
     })
+  })
+})
+
+// ============================================================================
+// Tournament algorithm — selectNextPair / insertNewItem / getTournamentState
+// ============================================================================
+
+// Build a wins-only result quickly: each tuple [winner, loser] becomes a
+// priority-dimension comparison. Equality and urgency are tested separately.
+function makePriorityComparisons(pairs: Array<[ItemId, ItemId]>): ComparisonResult[] {
+  return pairs.map(([winner, loser]) => ({
+    itemA: winner,
+    itemB: loser,
+    higherPriority: winner,
+    higherUrgency: null,
+    timestamp: 0,
+  }))
+}
+
+describe('getTournamentState', () => {
+  it('reports zero progress when no comparisons exist', () => {
+    const graph = buildComparisonGraph([])
+    const state = getTournamentState(['a', 'b', 'c'], graph.priorityWins, graph.priorityEquals)
+    expect(state.knownPairs).toBe(0)
+    expect(state.totalPairs).toBe(3)
+    expect(state.isComplete).toBe(false)
+    expect(state.placed.size).toBe(0)
+    expect(state.winCount.get('a')).toBe(0)
+    expect(state.lossCount.get('a')).toBe(0)
+  })
+
+  it('counts direct wins and losses per item', () => {
+    const graph = buildComparisonGraph(makePriorityComparisons([
+      ['a', 'b'],
+      ['a', 'c'],
+      ['b', 'c'],
+    ]))
+    const state = getTournamentState(['a', 'b', 'c'], graph.priorityWins, graph.priorityEquals)
+    expect(state.winCount.get('a')).toBe(2)
+    expect(state.winCount.get('b')).toBe(1)
+    expect(state.winCount.get('c')).toBe(0)
+    expect(state.lossCount.get('a')).toBe(0)
+    expect(state.lossCount.get('b')).toBe(1)
+    expect(state.lossCount.get('c')).toBe(2)
+  })
+
+  it('marks the tournament complete when transitive closure covers every pair', () => {
+    // a > b > c gives us a > c transitively → all 3 pairs known
+    const graph = buildComparisonGraph(makePriorityComparisons([
+      ['a', 'b'],
+      ['b', 'c'],
+    ]))
+    const state = getTournamentState(['a', 'b', 'c'], graph.priorityWins, graph.priorityEquals)
+    expect(state.knownPairs).toBe(3)
+    expect(state.totalPairs).toBe(3)
+    expect(state.isComplete).toBe(true)
+    expect(state.placed.size).toBe(3)
+  })
+
+  it('removes items from `placed` when they have any unknown relationship', () => {
+    // Two disconnected components: a > b, and c alone
+    const graph = buildComparisonGraph(makePriorityComparisons([['a', 'b']]))
+    const state = getTournamentState(['a', 'b', 'c'], graph.priorityWins, graph.priorityEquals)
+    // (a, c) and (b, c) are unknown → none placed
+    expect(state.placed.size).toBe(0)
+    expect(state.knownPairs).toBe(1)
+  })
+
+  it('ignores wins involving items outside the scope', () => {
+    // 'd' is not in scope; its wins shouldn't be counted
+    const graph = buildComparisonGraph(makePriorityComparisons([
+      ['a', 'b'],
+      ['d', 'a'],
+    ]))
+    const state = getTournamentState(['a', 'b', 'c'], graph.priorityWins, graph.priorityEquals)
+    expect(state.winCount.get('a')).toBe(1) // only counts a → b
+    expect(state.lossCount.get('a')).toBe(0) // a's loss to d is out of scope
+  })
+})
+
+describe('selectNextPair', () => {
+  it('returns null when fewer than 2 items', () => {
+    const graph = buildComparisonGraph([])
+    expect(selectNextPair([], graph.priorityWins, graph.priorityEquals)).toBeNull()
+    expect(selectNextPair(['only'], graph.priorityWins, graph.priorityEquals)).toBeNull()
+  })
+
+  it('returns null when all pairs are resolved transitively', () => {
+    const graph = buildComparisonGraph(makePriorityComparisons([
+      ['a', 'b'],
+      ['b', 'c'],
+    ]))
+    expect(selectNextPair(['a', 'b', 'c'], graph.priorityWins, graph.priorityEquals)).toBeNull()
+  })
+
+  it('picks a pair when no comparisons exist yet', () => {
+    const graph = buildComparisonGraph([])
+    const next = selectNextPair(['a', 'b', 'c', 'd'], graph.priorityWins, graph.priorityEquals)
+    expect(next).not.toBeNull()
+    expect(next!.length).toBe(2)
+    expect(next![0]).not.toBe(next![1])
+  })
+
+  it('prefers items with similar win counts (bracket-natural matchups)', () => {
+    // After: a > b, a > c, d > e
+    // Winners' tier: {a, d} (each has 1 win)
+    // Losers' tier: {b, c, e} (each has at least 1 loss)
+    // Expectation: pair the winners against each other (a vs d).
+    const graph = buildComparisonGraph(makePriorityComparisons([
+      ['a', 'b'],
+      ['a', 'c'],
+      ['d', 'e'],
+    ]))
+    const next = selectNextPair(
+      ['a', 'b', 'c', 'd', 'e'],
+      graph.priorityWins,
+      graph.priorityEquals,
+    )
+    expect(next).not.toBeNull()
+    const sorted = [...next!].sort()
+    // The "winners face winners" pair (a, d) is one of the candidates with
+    // best balance. Sometimes a tied pair on the losers' side scores equal
+    // (e.g., b vs e), so accept either of the bracket-natural matchups.
+    const candidates = [
+      ['a', 'd'],
+      ['b', 'c'],
+      ['b', 'e'],
+      ['c', 'e'],
+    ].map(p => p.sort().join(','))
+    expect(candidates).toContain(sorted.join(','))
+  })
+
+  it('respects anti-anchor — penalizes items that just appeared', () => {
+    // Empty graph, all pairs equal score except for anchor penalty.
+    // If 'a' was just compared, the next pair should NOT include 'a'.
+    const graph = buildComparisonGraph([])
+    const next = selectNextPair(
+      ['a', 'b', 'c', 'd'],
+      graph.priorityWins,
+      graph.priorityEquals,
+      { recentItems: ['a'] },
+    )
+    expect(next).not.toBeNull()
+    expect(next).not.toContain('a')
+  })
+
+  it('avoids both recent items when possible', () => {
+    const graph = buildComparisonGraph([])
+    const next = selectNextPair(
+      ['a', 'b', 'c', 'd'],
+      graph.priorityWins,
+      graph.priorityEquals,
+      { recentItems: ['a', 'b'] },
+    )
+    expect(next).not.toBeNull()
+    expect(next).not.toContain('a')
+    expect(next).not.toContain('b')
+  })
+
+  it('skips pairs whose relationship is already known transitively', () => {
+    // a > b > c → (a, c) is known. The only unknown pair involves d.
+    const graph = buildComparisonGraph(makePriorityComparisons([
+      ['a', 'b'],
+      ['b', 'c'],
+    ]))
+    const next = selectNextPair(
+      ['a', 'b', 'c', 'd'],
+      graph.priorityWins,
+      graph.priorityEquals,
+    )
+    expect(next).not.toBeNull()
+    expect(next).toContain('d')
+  })
+
+  it('is deterministic for stable tests (tiebreak by lexicographic item ID)', () => {
+    const graph = buildComparisonGraph([])
+    const items = ['c', 'a', 'b', 'd']
+    const a = selectNextPair(items, graph.priorityWins, graph.priorityEquals)
+    const b = selectNextPair(items, graph.priorityWins, graph.priorityEquals)
+    expect(a).toEqual(b)
+  })
+})
+
+describe('insertNewItem', () => {
+  it('returns null when there are no existing sorted items', () => {
+    const graph = buildComparisonGraph([])
+    expect(insertNewItem('new', [], graph.priorityWins)).toBeNull()
+  })
+
+  it('probes the middle of the uncertain range when nothing is known', () => {
+    const graph = buildComparisonGraph([])
+    const next = insertNewItem('x', ['a', 'b', 'c', 'd'], graph.priorityWins)
+    expect(next).not.toBeNull()
+    expect(next![0]).toBe('x')
+    // First probe should be the middle item — index Math.floor((-1 + 4) / 2) = 1 → 'b'
+    expect(next![1]).toBe('b')
+  })
+
+  it('narrows the search using prior known relationships', () => {
+    // Already know: x > a (so x ranks before a). Sorted: [a, b, c, d].
+    // After: lo = -1, hi = 0 → range is (-1, 0) → empty → null.
+    const graph = buildComparisonGraph(makePriorityComparisons([['x', 'a']]))
+    const next = insertNewItem('x', ['a', 'b', 'c', 'd'], graph.priorityWins)
+    expect(next).toBeNull()
+  })
+
+  it('uses transitive relationships to skip probes', () => {
+    // Sorted: [a, b, c, d]. Known: b > x. So x ranks somewhere in [c, d].
+    // lo: largest i where list[i] beats x → i=1 (b). hi: smallest i where x beats list[i] → list.length (4).
+    // Range (1, 4) → mid = floor(5/2) = 2 → list[2] = 'c'.
+    const graph = buildComparisonGraph(makePriorityComparisons([['b', 'x']]))
+    const next = insertNewItem('x', ['a', 'b', 'c', 'd'], graph.priorityWins)
+    expect(next).toEqual(['x', 'c'])
+  })
+
+  it('returns null once position is fully bracketed', () => {
+    // Known: b > x and x > c. So x sits between b and c → no further probe needed.
+    const graph = buildComparisonGraph(makePriorityComparisons([
+      ['b', 'x'],
+      ['x', 'c'],
+    ]))
+    const next = insertNewItem('x', ['a', 'b', 'c', 'd'], graph.priorityWins)
+    expect(next).toBeNull()
+  })
+
+  it('filters newItemId out of sortedItems if accidentally included', () => {
+    const graph = buildComparisonGraph([])
+    const next = insertNewItem('x', ['a', 'x', 'b'], graph.priorityWins)
+    expect(next).not.toBeNull()
+    expect(next![1]).not.toBe('x')
+  })
+})
+
+describe('hasPath (now exported)', () => {
+  it('returns true for direct edges', () => {
+    const graph = buildComparisonGraph(makePriorityComparisons([['a', 'b']]))
+    expect(hasPath(graph.priorityWins, 'a', 'b')).toBe(true)
+  })
+
+  it('returns true for transitive edges', () => {
+    const graph = buildComparisonGraph(makePriorityComparisons([
+      ['a', 'b'],
+      ['b', 'c'],
+    ]))
+    expect(hasPath(graph.priorityWins, 'a', 'c')).toBe(true)
+  })
+
+  it('returns false when no path exists', () => {
+    const graph = buildComparisonGraph(makePriorityComparisons([['a', 'b']]))
+    expect(hasPath(graph.priorityWins, 'b', 'a')).toBe(false)
   })
 })
