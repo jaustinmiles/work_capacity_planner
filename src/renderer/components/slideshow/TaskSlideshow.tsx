@@ -7,6 +7,9 @@ import { Task } from '@shared/types'
 import { SequencedTask } from '@shared/sequencing-types'
 import { EntityType } from '@shared/enums'
 import { ComparisonType } from '@/shared/constants'
+import { getDatabase } from '../../services/database'
+import type { PersistedComparison } from '../../services/database-trpc'
+import { logger } from '@/logger'
 import {
   buildComparisonGraph,
   detectCycle,
@@ -18,6 +21,34 @@ import {
   type ItemId,
 } from '../../utils/comparison-graph'
 import { ComparisonGraphMinimap } from './ComparisonGraphMinimap'
+
+/**
+ * Fold persisted DB rows (one per dimension per pair) into the UI's
+ * ComparisonResult shape (one per pair, with both dimensions).
+ */
+function hydrateComparisons(rows: PersistedComparison[]): ComparisonResult[] {
+  const byPair = new Map<string, ComparisonResult>()
+  for (const row of rows) {
+    const key = `${row.itemAId}|${row.itemBId}`
+    if (!byPair.has(key)) {
+      byPair.set(key, {
+        itemA: row.itemAId,
+        itemB: row.itemBId,
+        higherPriority: null,
+        higherUrgency: null,
+        timestamp: row.createdAt.getTime(),
+      })
+    }
+    const entry = byPair.get(key)!
+    const value: ItemId | 'equal' | null = row.isEqual ? 'equal' : row.winnerId
+    if (row.dimension === ComparisonType.Priority) {
+      entry.higherPriority = value
+    } else if (row.dimension === ComparisonType.Urgency) {
+      entry.higherUrgency = value
+    }
+  }
+  return Array.from(byPair.values())
+}
 
 const { Title, Text } = Typography
 
@@ -43,11 +74,16 @@ export function TaskSlideshow({ visible, onClose }: TaskSlideshowProps) {
   const [isComplete, setIsComplete] = useState(false)
   const [shuffledItems, setShuffledItems] = useState<SlideshowItem[]>([])
   const [sprintOnly, setSprintOnly] = useState(false)
+  // Persisted-comparison hydration: gates the load-from-DB effect so it
+  // fires once per modal open and doesn't clobber in-progress local state.
+  const [isHydrated, setIsHydrated] = useState(false)
 
   // Build graph from comparisons using utility
   const graph = useMemo<ComparisonGraph>(() => buildComparisonGraph(comparisons), [comparisons])
 
-  // Reset tournament when scope changes
+  // Sprint-scope toggle: keep persisted comparisons (they're still valid for the
+  // subset of items), but re-run pair selection over the new item set.
+  // Resetting isHydrated triggers a fresh DB load scoped to the new item set.
   const handleSprintToggle = (checked: boolean) => {
     setSprintOnly(checked)
     setComparisons([])
@@ -57,6 +93,7 @@ export function TaskSlideshow({ visible, onClose }: TaskSlideshowProps) {
     setIsComplete(false)
     setIsShowingMissingPairs(false)
     setCurrentQuestion(ComparisonType.Priority)
+    setIsHydrated(false)
   }
 
   // Fisher-Yates shuffle algorithm
@@ -97,6 +134,35 @@ export function TaskSlideshow({ visible, onClose }: TaskSlideshowProps) {
     return [...taskItems, ...workflowItems]
 
   }, [tasks, sequencedTasks, sprintOnly])
+
+  // Hydrate persisted comparisons from DB when modal opens or scope changes.
+  // Runs at most once per (open, scope) pair, gated by isHydrated.
+  useEffect(() => {
+    if (!visible || isHydrated || items.length === 0) return
+    let cancelled = false
+    const itemIds = items.map(i => i.id)
+    void getDatabase()
+      .listComparisons(itemIds)
+      .then(rows => {
+        if (cancelled) return
+        setComparisons(hydrateComparisons(rows))
+        setIsHydrated(true)
+      })
+      .catch(err => {
+        if (cancelled) return
+        logger.ui.error('Failed to hydrate persisted comparisons', { error: String(err) }, 'task-slideshow-hydrate')
+        // Soft-fail: still let user start a fresh tournament
+        setIsHydrated(true)
+      })
+    return () => { cancelled = true }
+  }, [visible, isHydrated, items])
+
+  // Reset hydration gate when modal closes so the next open re-fetches fresh state.
+  useEffect(() => {
+    if (!visible) {
+      setIsHydrated(false)
+    }
+  }, [visible])
 
   // Initialize comparison pairs on first load
   useEffect(() => {
@@ -188,6 +254,32 @@ export function TaskSlideshow({ visible, onClose }: TaskSlideshowProps) {
     }
   }
 
+  // Fire-and-forget persistence of one dimension's answer. Local state is the
+  // source of truth during the session; the DB write recovers across reopens.
+  const persistAnswer = (
+    itemAId: ItemId,
+    itemBId: ItemId,
+    winner: ItemId | 'equal',
+    dimension: ComparisonType,
+  ): void => {
+    const isEqual = winner === 'equal'
+    void getDatabase()
+      .recordComparison({
+        itemAId,
+        itemBId,
+        winnerId: isEqual ? null : winner,
+        isEqual,
+        dimension,
+      })
+      .catch(err => {
+        logger.ui.error(
+          'Failed to persist comparison',
+          { error: String(err), itemAId, itemBId, dimension },
+          'task-slideshow-persist',
+        )
+      })
+  }
+
   // Handle comparison selection (winner can be ItemId or 'equal')
   const handleComparison = (winner: ItemId | 'equal') => {
     const pair = getCurrentPair()
@@ -210,6 +302,8 @@ export function TaskSlideshow({ visible, onClose }: TaskSlideshowProps) {
         }
       }
     }
+
+    persistAnswer(pair[0]!.id, pair[1]!.id, winner, currentQuestion)
 
     const existingComparison = comparisons.find(
       c => c.itemA === pair[0]?.id && c.itemB === pair[1]?.id,
@@ -361,13 +455,23 @@ export function TaskSlideshow({ visible, onClose }: TaskSlideshowProps) {
     onClose()
   }
 
-  // Reset function to clear all comparisons
+  // Reset function: clear LOCAL state and persisted DB rows for both dimensions.
+  // Fire-and-forget the DB deletes; UI is reactive immediately.
   const resetComparisons = () => {
     setComparisons([])
     setCurrentPairIndex(0)
     setCurrentQuestion(ComparisonType.Priority)
     setIsShowingMissingPairs(false)
     setIsComplete(false)
+    setComparisonPairs([])
+    setShuffledItems([])
+    const db = getDatabase()
+    void Promise.all([
+      db.clearComparisonDimension(ComparisonType.Priority),
+      db.clearComparisonDimension(ComparisonType.Urgency),
+    ]).catch(err => {
+      logger.ui.error('Failed to clear persisted comparisons', { error: String(err) }, 'task-slideshow-clear')
+    })
     Message.info('All comparisons cleared. Starting fresh!')
   }
 
@@ -922,7 +1026,7 @@ export function TaskSlideshow({ visible, onClose }: TaskSlideshowProps) {
           <Text>{comparisons.length} pairs evaluated</Text>
           <br />
           <Text type="secondary" style={{ fontSize: 12 }}>
-            Results stored locally for this session
+            Results saved automatically — reopen any time to resume
           </Text>
         </Card>
       </Space>
