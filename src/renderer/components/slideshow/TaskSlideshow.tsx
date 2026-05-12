@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react'
-import { Modal, Button, Space, Typography, Tag, Card, Divider, Message, Table, Switch } from '@arco-design/web-react'
-import { IconLeft, IconRight, IconClockCircle, IconCheck } from '@arco-design/web-react/icon'
+import { Modal, Button, Space, Typography, Tag, Card, Divider, Message, Table, Switch, Radio } from '@arco-design/web-react'
+import { IconClockCircle, IconCheck } from '@arco-design/web-react/icon'
 import { useTaskStore } from '../../store/useTaskStore'
 import { useResponsive } from '../../providers/ResponsiveProvider'
 import { Task } from '@shared/types'
@@ -13,14 +13,18 @@ import { logger } from '@/logger'
 import {
   buildComparisonGraph,
   detectCycle,
-  getMissingComparisons,
+  selectNextPair,
   topologicalSort,
   mapToRankings,
+  getTournamentState,
   type ComparisonResult,
   type ComparisonGraph,
   type ItemId,
 } from '../../utils/comparison-graph'
-import { ComparisonGraphMinimap } from './ComparisonGraphMinimap'
+import { TournamentBracket } from './TournamentBracket'
+
+// Anti-anchor window: how many of the most-recent items selectNextPair sees.
+const RECENT_ITEMS_WINDOW = 6
 
 /**
  * Fold persisted DB rows (one per dimension per pair) into the UI's
@@ -66,13 +70,14 @@ type SlideshowItem = {
 export function TaskSlideshow({ visible, onClose }: TaskSlideshowProps) {
   const { tasks, sequencedTasks } = useTaskStore()
   const { isCompact, isMobile } = useResponsive()
-  const [currentPairIndex, setCurrentPairIndex] = useState(0)
   const [comparisons, setComparisons] = useState<ComparisonResult[]>([])
-  const [currentQuestion, setCurrentQuestion] = useState<ComparisonType>(ComparisonType.Priority)
-  const [comparisonPairs, setComparisonPairs] = useState<Array<[ItemId, ItemId]>>([])
-  const [isShowingMissingPairs, setIsShowingMissingPairs] = useState(false)
+  // One-dimension-per-session: user explicitly picks priority or urgency.
+  const [activeDimension, setActiveDimension] = useState<ComparisonType>(ComparisonType.Priority)
+  // The single matchup currently in front of the user (computed lazily from graph state).
+  const [currentPair, setCurrentPair] = useState<[ItemId, ItemId] | null>(null)
+  // Item IDs (oldest → newest) just shown — fed to selectNextPair for anti-anchor.
+  const [recentItems, setRecentItems] = useState<ItemId[]>([])
   const [isComplete, setIsComplete] = useState(false)
-  const [shuffledItems, setShuffledItems] = useState<SlideshowItem[]>([])
   const [sprintOnly, setSprintOnly] = useState(false)
   // Persisted-comparison hydration: gates the load-from-DB effect so it
   // fires once per modal open and doesn't clobber in-progress local state.
@@ -87,23 +92,10 @@ export function TaskSlideshow({ visible, onClose }: TaskSlideshowProps) {
   const handleSprintToggle = (checked: boolean) => {
     setSprintOnly(checked)
     setComparisons([])
-    setComparisonPairs([])
-    setShuffledItems([])
-    setCurrentPairIndex(0)
+    setCurrentPair(null)
+    setRecentItems([])
     setIsComplete(false)
-    setIsShowingMissingPairs(false)
-    setCurrentQuestion(ComparisonType.Priority)
     setIsHydrated(false)
-  }
-
-  // Fisher-Yates shuffle algorithm
-  const shuffleArray = <T,>(array: T[]): T[] => {
-    const shuffled = [...array]
-    for (let i = shuffled.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [shuffled[i], shuffled[j]] = [shuffled[j]!, shuffled[i]!]
-    }
-    return shuffled
   }
 
   // Combine and filter tasks and workflows (exclude completed and archived)
@@ -164,95 +156,52 @@ export function TaskSlideshow({ visible, onClose }: TaskSlideshowProps) {
     }
   }, [visible])
 
-  // Initialize comparison pairs on first load
+  // Pick the wins/equals graphs corresponding to the active dimension.
+  const dimensionGraphs = useMemo(() => {
+    if (activeDimension === ComparisonType.Priority) {
+      return { winsGraph: graph.priorityWins, equalsGraph: graph.priorityEquals }
+    }
+    return { winsGraph: graph.urgencyWins, equalsGraph: graph.urgencyEquals }
+  }, [graph, activeDimension])
+
+  // Lookup map: ID → SlideshowItem. The pair-selection algorithm works in IDs;
+  // we resolve to full items only at render time.
+  const itemById = useMemo<Map<ItemId, SlideshowItem>>(
+    () => new Map(items.map(i => [i.id, i])),
+    [items],
+  )
+
+  // Whenever the graph or dimension changes (and we're hydrated), pick the next
+  // pair to ask. Returns null → this dimension is complete for the active scope.
   useEffect(() => {
-    if (comparisonPairs.length === 0 && !isComplete && items.length > 1) {
-      if (comparisons.length === 0 && shuffledItems.length === 0) {
-        // First time - shuffle items for better transitivity benefits
-        const shuffled = shuffleArray(items)
-        setShuffledItems(shuffled)
-
-        // Create tournament-style initial pairs (n/2 pairs)
-        const initialPairs: Array<[ItemId, ItemId]> = []
-        for (let i = 0; i < shuffled.length - 1; i += 2) {
-          if (shuffled[i] && shuffled[i + 1] && shuffled[i]!.id !== shuffled[i + 1]!.id) {
-            initialPairs.push([shuffled[i]!.id, shuffled[i + 1]!.id])
-          }
-        }
-        if (initialPairs.length > 0) {
-          setComparisonPairs(initialPairs)
-          setCurrentPairIndex(0)
-        }
-      } else if (comparisons.length > 0) {
-        // We have existing comparisons, check what's still needed
-        const itemsToUse = shuffledItems.length > 0 ? shuffledItems : items
-        const itemIds = itemsToUse.map(item => item.id)
-        const stillNeeded = getMissingComparisons(itemIds, graph)
-        if (stillNeeded.length > 0) {
-          setComparisonPairs(stillNeeded)
-          setCurrentPairIndex(0)
-        } else {
-          setIsComplete(true)
-        }
-      }
+    if (!isHydrated || items.length < 2) {
+      setCurrentPair(null)
+      setIsComplete(items.length >= 2 && isHydrated && false)
+      return
     }
-  }, [items, comparisons.length, comparisonPairs.length, isComplete, graph, shuffledItems])
+    const next = selectNextPair(
+      items.map(i => i.id),
+      dimensionGraphs.winsGraph,
+      dimensionGraphs.equalsGraph,
+      { recentItems },
+    )
+    if (next === null) {
+      setCurrentPair(null)
+      setIsComplete(true)
+    } else {
+      setCurrentPair(next)
+      setIsComplete(false)
+    }
+  }, [isHydrated, items, dimensionGraphs, recentItems])
 
-  // Get current pair of items
-  const getCurrentPair = () => {
-    if (comparisonPairs.length === 0) return null
-    if (currentPairIndex >= comparisonPairs.length) return null
-
-    const currentPair = comparisonPairs[currentPairIndex]
+  // Resolve the current pair IDs to full SlideshowItems for rendering.
+  const currentPairResolved = useMemo<[SlideshowItem, SlideshowItem] | null>(() => {
     if (!currentPair) return null
-
-    const [idA, idB] = currentPair
-    // Use shuffled items if available, otherwise use original items
-    const itemsToSearch = shuffledItems.length > 0 ? shuffledItems : items
-    const itemA = itemsToSearch.find(item => item.id === idA)
-    const itemB = itemsToSearch.find(item => item.id === idB)
-
-    if (!itemA || !itemB) return null
-    return [itemA, itemB]
-  }
-
-  // Navigation functions
-  const goToPrevious = () => {
-    if (currentPairIndex > 0) {
-      const newIndex = currentPairIndex - 1
-      setCurrentPairIndex(newIndex)
-
-      // Check if we have partial answers for this pair
-      const targetPair = comparisonPairs[newIndex]
-      if (targetPair) {
-        const existingComparison = comparisons.find(
-          c => (c.itemA === targetPair[0] && c.itemB === targetPair[1]) ||
-               (c.itemA === targetPair[1] && c.itemB === targetPair[0]),
-        )
-        // Reset to appropriate question based on what's been answered
-        if (existingComparison?.higherPriority && !existingComparison?.higherUrgency) {
-          setCurrentQuestion(ComparisonType.Urgency)
-        } else {
-          setCurrentQuestion(ComparisonType.Priority)
-        }
-      } else {
-        setCurrentQuestion(ComparisonType.Priority)
-      }
-    } else {
-      Message.info('Already at the first comparison')
-    }
-  }
-
-  const goToNext = () => {
-    // Since we dynamically recompute after each complete comparison,
-    // this is mainly for skipping the current pair
-    if (currentPairIndex < comparisonPairs.length - 1) {
-      setCurrentPairIndex(currentPairIndex + 1)
-      setCurrentQuestion(ComparisonType.Priority)
-    } else {
-      Message.info('This is the last comparison pair. Complete it to see if more are needed.')
-    }
-  }
+    const a = itemById.get(currentPair[0])
+    const b = itemById.get(currentPair[1])
+    if (!a || !b) return null
+    return [a, b]
+  }, [currentPair, itemById])
 
   // Fire-and-forget persistence of one dimension's answer. Local state is the
   // source of truth during the session; the DB write recovers across reopens.
@@ -280,133 +229,75 @@ export function TaskSlideshow({ visible, onClose }: TaskSlideshowProps) {
       })
   }
 
-  // Handle comparison selection (winner can be ItemId or 'equal')
+  // Apply one answer for the active dimension, persist it, update local graph,
+  // and let the selectNextPair effect pick the next matchup.
   const handleComparison = (winner: ItemId | 'equal') => {
-    const pair = getCurrentPair()
-    if (!pair) return
+    if (!currentPair) return
+    const [aId, bId] = currentPair
+    const loser = winner !== 'equal' ? (winner === aId ? bId : aId) : null
 
-    const loser = winner !== 'equal' ?
-      (winner === pair[0]!.id ? pair[1]!.id : pair[0]!.id) : null
-
-    // Check for cycle before adding comparison (only for non-equal relationships)
+    // Soft cycle warning (doesn't block the answer — the user may want to fix it).
     if (winner !== 'equal' && loser) {
-      if (currentQuestion === ComparisonType.Priority) {
-        // Check if this would create a cycle in priority graph
-        if (detectCycle(graph.priorityWins, winner, loser)) {
-          Message.warning(`Inconsistency detected: This creates a circular importance relationship! (${winner} beats ${loser} but there's already a path from ${loser} to ${winner})`)
-        }
-      } else {
-        // Check if this would create a cycle in urgency graph
-        if (detectCycle(graph.urgencyWins, winner, loser)) {
-          Message.warning(`Inconsistency detected: This creates a circular urgency relationship! (${winner} beats ${loser} but there's already a path from ${loser} to ${winner})`)
-        }
-      }
-    }
-
-    persistAnswer(pair[0]!.id, pair[1]!.id, winner, currentQuestion)
-
-    const existingComparison = comparisons.find(
-      c => c.itemA === pair[0]?.id && c.itemB === pair[1]?.id,
-    )
-
-    let newComparisons: ComparisonResult[] = comparisons
-
-    if (currentQuestion === ComparisonType.Priority) {
-      if (existingComparison) {
-        newComparisons = comparisons.map(c =>
-          c.itemA === pair[0]?.id && c.itemB === pair[1]?.id
-            ? { ...c, higherPriority: winner }
-            : c,
+      const winsGraph = activeDimension === ComparisonType.Priority ? graph.priorityWins : graph.urgencyWins
+      if (detectCycle(winsGraph, winner, loser)) {
+        Message.warning(
+          `Inconsistency detected: this creates a circular ${activeDimension} relationship — ` +
+          `${winner} now beats ${loser}, but the graph already has a path from ${loser} to ${winner}.`,
         )
-      } else {
-        newComparisons = [...comparisons, {
-          itemA: pair[0]!.id,
-          itemB: pair[1]!.id,
-          higherPriority: winner,
-          higherUrgency: null,
-          timestamp: Date.now(),
-        }]
       }
-      setComparisons(newComparisons)
-      setCurrentQuestion(ComparisonType.Urgency)
-    } else {
-      newComparisons = comparisons.map(c =>
-        c.itemA === pair[0]!.id && c.itemB === pair[1]!.id
-          ? { ...c, higherUrgency: winner }
-          : c,
-      )
-      setComparisons(newComparisons)
-
-      // After answering both questions, dynamically recompute needed pairs
-      // This applies transitivity immediately
-      setTimeout(() => {
-        const updatedGraph = buildComparisonGraph(newComparisons)
-        const itemsToUse = shuffledItems.length > 0 ? shuffledItems : items
-        const itemIds = itemsToUse.map(item => item.id)
-
-        // Calculate total possible pairs for n items
-        const totalPossiblePairs = (itemIds.length * (itemIds.length - 1)) / 2
-
-        // Get pairs still needed
-        const stillNeeded = getMissingComparisons(itemIds, updatedGraph)
-
-        // Calculate transitivity savings for the message
-        const savedByTransitivity = totalPossiblePairs - stillNeeded.length - newComparisons.length
-
-        // Filter out the current pair and any pairs we've already started
-        const remainingPairs = stillNeeded.filter(([a, b]) => {
-          // Don't include pairs we've already started comparing
-          const alreadyStarted = newComparisons.some(c =>
-            (c.itemA === a && c.itemB === b) || (c.itemA === b && c.itemB === a),
-          )
-          return !alreadyStarted
-        })
-
-        if (remainingPairs.length > 0) {
-          Message.info(`${remainingPairs.length} comparisons remaining (${savedByTransitivity} saved by transitivity)`)
-          setComparisonPairs(remainingPairs)
-          setCurrentPairIndex(0)
-          setCurrentQuestion(ComparisonType.Priority)
-          setIsShowingMissingPairs(true) // Mark that we're now showing missing pairs
-        } else {
-          // All comparisons complete!
-          const finalSavings = totalPossiblePairs - newComparisons.length
-          Message.success(`Complete! Made ${newComparisons.length} comparisons out of ${totalPossiblePairs} possible (saved ${finalSavings})`)
-          setIsComplete(true)
-        }
-      }, 0)
     }
+
+    persistAnswer(aId, bId, winner, activeDimension)
+
+    // Merge the answer into the local ComparisonResult[] (the bridge to buildComparisonGraph).
+    const existing = comparisons.find(c =>
+      (c.itemA === aId && c.itemB === bId) || (c.itemA === bId && c.itemB === aId),
+    )
+    const fieldKey = activeDimension === ComparisonType.Priority ? 'higherPriority' : 'higherUrgency'
+    let newComparisons: ComparisonResult[]
+    if (existing) {
+      newComparisons = comparisons.map(c =>
+        c === existing ? { ...c, [fieldKey]: winner } : c,
+      )
+    } else {
+      newComparisons = [...comparisons, {
+        itemA: aId,
+        itemB: bId,
+        higherPriority: activeDimension === ComparisonType.Priority ? winner : null,
+        higherUrgency: activeDimension === ComparisonType.Urgency ? winner : null,
+        timestamp: Date.now(),
+      }]
+    }
+    setComparisons(newComparisons)
+
+    // Track recent items for anti-anchor (most recent at the end).
+    setRecentItems(prev => {
+      const next = [...prev, aId, bId]
+      return next.slice(-RECENT_ITEMS_WINDOW)
+    })
   }
 
-  // Keyboard navigation
+  // Keyboard shortcuts: 1/2/= answer the current pair; Esc closes the modal.
+  // (No prev/next navigation — pair selection is now one-at-a-time.)
   useEffect(() => {
     if (!visible) return
-
     const handleKeyPress = (e: KeyboardEvent) => {
-      const pair = getCurrentPair()
-
-      if (e.key === '1' && pair) {
-        handleComparison(pair[0]!.id)
-      } else if (e.key === '2' && pair) {
-        handleComparison(pair[1]!.id)
-      } else if (e.key === '=' && pair) {
-        handleComparison('equal')
-      } else if (e.key === 'ArrowLeft') {
-        goToPrevious()
-      } else if (e.key === 'ArrowRight') {
-        goToNext()
-      } else if (e.key === 'Escape') {
-        onClose()
+      if (!currentPair) {
+        if (e.key === 'Escape') onClose()
+        return
       }
+      if (e.key === '1') handleComparison(currentPair[0])
+      else if (e.key === '2') handleComparison(currentPair[1])
+      else if (e.key === '=') handleComparison('equal')
+      else if (e.key === 'Escape') onClose()
     }
-
     window.addEventListener('keydown', handleKeyPress)
     return () => window.removeEventListener('keydown', handleKeyPress)
-  }, [visible, items, currentPairIndex, currentQuestion, comparisons, graph])
+  }, [visible, currentPair, activeDimension, comparisons])
 
   // Apply the computed rankings to the database
   const applyRankings = async () => {
-    const itemsToUse = shuffledItems.length > 0 ? shuffledItems : items
+    const itemsToUse = items
     const itemIds = itemsToUse.map(item => item.id)
 
     // Get sorted items using topological sort
@@ -459,12 +350,9 @@ export function TaskSlideshow({ visible, onClose }: TaskSlideshowProps) {
   // Fire-and-forget the DB deletes; UI is reactive immediately.
   const resetComparisons = () => {
     setComparisons([])
-    setCurrentPairIndex(0)
-    setCurrentQuestion(ComparisonType.Priority)
-    setIsShowingMissingPairs(false)
+    setCurrentPair(null)
+    setRecentItems([])
     setIsComplete(false)
-    setComparisonPairs([])
-    setShuffledItems([])
     const db = getDatabase()
     void Promise.all([
       db.clearComparisonDimension(ComparisonType.Priority),
@@ -475,27 +363,24 @@ export function TaskSlideshow({ visible, onClose }: TaskSlideshowProps) {
     Message.info('All comparisons cleared. Starting fresh!')
   }
 
-  // Check if comparisons are complete on load
+  // Pre-select a default dimension when the modal opens: pick whichever
+  // dimension has more unresolved pairs so the user is shown useful work first.
   useEffect(() => {
-    if (comparisons.length > 0 && comparisonPairs.length === 0 && !isComplete) {
-      const itemIds = items.map(item => item.id)
-      const missingPairs = getMissingComparisons(itemIds, graph)
-      if (missingPairs.length === 0 && items.length > 1) {
-        setIsComplete(true)
-      }
+    if (!visible || !isHydrated || items.length < 2) return
+    const itemIds = items.map(i => i.id)
+    const priorityState = getTournamentState(itemIds, graph.priorityWins, graph.priorityEquals)
+    const urgencyState = getTournamentState(itemIds, graph.urgencyWins, graph.urgencyEquals)
+    const priorityUnknowns = priorityState.totalPairs - priorityState.knownPairs
+    const urgencyUnknowns = urgencyState.totalPairs - urgencyState.knownPairs
+    // Default to importance (priority) on ties; switch to urgency only if it
+    // has strictly more unknowns and the modal just opened (no prior choice).
+    if (urgencyUnknowns > priorityUnknowns) {
+      setActiveDimension(ComparisonType.Urgency)
     }
-  }, [comparisons, comparisonPairs, items, graph, isComplete])
-
-  // Reset navigation when modal opens (but keep comparisons)
-  useEffect(() => {
-    if (visible) {
-      setCurrentQuestion(ComparisonType.Priority)
-      // Only reset index if we have pairs to show
-      if (comparisonPairs.length > 0 && !isComplete) {
-        setCurrentPairIndex(0)
-      }
-    }
-  }, [visible, comparisonPairs.length, isComplete])
+    // Note: we only run this when the modal first opens with a fresh hydration;
+    // subsequent dimension switches are user-driven, not auto-picked.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [visible, isHydrated])
 
   const sprintScopeToggle = (
     <Space size={12}>
@@ -543,15 +428,18 @@ export function TaskSlideshow({ visible, onClose }: TaskSlideshowProps) {
     )
   }
 
-  const currentPair = getCurrentPair()
-
   // Type guards for better type safety
   const isRegularTask = (data: Task | SequencedTask): data is Task => {
     return 'importance' in data && 'urgency' in data
   }
 
-  // Show completion view with graphs if complete or no more pairs
-  if (isComplete || (!currentPair && comparisons.length > 0)) {
+  // Show completion view with graphs when:
+  //   - both dimensions fully resolved, OR
+  //   - active dimension is fully resolved and the user has made any comparisons.
+  // (The completion view applies BOTH dimensions, so partial answers in either
+  //  are still useful — but we only auto-show it when the active dim is done.)
+  const showCompletionView = isComplete && comparisons.length > 0
+  if (showCompletionView) {
     // Compute rankings for both importance and urgency
     const itemIds = items.map(item => item.id)
     const importanceSorted = topologicalSort(itemIds, graph.priorityWins)
@@ -708,50 +596,35 @@ export function TaskSlideshow({ visible, onClose }: TaskSlideshowProps) {
             </div>
           </Card>
 
-          {/* Final Graph Visualizations */}
-          <div style={{ display: 'flex', gap: 16, justifyContent: 'center' }}>
-            {/* Priority Graph */}
+          {/* Final Bracket Visualizations — one per dimension */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
             <div>
               <Title heading={6} style={{ marginBottom: 8, textAlign: 'center' }}>
-                Importance Rankings
+                Importance Bracket
               </Title>
-              <ComparisonGraphMinimap
-                graph={{
-                  priorityWins: graph.priorityWins,
-                  urgencyWins: new Map(),
-                  priorityEquals: graph.priorityEquals,
-                  urgencyEquals: new Map(),
-                }}
-                items={items.map(item => ({
-                  id: item.id,
-                  title: isRegularTask(item.data)
-                    ? (item.data as Task).name
-                    : (item.data as SequencedTask).name,
+              <TournamentBracket
+                items={items.map(i => ({
+                  id: i.id,
+                  title: isRegularTask(i.data) ? (i.data as Task).name : (i.data as SequencedTask).name,
                 }))}
-                width={isCompact ? 350 : 500}
+                winsGraph={graph.priorityWins}
+                equalsGraph={graph.priorityEquals}
+                width={isCompact ? 700 : 1100}
                 height={300}
               />
             </div>
-
-            {/* Urgency Graph */}
             <div>
               <Title heading={6} style={{ marginBottom: 8, textAlign: 'center' }}>
-                Urgency Rankings
+                Urgency Bracket
               </Title>
-              <ComparisonGraphMinimap
-                graph={{
-                  priorityWins: new Map(),
-                  urgencyWins: graph.urgencyWins,
-                  priorityEquals: new Map(),
-                  urgencyEquals: graph.urgencyEquals,
-                }}
-                items={items.map(item => ({
-                  id: item.id,
-                  title: isRegularTask(item.data)
-                    ? (item.data as Task).name
-                    : (item.data as SequencedTask).name,
+              <TournamentBracket
+                items={items.map(i => ({
+                  id: i.id,
+                  title: isRegularTask(i.data) ? (i.data as Task).name : (i.data as SequencedTask).name,
                 }))}
-                width={isCompact ? 350 : 500}
+                winsGraph={graph.urgencyWins}
+                equalsGraph={graph.urgencyEquals}
+                width={isCompact ? 700 : 1100}
                 height={300}
               />
             </div>
@@ -761,8 +634,8 @@ export function TaskSlideshow({ visible, onClose }: TaskSlideshowProps) {
     )
   }
 
-  // Show empty state if no pairs at all
-  if (!currentPair) {
+  // No current pair AND no comparisons yet → just-opened-with-no-data state.
+  if (!currentPairResolved && comparisons.length === 0) {
     return (
       <Modal
         title="Task & Workflow Comparison"
@@ -772,16 +645,76 @@ export function TaskSlideshow({ visible, onClose }: TaskSlideshowProps) {
         style={{ width: 800 }}
       >
         <div style={{ textAlign: 'center', padding: '40px 0' }}>
-          <Text type="secondary">No items to compare</Text>
+          <Text type="secondary">{isHydrated ? 'No items to compare' : 'Loading…'}</Text>
         </div>
       </Modal>
     )
   }
 
-  const [itemA, itemB] = currentPair
-  const currentComparison = comparisons.find(
-    c => c.itemA === itemA!.id && c.itemB === itemB!.id,
+  // No current pair BUT comparisons exist → active dimension fully resolved.
+  // Soft-landing screen: switch dimension or finalize.
+  if (!currentPairResolved) {
+    const otherDimension = activeDimension === ComparisonType.Priority
+      ? ComparisonType.Urgency
+      : ComparisonType.Priority
+    return (
+      <Modal
+        title={
+          <Space style={{ width: '100%', justifyContent: 'space-between' }}>
+            <span>Task & Workflow Comparison</span>
+            <Tag color="green">{activeDimension === ComparisonType.Priority ? 'Importance' : 'Urgency'} ranking complete</Tag>
+          </Space>
+        }
+        visible={visible}
+        onCancel={onClose}
+        footer={
+          <Space style={{ width: '100%', justifyContent: 'center' }}>
+            <Button onClick={() => setActiveDimension(otherDimension)}>
+              {`Continue with ${otherDimension === ComparisonType.Priority ? 'Importance' : 'Urgency'}`}
+            </Button>
+            <Button type="primary" icon={<IconCheck />} onClick={applyRankings}>
+              Apply Rankings to Database
+            </Button>
+            <Button onClick={resetComparisons}>Start Over</Button>
+            <Button onClick={onClose}>Close</Button>
+          </Space>
+        }
+        style={{
+          width: isCompact ? '98vw' : isMobile ? '95vw' : 1200,
+          maxWidth: isCompact ? '98vw' : isMobile ? '95vw' : '90vw',
+        }}
+      >
+        <Space direction="vertical" style={{ width: '100%' }} size="large">
+          <Card style={{ background: '#f6ffed' }}>
+            <Title heading={5} style={{ margin: 0 }}>
+              All {activeDimension === ComparisonType.Priority ? 'importance' : 'urgency'} relationships resolved
+            </Title>
+            <Text type="secondary">
+              {`Switch to ${otherDimension === ComparisonType.Priority ? 'importance' : 'urgency'} to rank in that dimension too, or apply the rankings now.`}
+            </Text>
+          </Card>
+          <TournamentBracket
+            items={items.map(i => ({ id: i.id, title: isRegularTask(i.data) ? (i.data as Task).name : (i.data as SequencedTask).name }))}
+            winsGraph={dimensionGraphs.winsGraph}
+            equalsGraph={dimensionGraphs.equalsGraph}
+            width={isCompact ? 700 : 1100}
+            height={400}
+          />
+        </Space>
+      </Modal>
+    )
+  }
+
+  const [itemA, itemB] = currentPairResolved
+  const currentComparison = comparisons.find(c =>
+    (c.itemA === itemA.id && c.itemB === itemB.id) ||
+    (c.itemA === itemB.id && c.itemB === itemA.id),
   )
+  const fieldKey = activeDimension === ComparisonType.Priority ? 'higherPriority' : 'higherUrgency'
+  const activeAnswer: ItemId | 'equal' | null = currentComparison?.[fieldKey] ?? null
+  const itemIdsForState = items.map(i => i.id)
+  const dimensionState = getTournamentState(itemIdsForState, dimensionGraphs.winsGraph, dimensionGraphs.equalsGraph)
+  const progressPct = dimensionState.totalPairs === 0 ? 0 : Math.round(100 * dimensionState.knownPairs / dimensionState.totalPairs)
 
   return (
     <Modal
@@ -790,9 +723,16 @@ export function TaskSlideshow({ visible, onClose }: TaskSlideshowProps) {
           <span>Task & Workflow Comparison</span>
           <Space size={12}>
             {sprintScopeToggle}
-            <Tag color={isShowingMissingPairs ? 'orange' : 'blue'}>
-              {`Pair ${currentPairIndex + 1} of ${comparisonPairs.length}`}
-            </Tag>
+            <Radio.Group
+              type="button"
+              size="small"
+              value={activeDimension}
+              onChange={(v) => setActiveDimension(v as ComparisonType)}
+            >
+              <Radio value={ComparisonType.Priority}>Importance</Radio>
+              <Radio value={ComparisonType.Urgency}>Urgency</Radio>
+            </Radio.Group>
+            <Tag color="blue">{`${dimensionState.knownPairs}/${dimensionState.totalPairs} · ${progressPct}%`}</Tag>
           </Space>
         </Space>
       }
@@ -800,20 +740,10 @@ export function TaskSlideshow({ visible, onClose }: TaskSlideshowProps) {
       onCancel={onClose}
       footer={
         <Space style={{ width: '100%', justifyContent: 'space-between' }}>
-          <Button
-            icon={<IconLeft />}
-            onClick={goToPrevious}
-            disabled={comparisonPairs.length <= 1}
-          >
-            Previous Pair
-          </Button>
+          <Button onClick={resetComparisons}>Start Over</Button>
           <Text type="secondary">Press 1, 2, or = for equal</Text>
-          <Button
-            onClick={goToNext}
-            disabled={comparisonPairs.length <= 1}
-          >
-            Next Pair
-            <IconRight style={{ marginLeft: 4 }} />
+          <Button type="primary" icon={<IconCheck />} onClick={applyRankings}>
+            Apply Rankings
           </Button>
         </Space>
       }
@@ -827,78 +757,33 @@ export function TaskSlideshow({ visible, onClose }: TaskSlideshowProps) {
         {/* Current Question */}
         <Card style={{ background: '#f0f5ff', textAlign: 'center' }}>
           <Title heading={4} style={{ margin: '8px 0' }}>
-            Which item has higher {currentQuestion === ComparisonType.Priority ? 'IMPORTANCE' : 'URGENCY'}?
+            Which item has higher {activeDimension === ComparisonType.Priority ? 'IMPORTANCE' : 'URGENCY'}?
           </Title>
           <Text type="secondary">
-            {currentQuestion === ComparisonType.Priority
+            {activeDimension === ComparisonType.Priority
               ? 'Importance = The intrinsic value, impact, or significance of this item'
               : 'Urgency = How time-sensitive is this item?'}
           </Text>
-          {currentComparison && (
+          {activeAnswer !== null && (
             <div style={{ marginTop: 12 }}>
-              {currentQuestion === ComparisonType.Priority && currentComparison.higherPriority && (
-                <Tag color="green">Importance answered</Tag>
-              )}
-              {currentQuestion === ComparisonType.Urgency && currentComparison.higherUrgency && (
-                <Tag color="green">Urgency answered</Tag>
-              )}
+              <Tag color="green">Answered (you can change your mind)</Tag>
             </div>
           )}
         </Card>
 
-        {/* Graph Minimaps - Priority and Urgency */}
+        {/* Tournament Bracket — visual progress for the active dimension */}
         {comparisons.length > 0 && (
-          <div style={{ display: 'flex', gap: 16, justifyContent: 'center' }}>
-            {/* Priority Graph */}
-            <div>
-              <Title heading={6} style={{ marginBottom: 8, textAlign: 'center' }}>
-                Importance Graph
-              </Title>
-              <ComparisonGraphMinimap
-                graph={{
-                  priorityWins: graph.priorityWins,
-                  urgencyWins: new Map(),
-                  priorityEquals: graph.priorityEquals,
-                  urgencyEquals: new Map(),
-                }}
-                items={items.map(item => ({
-                  id: item.id,
-                  title: isRegularTask(item.data)
-                    ? (item.data as Task).name
-                    : (item.data as SequencedTask).name,
-                }))}
-                currentComparison={itemA && itemB ? [itemA.id, itemB.id] : undefined}
-                currentQuestion={currentQuestion}
-                width={isCompact ? 280 : 400}
-                height={200}
-              />
-            </div>
-
-            {/* Urgency Graph */}
-            <div>
-              <Title heading={6} style={{ marginBottom: 8, textAlign: 'center' }}>
-                Urgency Graph
-              </Title>
-              <ComparisonGraphMinimap
-                graph={{
-                  priorityWins: new Map(),
-                  urgencyWins: graph.urgencyWins,
-                  priorityEquals: new Map(),
-                  urgencyEquals: graph.urgencyEquals,
-                }}
-                items={items.map(item => ({
-                  id: item.id,
-                  title: isRegularTask(item.data)
-                    ? (item.data as Task).name
-                    : (item.data as SequencedTask).name,
-                }))}
-                currentComparison={itemA && itemB ? [itemA.id, itemB.id] : undefined}
-                currentQuestion={currentQuestion}
-                width={isCompact ? 280 : 400}
-                height={200}
-              />
-            </div>
-          </div>
+          <TournamentBracket
+            items={items.map(i => ({
+              id: i.id,
+              title: isRegularTask(i.data) ? (i.data as Task).name : (i.data as SequencedTask).name,
+            }))}
+            winsGraph={dimensionGraphs.winsGraph}
+            equalsGraph={dimensionGraphs.equalsGraph}
+            currentPair={currentPair}
+            width={isCompact ? 700 : 1100}
+            height={isCompact ? 260 : 360}
+          />
         )}
 
         {/* Items Comparison */}
@@ -906,12 +791,8 @@ export function TaskSlideshow({ visible, onClose }: TaskSlideshowProps) {
           {/* Item A */}
           <div style={{ flex: 1 }}>
             <Button
-              type={
-                (currentQuestion === ComparisonType.Priority && currentComparison?.higherPriority === itemA!.id) ||
-                (currentQuestion === ComparisonType.Urgency && currentComparison?.higherUrgency === itemA!.id)
-                  ? 'primary' : 'default'
-              }
-              onClick={() => handleComparison(itemA!.id)}
+              type={activeAnswer === itemA.id ? 'primary' : 'default'}
+              onClick={() => handleComparison(itemA.id)}
               style={{ width: '100%', marginBottom: 12 }}
             >
               Press &quot;1&quot; for this
@@ -956,12 +837,8 @@ export function TaskSlideshow({ visible, onClose }: TaskSlideshowProps) {
           {/* Item B */}
           <div style={{ flex: 1 }}>
             <Button
-              type={
-                (currentQuestion === ComparisonType.Priority && currentComparison?.higherPriority === itemB!.id) ||
-                (currentQuestion === ComparisonType.Urgency && currentComparison?.higherUrgency === itemB!.id)
-                  ? 'primary' : 'default'
-              }
-              onClick={() => handleComparison(itemB!.id)}
+              type={activeAnswer === itemB.id ? 'primary' : 'default'}
+              onClick={() => handleComparison(itemB.id)}
               style={{ width: '100%', marginBottom: 12 }}
             >
               Press &quot;2&quot; for this
@@ -1007,11 +884,7 @@ export function TaskSlideshow({ visible, onClose }: TaskSlideshowProps) {
         {/* Equal Button */}
         <div style={{ textAlign: 'center', marginTop: 16 }}>
           <Button
-            type={
-              (currentQuestion === ComparisonType.Priority && currentComparison?.higherPriority === 'equal') ||
-              (currentQuestion === ComparisonType.Urgency && currentComparison?.higherUrgency === 'equal')
-                ? 'primary' : 'default'
-            }
+            type={activeAnswer === 'equal' ? 'primary' : 'default'}
             onClick={() => handleComparison('equal')}
             size="large"
             style={{ minWidth: 200 }}
