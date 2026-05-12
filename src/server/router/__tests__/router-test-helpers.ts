@@ -138,6 +138,14 @@ export function createMockPrisma() {
       create: vi.fn(),
       delete: vi.fn(),
     },
+    taskComparison: {
+      findMany: vi.fn(),
+      findFirst: vi.fn(),
+      create: vi.fn(),
+      update: vi.fn(),
+      delete: vi.fn(),
+      deleteMany: vi.fn(),
+    },
     userTaskType: {
       findMany: vi.fn(),
       findUnique: vi.fn(),
@@ -423,6 +431,23 @@ export function createMockSnapshot(overrides: Record<string, unknown> = {}) {
     sessionId: 'test-session-id',
     label: 'Morning Snapshot',
     snapshotData: '{}',
+    createdAt: new Date(),
+    ...overrides,
+  }
+}
+
+/**
+ * Creates a mock task comparison for testing
+ */
+export function createMockComparison(overrides: Record<string, unknown> = {}) {
+  return {
+    id: 'cmp-123',
+    sessionId: 'test-session-id',
+    itemAId: 'item-a',
+    itemBId: 'item-b',
+    winnerId: 'item-a',
+    dimension: 'priority',
+    isEqual: false,
     createdAt: new Date(),
     ...overrides,
   }

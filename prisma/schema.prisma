@@ -138,6 +138,7 @@ model Session {
   AgentMemory           AgentMemory[]
   ConversationSummary   ConversationSummary[]
   DecisionSession       DecisionSession[]
+  TaskComparison        TaskComparison[]
 }
 
 // Schedule Snapshot - Captures schedule state at a point in time
@@ -724,4 +725,25 @@ model DecisionSession {
 
   @@index([sessionId])
   @@index([isActive])
+}
+
+// Persisted pairwise comparison between two tasks or workflows for tournament-style ranking.
+// itemAId / itemBId reference Task.id or SequencedTask.id (polymorphic — no FK; resolved at read time).
+// dimension is "importance" or "urgency"; winnerId is null iff isEqual = true.
+model TaskComparison {
+  id        String   @id
+  sessionId String
+  itemAId   String // canonical order: itemAId < itemBId (lexicographic)
+  itemBId   String
+  winnerId  String? // null iff isEqual = true
+  dimension String // "importance" | "urgency"
+  isEqual   Boolean  @default(false)
+  createdAt DateTime @default(now())
+  Session   Session  @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@index([sessionId, dimension])
+  @@index([sessionId, itemAId, itemBId, dimension])
+  @@index([itemAId])
+  @@index([itemBId])
+  @@index([winnerId])
 }
