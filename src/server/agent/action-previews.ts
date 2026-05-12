@@ -29,16 +29,6 @@ export interface PreviewEntityContext {
 }
 
 /**
- * Optional context for resolving entity IDs to display names.
- * Populated by the agent loop before generating previews.
- */
-export interface PreviewEntityContext {
-  taskNames?: Map<string, string>
-  endeavorNames?: Map<string, string>
-  typeNames?: Map<string, string>
-}
-
-/**
  * Generate a human-readable preview for a proposed write tool call.
  */
 export function generateActionPreview(
