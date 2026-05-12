@@ -58,6 +58,19 @@ export interface AgentActionResultEvent {
 }
 
 /**
+ * Warning that the agent may have hallucinated tool use.
+ * Emitted when the agent made 0 tool calls but its text
+ * appears to describe completed actions.
+ */
+export interface AgentNoToolWarningEvent {
+  type: 'no_tool_warning'
+  /** 0–1 confidence that the response is a hallucinated action */
+  confidence: number
+  /** Brief explanation of why this was flagged */
+  reasoning: string
+}
+
+/**
  * Agent has finished its response
  */
 export interface AgentDoneEvent {
@@ -85,6 +98,7 @@ export type AgentSSEEvent =
   | AgentToolStatusEvent
   | AgentProposedActionEvent
   | AgentActionResultEvent
+  | AgentNoToolWarningEvent
   | AgentDoneEvent
   | AgentErrorEvent
 
@@ -143,6 +157,15 @@ export interface StoredToolCall {
   result?: unknown
   /** Error if the tool failed */
   error?: string
+}
+
+/**
+ * Warning metadata stored alongside a message when the agent
+ * made no tool calls but appeared to describe completed actions.
+ */
+export interface NoToolWarning {
+  confidence: number
+  reasoning: string
 }
 
 /**

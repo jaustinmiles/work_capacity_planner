@@ -12,7 +12,7 @@
 
 import { appRouter } from '../router'
 import type { Context } from '../trpc'
-import { READ_TOOL_NAMES, WRITE_TOOL_NAMES } from './tool-definitions'
+import { READ_TOOL_NAMES, WRITE_TOOL_NAMES, MEMORY_TOOL_NAMES } from './tool-definitions'
 import { generateUniqueId, resolveStepDependencies } from '../../shared/step-id-utils'
 import { EndeavorStatus, DeadlineType } from '../../shared/enums'
 import { logger } from '../../logger'
@@ -46,6 +46,9 @@ export class ToolExecutor {
     try {
       if (READ_TOOL_NAMES.has(toolName)) {
         return await this.executeReadTool(toolName, input)
+      }
+      if (MEMORY_TOOL_NAMES.has(toolName)) {
+        return await this.executeMemoryTool(toolName, input)
       }
       if (WRITE_TOOL_NAMES.has(toolName)) {
         return await this.executeWriteTool(toolName, input)
@@ -111,6 +114,11 @@ export class ToolExecutor {
         const data = await this.caller.task.getFullSchedule({
           date: input.date as string | undefined,
         })
+        return { success: true, data }
+      }
+
+      case 'get_timers': {
+        const data = await this.caller.timer.getActive()
         return { success: true, data }
       }
 
@@ -224,6 +232,33 @@ export class ToolExecutor {
         return { success: true, data }
       }
 
+      case 'update_workflow_step': {
+        const updateData: Record<string, unknown> = {
+          taskId: input.taskId as string,
+          stepId: input.stepId as string,
+        }
+        if (input.name !== undefined) updateData.name = input.name
+        if (input.duration !== undefined) updateData.duration = input.duration
+        if (input.type !== undefined) updateData.type = input.type
+        if (input.status !== undefined) updateData.status = input.status
+        if (input.dependsOn !== undefined) updateData.dependsOn = input.dependsOn
+        if (input.cognitiveComplexity !== undefined) updateData.cognitiveComplexity = input.cognitiveComplexity
+        if (input.notes !== undefined) updateData.notes = input.notes
+
+        const data = await this.caller.workflow.updateStep(
+          updateData as Parameters<RouterCaller['workflow']['updateStep']>[0],
+        )
+        return { success: true, data }
+      }
+
+      case 'remove_workflow_step': {
+        const data = await this.caller.workflow.deleteStep({
+          taskId: input.taskId as string,
+          stepId: input.stepId as string,
+        })
+        return { success: true, data }
+      }
+
       case 'log_work_session': {
         const data = await this.caller.workSession.create({
           taskId: input.taskId as string,
@@ -258,6 +293,39 @@ export class ToolExecutor {
         return { success: true, data }
       }
 
+      case 'create_timer': {
+        const data = await this.caller.timer.create({
+          name: input.name as string,
+          durationMinutes: input.durationMinutes as number,
+          linkedTaskId: input.linkedTaskId as string | undefined,
+          linkedStepId: input.linkedStepId as string | undefined,
+        })
+        return { success: true, data }
+      }
+
+      case 'extend_timer': {
+        const data = await this.caller.timer.extend({
+          timerId: input.timerId as string,
+          addMinutes: input.addMinutes as number,
+        })
+        return { success: true, data }
+      }
+
+      case 'pause_timer': {
+        const data = await this.caller.timer.pause({ timerId: input.timerId as string })
+        return { success: true, data }
+      }
+
+      case 'resume_timer': {
+        const data = await this.caller.timer.resume({ timerId: input.timerId as string })
+        return { success: true, data }
+      }
+
+      case 'dismiss_timer': {
+        const data = await this.caller.timer.dismiss({ timerId: input.timerId as string })
+        return { success: true, data }
+      }
+
       case 'link_task_to_endeavor': {
         const data = await this.caller.endeavor.addItem({
           endeavorId: input.endeavorId as string,
@@ -285,6 +353,50 @@ export class ToolExecutor {
 
       default:
         return { success: false, error: `Unknown write tool: ${toolName}` }
+    }
+  }
+
+  // ============================================================================
+  // Memory Tool Executors (auto-execute, no approval)
+  // ============================================================================
+
+  private async executeMemoryTool(toolName: string, input: Record<string, unknown>): Promise<ToolExecutionResult> {
+    switch (toolName) {
+      case 'get_memories': {
+        const data = await this.caller.memory.getAll()
+        return { success: true, data }
+      }
+
+      case 'search_memory': {
+        const data = await this.caller.memory.searchSummaries({
+          query: input.query as string,
+          startDate: input.startDate as string | undefined,
+          endDate: input.endDate as string | undefined,
+        })
+        return { success: true, data }
+      }
+
+      case 'save_memory': {
+        const data = await this.caller.memory.save({
+          category: input.category as Parameters<RouterCaller['memory']['save']>[0]['category'],
+          key: input.key as string,
+          value: input.value as string,
+          confidence: input.confidence as number | undefined,
+        })
+        return { success: true, data }
+      }
+
+      case 'update_memory': {
+        const data = await this.caller.memory.update({
+          memoryId: input.memoryId as string,
+          value: input.value as string | undefined,
+          confidence: input.confidence as number | undefined,
+        })
+        return { success: true, data }
+      }
+
+      default:
+        return { success: false, error: `Unknown memory tool: ${toolName}` }
     }
   }
 

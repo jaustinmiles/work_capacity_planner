@@ -369,6 +369,61 @@ const addWorkflowStepTool: Anthropic.Tool = {
   },
 }
 
+const updateWorkflowStepTool: Anthropic.Tool = {
+  name: 'update_workflow_step',
+  description:
+    'Update an existing workflow step. Can change name, duration, type, status, dependencies, and other fields. Use get_task_detail first to get step IDs.',
+  input_schema: {
+    type: 'object' as const,
+    properties: {
+      taskId: {
+        type: 'string',
+        description: 'The parent workflow (task) ID.',
+      },
+      stepId: {
+        type: 'string',
+        description: 'The step ID to update.',
+      },
+      name: { type: 'string', description: 'New step name.' },
+      duration: { type: 'number', description: 'New duration in minutes.' },
+      type: { type: 'string', description: 'New task type ID.' },
+      status: {
+        type: 'string',
+        enum: ['pending', 'in_progress', 'waiting', 'completed', 'skipped'],
+        description: 'New step status.',
+      },
+      dependsOn: {
+        type: 'array',
+        items: { type: 'string' },
+        description: 'New dependency list — step IDs or step names that this step depends on.',
+      },
+      cognitiveComplexity: { type: 'number', minimum: 1, maximum: 5, description: 'Cognitive complexity (1-5).' },
+      notes: { type: 'string', description: 'Step notes.' },
+    },
+    required: ['taskId', 'stepId'],
+  },
+}
+
+const removeWorkflowStepTool: Anthropic.Tool = {
+  name: 'remove_workflow_step',
+  description:
+    'Remove a step from an existing workflow. Remaining steps are automatically re-indexed. Use get_task_detail first to get step IDs.',
+  input_schema: {
+    type: 'object' as const,
+    properties: {
+      taskId: {
+        type: 'string',
+        description: 'The parent workflow (task) ID.',
+      },
+      stepId: {
+        type: 'string',
+        description: 'The step ID to remove.',
+      },
+    },
+    required: ['taskId', 'stepId'],
+  },
+}
+
 const logWorkSessionTool: Anthropic.Tool = {
   name: 'log_work_session',
   description:
@@ -565,8 +620,208 @@ const createTaskTypeTool: Anthropic.Tool = {
 }
 
 // ============================================================================
+// Timer Tool Definitions
+// ============================================================================
+
+const getTimersTool: Anthropic.Tool = {
+  name: 'get_timers',
+  description:
+    'Get all active, paused, and expired timers. Shows countdown timers the user has running — both auto-created (from async wait times) and manually created (laundry, deliveries, etc.).',
+  input_schema: {
+    type: 'object' as const,
+    properties: {},
+    required: [],
+  },
+}
+
+const createTimerTool: Anthropic.Tool = {
+  name: 'create_timer',
+  description:
+    'Create a new countdown timer. Use for arbitrary countdowns ("set a 30 minute timer for laundry") or for tracking async waits. Duration is in minutes — can be multi-day (1440 = 1 day).',
+  input_schema: {
+    type: 'object' as const,
+    properties: {
+      name: {
+        type: 'string',
+        description: 'Timer display name (e.g., "Laundry", "Wait for API response").',
+      },
+      durationMinutes: {
+        type: 'number',
+        description: 'Duration in minutes.',
+      },
+      linkedTaskId: {
+        type: 'string',
+        description: 'Optional task ID this timer is for (auto-completes when timer expires).',
+      },
+      linkedStepId: {
+        type: 'string',
+        description: 'Optional step ID this timer is for (auto-completes when timer expires).',
+      },
+    },
+    required: ['name', 'durationMinutes'],
+  },
+}
+
+const extendTimerTool: Anthropic.Tool = {
+  name: 'extend_timer',
+  description:
+    'Add time to an existing timer. Use when something is taking longer than expected. Can also reactivate an expired timer.',
+  input_schema: {
+    type: 'object' as const,
+    properties: {
+      timerId: { type: 'string', description: 'Timer ID to extend (from get_timers).' },
+      addMinutes: { type: 'number', description: 'Minutes to add.' },
+    },
+    required: ['timerId', 'addMinutes'],
+  },
+}
+
+const pauseTimerTool: Anthropic.Tool = {
+  name: 'pause_timer',
+  description: 'Pause an active timer. Remaining time is preserved for when it resumes.',
+  input_schema: {
+    type: 'object' as const,
+    properties: {
+      timerId: { type: 'string', description: 'Timer ID to pause.' },
+    },
+    required: ['timerId'],
+  },
+}
+
+const resumeTimerTool: Anthropic.Tool = {
+  name: 'resume_timer',
+  description: 'Resume a paused timer.',
+  input_schema: {
+    type: 'object' as const,
+    properties: {
+      timerId: { type: 'string', description: 'Timer ID to resume.' },
+    },
+    required: ['timerId'],
+  },
+}
+
+const dismissTimerTool: Anthropic.Tool = {
+  name: 'dismiss_timer',
+  description: 'Dismiss an expired timer notification.',
+  input_schema: {
+    type: 'object' as const,
+    properties: {
+      timerId: { type: 'string', description: 'Timer ID to dismiss.' },
+    },
+    required: ['timerId'],
+  },
+}
+
+// ============================================================================
+// Memory Tool Definitions (auto-execute, no approval needed)
+// ============================================================================
+
+const getMemoriesTool: Anthropic.Tool = {
+  name: 'get_memories',
+  description:
+    'Get all your stored memories for this session. Returns structured facts you have learned about the user — preferences, corrections, patterns, and facts. Use this to refresh your memory at the start of conversations or when you need to verify a remembered fact.',
+  input_schema: {
+    type: 'object' as const,
+    properties: {},
+    required: [],
+  },
+}
+
+const searchMemoryTool: Anthropic.Tool = {
+  name: 'search_memory',
+  description:
+    'Search past conversation summaries by keyword and/or date range. Use this when the user references a past conversation ("remember when we talked about X?") or when you need historical context.',
+  input_schema: {
+    type: 'object' as const,
+    properties: {
+      query: {
+        type: 'string',
+        description: 'Search keyword or phrase to find in past conversation summaries.',
+      },
+      startDate: {
+        type: 'string',
+        description: 'Optional start date (YYYY-MM-DD) to limit search range.',
+      },
+      endDate: {
+        type: 'string',
+        description: 'Optional end date (YYYY-MM-DD) to limit search range.',
+      },
+    },
+    required: ['query'],
+  },
+}
+
+const saveMemoryTool: Anthropic.Tool = {
+  name: 'save_memory',
+  description:
+    'Save a new observation, preference, correction, or fact to your persistent memory. This survives across conversations. Use when you notice a pattern, the user corrects you, states a preference, or you learn an important fact. Keep memories concise (one sentence). Check existing memories first to avoid duplicates — use update_memory instead if one already covers the topic.',
+  input_schema: {
+    type: 'object' as const,
+    properties: {
+      category: {
+        type: 'string',
+        enum: ['preference', 'correction', 'pattern', 'fact'],
+        description: 'Memory category: preference (work style), correction (things not to do), pattern (observed behavior), fact (deadlines, blockers).',
+      },
+      key: {
+        type: 'string',
+        description: 'Short unique label for this memory (e.g., "deep_work_preference", "estimate_accuracy_coding").',
+      },
+      value: {
+        type: 'string',
+        description: 'The fact itself in one concise sentence.',
+      },
+      confidence: {
+        type: 'number',
+        description: 'Confidence 0-1. Use 1.0 for user-stated facts, 0.6-0.8 for observations.',
+        minimum: 0,
+        maximum: 1,
+      },
+    },
+    required: ['category', 'key', 'value'],
+  },
+}
+
+const updateMemoryTool: Anthropic.Tool = {
+  name: 'update_memory',
+  description:
+    'Update an existing memory entry. Use when a preference changes, an observation needs refinement, or a fact is outdated. Get the memory ID from get_memories first.',
+  input_schema: {
+    type: 'object' as const,
+    properties: {
+      memoryId: {
+        type: 'string',
+        description: 'The memory ID to update (from get_memories).',
+      },
+      value: {
+        type: 'string',
+        description: 'New value for this memory.',
+      },
+      confidence: {
+        type: 'number',
+        description: 'Updated confidence score.',
+        minimum: 0,
+        maximum: 1,
+      },
+    },
+    required: ['memoryId'],
+  },
+}
+
+// ============================================================================
 // Exports
 // ============================================================================
+
+/** Memory tools — auto-execute without approval (internal agent state only) */
+export const MEMORY_TOOLS: Anthropic.Tool[] = [
+  getMemoriesTool,
+  searchMemoryTool,
+  saveMemoryTool,
+  updateMemoryTool,
+]
+
+/** Set of memory tool names — these auto-execute like read tools */
+export const MEMORY_TOOL_NAMES = new Set(MEMORY_TOOLS.map(t => t.name))
 
 /** All read tools — auto-execute without user approval */
 export const READ_TOOLS: Anthropic.Tool[] = [
@@ -580,6 +835,7 @@ export const READ_TOOLS: Anthropic.Tool[] = [
   getTaskTypesTool,
   getFullScheduleTool,
   getTimeSummaryTool,
+  getTimersTool,
 ]
 
 /** All write tools — require user approval */
@@ -590,16 +846,23 @@ export const WRITE_TOOLS: Anthropic.Tool[] = [
   archiveTaskTool,
   createWorkflowTool,
   addWorkflowStepTool,
+  updateWorkflowStepTool,
+  removeWorkflowStepTool,
   logWorkSessionTool,
   createScheduleTool,
   createEndeavorTool,
   linkTaskToEndeavorTool,
   manageSprintTool,
   createTaskTypeTool,
+  createTimerTool,
+  extendTimerTool,
+  pauseTimerTool,
+  resumeTimerTool,
+  dismissTimerTool,
 ]
 
 /** All tools combined for the API call */
-export const ALL_TOOLS: Anthropic.Tool[] = [...READ_TOOLS, ...WRITE_TOOLS]
+export const ALL_TOOLS: Anthropic.Tool[] = [...READ_TOOLS, ...WRITE_TOOLS, ...MEMORY_TOOLS]
 
 /** Set of read tool names for fast lookup */
 export const READ_TOOL_NAMES = new Set(READ_TOOLS.map(t => t.name))
@@ -627,10 +890,24 @@ export const TOOL_REGISTRY: Record<string, ToolRegistration> = {
   archive_task: { name: 'archive_task', category: 'write', statusLabel: 'Archiving task...' },
   create_workflow: { name: 'create_workflow', category: 'write', statusLabel: 'Creating workflow...' },
   add_workflow_step: { name: 'add_workflow_step', category: 'write', statusLabel: 'Adding workflow step...' },
+  update_workflow_step: { name: 'update_workflow_step', category: 'write', statusLabel: 'Updating workflow step...' },
+  remove_workflow_step: { name: 'remove_workflow_step', category: 'write', statusLabel: 'Removing workflow step...' },
   log_work_session: { name: 'log_work_session', category: 'write', statusLabel: 'Logging work session...' },
   create_schedule: { name: 'create_schedule', category: 'write', statusLabel: 'Creating schedule...' },
   create_endeavor: { name: 'create_endeavor', category: 'write', statusLabel: 'Creating endeavor...' },
   link_task_to_endeavor: { name: 'link_task_to_endeavor', category: 'write', statusLabel: 'Linking task to endeavor...' },
   manage_sprint: { name: 'manage_sprint', category: 'write', statusLabel: 'Updating sprint...' },
   create_task_type: { name: 'create_task_type', category: 'write', statusLabel: 'Creating task type...' },
+  // Timer tools
+  get_timers: { name: 'get_timers', category: 'read', statusLabel: 'Checking timers...' },
+  create_timer: { name: 'create_timer', category: 'write', statusLabel: 'Creating timer...' },
+  extend_timer: { name: 'extend_timer', category: 'write', statusLabel: 'Extending timer...' },
+  pause_timer: { name: 'pause_timer', category: 'write', statusLabel: 'Pausing timer...' },
+  resume_timer: { name: 'resume_timer', category: 'write', statusLabel: 'Resuming timer...' },
+  dismiss_timer: { name: 'dismiss_timer', category: 'write', statusLabel: 'Dismissing timer...' },
+  // Memory tools (auto-execute)
+  get_memories: { name: 'get_memories', category: 'read', statusLabel: 'Checking memory...' },
+  search_memory: { name: 'search_memory', category: 'read', statusLabel: 'Searching past conversations...' },
+  save_memory: { name: 'save_memory', category: 'read', statusLabel: 'Saving to memory...' },
+  update_memory: { name: 'update_memory', category: 'read', statusLabel: 'Updating memory...' },
 }

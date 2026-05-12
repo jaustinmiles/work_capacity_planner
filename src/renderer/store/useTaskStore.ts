@@ -81,6 +81,8 @@ interface TaskStore {
   startWork: (item: { isSimpleTask: boolean; stepId: string; taskId: string }) => Promise<void>
   pauseWorkOnStep: (stepId: string) => Promise<void>
   pauseWorkOnTask: (taskId: string) => Promise<void>
+  startWaitOnStep: (stepId: string, waitMinutes: number) => Promise<void>
+  startWaitOnTask: (taskId: string, waitMinutes: number) => Promise<void>
   completeStep: (__stepId: string, actualMinutes?: number, __notes?: string) => Promise<void>
   skipAsyncWait: (stepId: string) => Promise<void>
   getExpiredWaitTimeUpdates: () => Promise<{ workflows: Map<string, SequencedTask>; tasks: Map<string, Task> }>
@@ -397,8 +399,8 @@ export const useTaskStore = create<TaskStore>()(
     try {
       const updatedTask = await getDatabase().updateTask(id, updates)
 
-      // If task is being marked as completed, clear its active work session
-      if (updates.completed || updates.overallStatus === TaskStatus.Completed) {
+      // If task is being marked as completed or waiting, clear its active work session
+      if (updates.completed || updates.overallStatus === TaskStatus.Completed || updates.overallStatus === TaskStatus.Waiting) {
         // Use atomic state update with function form to prevent race conditions
         set((state) => {
           const newSessions = new Map(state.activeWorkSessions)
@@ -412,6 +414,7 @@ export const useTaskStore = create<TaskStore>()(
             error: null,
           }
         })
+
       } else {
         set((state) => ({
           tasks: state.tasks.map(task =>
@@ -959,6 +962,122 @@ export const useTaskStore = create<TaskStore>()(
     }
   },
 
+  /**
+   * Start a mid-work wait on a step. Pauses the work session, sets status to Waiting,
+   * creates a timer with resumeToStatus='in_progress'. When timer expires, step resumes.
+   */
+  startWaitOnStep: async (stepId: string, waitMinutes: number) => {
+    const state = get()
+
+    // Find the workflow containing this step
+    const workflow = state.sequencedTasks.find(t =>
+      t.steps.some(s => s.id === stepId),
+    )
+    const sessionKey = workflow ? workflow.id : stepId
+
+    // Pause the active work session if running
+    try {
+      const activeSession = getWorkTrackingService().getCurrentActiveSession()
+      if (activeSession && activeSession.stepId === stepId) {
+        await getWorkTrackingService().stopWorkSession(activeSession.id)
+      }
+    } catch (error) {
+      logger.ui.warn('Failed to stop work session during startWait', {
+        error: error instanceof Error ? error.message : String(error),
+      }, 'start-wait-session-error')
+    }
+
+    // Update step status to Waiting
+    const step = workflow?.steps.find(s => s.id === stepId)
+    await getDatabase().updateTaskStepProgress(stepId, {
+      status: StepStatus.Waiting,
+    })
+
+    // Create timer with resumeToStatus = 'in_progress'
+    const { useTimerStore } = await import('./useTimerStore')
+    await useTimerStore.getState().createTimer(
+      `Wait: ${step?.name ?? 'Step'}`,
+      waitMinutes,
+      workflow?.id,
+      stepId,
+      'in_progress',
+    )
+
+    // Update local state
+    set(state => {
+      const newSessions = new Map(state.activeWorkSessions)
+      newSessions.delete(sessionKey)
+
+      return {
+        activeWorkSessions: newSessions,
+        sequencedTasks: state.sequencedTasks.map(t => {
+          if (t.id === workflow?.id) {
+            return {
+              ...t,
+              steps: t.steps.map(s =>
+                s.id === stepId ? { ...s, status: StepStatus.Waiting } : s,
+              ),
+              overallStatus: TaskStatus.InProgress,
+            }
+          }
+          return t
+        }),
+      }
+    })
+
+    logger.ui.info('Started wait on step', { stepId, waitMinutes }, 'start-wait-step')
+  },
+
+  /**
+   * Start a mid-work wait on a simple task. Same as step version but for standalone tasks.
+   */
+  startWaitOnTask: async (taskId: string, waitMinutes: number) => {
+    const state = get()
+
+    // Stop work session if running
+    try {
+      const activeSession = getWorkTrackingService().getCurrentActiveSession()
+      if (activeSession && activeSession.taskId === taskId) {
+        await getWorkTrackingService().stopWorkSession(activeSession.id)
+      }
+    } catch (error) {
+      logger.ui.warn('Failed to stop work session during startWait', {
+        error: error instanceof Error ? error.message : String(error),
+      }, 'start-wait-session-error')
+    }
+
+    // Update task status to Waiting
+    const task = state.tasks.find(t => t.id === taskId)
+    await getDatabase().updateTask(taskId, {
+      overallStatus: TaskStatus.Waiting,
+    })
+
+    // Create timer with resumeToStatus = 'in_progress'
+    const { useTimerStore } = await import('./useTimerStore')
+    await useTimerStore.getState().createTimer(
+      `Wait: ${task?.name ?? 'Task'}`,
+      waitMinutes,
+      taskId,
+      undefined,
+      'in_progress',
+    )
+
+    // Update local state
+    set(state => {
+      const newSessions = new Map(state.activeWorkSessions)
+      newSessions.delete(taskId)
+
+      return {
+        activeWorkSessions: newSessions,
+        tasks: state.tasks.map(t =>
+          t.id === taskId ? { ...t, overallStatus: TaskStatus.Waiting } : t,
+        ),
+      }
+    })
+
+    logger.ui.info('Started wait on task', { taskId, waitMinutes }, 'start-wait-task')
+  },
+
   completeStep: async (stepId: string, actualMinutes?: number, notes?: string) => {
     logger.ui.info('[completeStep] Starting task completion', {
       stepId,
@@ -1030,7 +1149,10 @@ export const useTaskStore = create<TaskStore>()(
         entityId: stepId,
         step: step || undefined,
       })
-      const finalStatus = completionResult.finalStatus
+      // Map TaskStatus to StepStatus (same values, different enums)
+      const finalStatus = completionResult.finalStatus === TaskStatus.Waiting
+        ? StepStatus.Waiting
+        : StepStatus.Completed
 
       // Update step progress AND notes
       const now = completionResult.completedAt
@@ -1058,13 +1180,37 @@ export const useTaskStore = create<TaskStore>()(
           activeWorkSessions: newSessions,
           sequencedTasks: state.sequencedTasks.map(t => {
             if (t.id === workflow?.id) {
+              // Update the step status
+              const updatedSteps = t.steps.map(s =>
+                s.id === stepId
+                  ? { ...s, status: finalStatus as StepStatus, completedAt: now, percentComplete: 100 }
+                  : s,
+              )
+
+              // Recompute workflow overallStatus locally to match server
+              const allDone = updatedSteps.every(
+                s => s.status === StepStatus.Completed || s.status === StepStatus.Waiting || s.status === StepStatus.Skipped,
+              )
+              const anyWaiting = updatedSteps.some(s => s.status === StepStatus.Waiting)
+              const anyStarted = updatedSteps.some(
+                s => s.status === StepStatus.Completed || s.status === StepStatus.InProgress || s.status === StepStatus.Waiting,
+              )
+
+              let newOverallStatus = t.overallStatus
+              if (allDone && !anyWaiting) {
+                newOverallStatus = TaskStatus.Completed
+              } else if (allDone && anyWaiting) {
+                newOverallStatus = TaskStatus.Waiting
+              } else if (anyStarted) {
+                newOverallStatus = TaskStatus.InProgress
+              }
+
               return {
                 ...t,
-                steps: t.steps.map(s =>
-                  s.id === stepId
-                    ? { ...s, status: finalStatus as any, completedAt: now, percentComplete: 100 }
-                    : s,
-                ),
+                steps: updatedSteps,
+                overallStatus: newOverallStatus,
+                completed: allDone && !anyWaiting,
+                completedAt: (allDone && !anyWaiting) ? now : t.completedAt,
               }
             }
             return t

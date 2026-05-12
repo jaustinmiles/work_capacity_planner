@@ -13,9 +13,11 @@
 import { useState } from 'react'
 import { Space, Button, Tag, Typography, Progress } from '@arco-design/web-react'
 import { IconPause, IconPlayArrow, IconSkipNext, IconClose } from '@arco-design/web-react/icon'
-import { PomodoroPhase } from '@shared/enums'
+import { PomodoroPhase, PomodoroPromptType } from '@shared/enums'
 import { formatPomodoroTime } from '@shared/pomodoro-types'
 import { usePomodoroStore, usePomodoroTimer, usePomodoroSettings } from '../../store/usePomodoroStore'
+import { BreakActivityModal } from './BreakActivityModal'
+import { NextTaskModal } from './NextTaskModal'
 import { logger } from '@/logger'
 
 const { Text } = Typography
@@ -47,6 +49,8 @@ export function PomodoroTimer() {
   const resumeCycle = usePomodoroStore((s) => s.resumeCycle)
   const endCycle = usePomodoroStore((s) => s.endCycle)
   const dismissPrompt = usePomodoroStore((s) => s.dismissPrompt)
+  const transitionToBreak = usePomodoroStore((s) => s.transitionToBreak)
+  const pendingPrompt = usePomodoroStore((s) => s.pendingPrompt)
   const [isStarting, setIsStarting] = useState(false)
 
   // ── Idle state: no active cycle ──
@@ -108,6 +112,9 @@ export function PomodoroTimer() {
   const hasTask = !!timerState.currentTaskName
   const isWorkPhase = timerState.currentPhase === PomodoroPhase.Work
 
+  // Show "Start Break" whenever work phase is expired — whether or not the break prompt modal is showing
+  const needsBreakStart = isWorkPhase && !timerState.isActive && timerState.remainingSeconds === 0
+
   return (
     <div
       style={{
@@ -134,10 +141,22 @@ export function PomodoroTimer() {
         </Space>
 
         {/* Hint when work phase active but no task started yet */}
-        {isWorkPhase && !hasTask && (
+        {isWorkPhase && !hasTask && !needsBreakStart && (
           <Text type="secondary" style={{ fontSize: 12, fontStyle: 'italic' }}>
             Start any task to link it to this cycle
           </Text>
+        )}
+
+        {/* Start Break button — shown when break prompt was dismissed */}
+        {needsBreakStart && (
+          <Button
+            long
+            type="primary"
+            style={{ background: '#52c41a', borderColor: '#52c41a' }}
+            onClick={() => transitionToBreak()}
+          >
+            Start Break ({settings.shortBreakMinutes} min)
+          </Button>
         )}
 
         {/* Timer display + progress */}
@@ -182,6 +201,16 @@ export function PomodoroTimer() {
           </Space>
         </div>
       </Space>
+
+      {/* Pomodoro modals — mounted here for global visibility (any tab) */}
+      <BreakActivityModal
+        visible={pendingPrompt === PomodoroPromptType.BreakActivity}
+        onClose={() => dismissPrompt()}
+      />
+      <NextTaskModal
+        visible={pendingPrompt === PomodoroPromptType.NextTask}
+        onClose={() => dismissPrompt()}
+      />
     </div>
   )
 }

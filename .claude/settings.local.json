@@ -24,7 +24,8 @@
       "Bash(git stash show:*)",
       "Bash(ls:*)",
       "Bash(grep:*)",
-      "mcp__diagnostic__build"
+      "mcp__diagnostic__build",
+      "WebSearch"
     ],
     "deny": [],
     "defaultMode": "acceptEdits",

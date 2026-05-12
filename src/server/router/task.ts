@@ -15,7 +15,8 @@ import { getCurrentTime, getLocalDateString } from '../../shared/time-provider'
 import { UnifiedScheduler, OptimizationMode } from '../../shared/unified-scheduler'
 import { DEFAULT_WORK_SETTINGS } from '../../shared/work-settings-types'
 import { filterSchedulableItems, filterSchedulableWorkflows } from '../../shared/utils/store-comparison'
-import { NextScheduledItemType, UnifiedScheduleItemType, MeetingType } from '../../shared/enums'
+import { NextScheduledItemType, UnifiedScheduleItemType, MeetingType, TaskStatus } from '../../shared/enums'
+import { processCompletion } from '../../shared/task-completion-processor'
 import type { Task } from '../../shared/types'
 import type { SequencedTask } from '../../shared/sequencing-types'
 import type { DailyWorkPattern } from '../../shared/work-blocks-types'
@@ -354,17 +355,54 @@ export const taskRouter = router({
     )
     .mutation(async ({ ctx, input }) => {
       const now = getCurrentTime()
+
+      // Fetch the task first to check asyncWaitTime and name
+      const existing = await ctx.prisma.task.findUnique({
+        where: { id: input.id },
+        select: { asyncWaitTime: true, name: true, sessionId: true },
+      })
+
+      // Route through the completion processor to handle async wait times
+      const completionResult = processCompletion({
+        entityType: 'task',
+        entityId: input.id,
+        task: { asyncWaitTime: existing?.asyncWaitTime ?? 0 } as Task,
+        completedAt: now,
+      })
+
+      const isFullyCompleted = completionResult.finalStatus === TaskStatus.Completed
+
       const task = await ctx.prisma.task.update({
         where: { id: input.id },
         data: {
-          completed: true,
+          completed: isFullyCompleted,
           completedAt: now,
           actualDuration: input.actualDuration,
-          overallStatus: 'completed',
+          overallStatus: completionResult.finalStatus,
           updatedAt: now,
         },
         include: { TaskStep: { orderBy: { stepIndex: 'asc' } } },
       })
+
+      // Auto-create timer if task enters waiting state
+      if (completionResult.shouldStartTimer && existing?.sessionId) {
+        const { createTimerExpiresAt } = await import('../../shared/timer-types')
+        await ctx.prisma.timer.create({
+          data: {
+            id: generateUniqueId('timer'),
+            sessionId: existing.sessionId,
+            name: `Wait: ${existing.name ?? 'Task'}`,
+            status: 'active',
+            originalDurationMinutes: completionResult.asyncWaitMinutes,
+            startedAt: now,
+            expiresAt: createTimerExpiresAt(now, completionResult.asyncWaitMinutes),
+            linkedTaskId: input.id,
+            createdAt: now,
+            updatedAt: now,
+          },
+        })
+      }
+
       return formatTask(task)
     }),
 

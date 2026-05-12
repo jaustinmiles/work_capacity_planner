@@ -1563,6 +1563,7 @@ export class TrpcDatabaseService {
   async startPomodoroCycle(input: {
     workDurationMinutes?: number
     breakDurationMinutes?: number
+    cycleNumber?: number
   }): Promise<Record<string, unknown>> {
     return this.client.pomodoro.startCycle.mutate(input)
   }
@@ -1590,6 +1591,111 @@ export class TrpcDatabaseService {
 
   async getPomodoroCycleWithSessions(cycleId: string): Promise<Record<string, unknown> | null> {
     return this.client.pomodoro.getCycleWithSessions.query({ cycleId })
+  }
+
+  // ===========================================================================
+  // Timers
+  // ===========================================================================
+
+  async createTimer(input: {
+    name: string
+    durationMinutes: number
+    linkedTaskId?: string
+    linkedStepId?: string
+    resumeToStatus?: string
+  }): Promise<Record<string, unknown>> {
+    return this.client.timer.create.mutate(input) as Promise<Record<string, unknown>>
+  }
+
+  async getActiveTimers(): Promise<Record<string, unknown>[]> {
+    return this.client.timer.getActive.query() as Promise<Record<string, unknown>[]>
+  }
+
+  async getAllTimers(input?: {
+    statuses?: string[]
+    limit?: number
+  }): Promise<Record<string, unknown>[]> {
+    return this.client.timer.getAll.query(input as Parameters<typeof this.client.timer.getAll.query>[0]) as Promise<Record<string, unknown>[]>
+  }
+
+  async extendTimer(timerId: string, addMinutes: number): Promise<Record<string, unknown>> {
+    return this.client.timer.extend.mutate({ timerId, addMinutes }) as Promise<Record<string, unknown>>
+  }
+
+  async pauseTimer(timerId: string): Promise<Record<string, unknown>> {
+    return this.client.timer.pause.mutate({ timerId }) as Promise<Record<string, unknown>>
+  }
+
+  async resumeTimer(timerId: string): Promise<Record<string, unknown>> {
+    return this.client.timer.resume.mutate({ timerId }) as Promise<Record<string, unknown>>
+  }
+
+  async dismissTimer(timerId: string): Promise<Record<string, unknown>> {
+    return this.client.timer.dismiss.mutate({ timerId }) as Promise<Record<string, unknown>>
+  }
+
+  async cancelTimer(timerId: string): Promise<Record<string, unknown>> {
+    return this.client.timer.cancel.mutate({ timerId }) as Promise<Record<string, unknown>>
+  }
+
+  async expireTimer(timerId: string): Promise<Record<string, unknown>> {
+    return this.client.timer.expire.mutate({ timerId }) as Promise<Record<string, unknown>>
+  }
+
+  // ===========================================================================
+  // Agent Memory
+  // ===========================================================================
+
+  async getMemories(): Promise<Record<string, unknown>[]> {
+    return this.client.memory.getAllForPanel.query() as Promise<Record<string, unknown>[]>
+  }
+
+  async updateMemory(memoryId: string, updates: { value?: string; confidence?: number; pinned?: boolean }): Promise<Record<string, unknown>> {
+    return this.client.memory.update.mutate({ memoryId, ...updates }) as Promise<Record<string, unknown>>
+  }
+
+  async deleteMemory(memoryId: string): Promise<void> {
+    await this.client.memory.delete.mutate({ memoryId })
+  }
+
+  async getConversationSummaries(): Promise<Record<string, unknown>[]> {
+    return this.client.memory.getAllSummaries.query() as Promise<Record<string, unknown>[]>
+  }
+
+  // ===========================================================================
+  // Decision Sessions
+  // ===========================================================================
+
+  async startDecisionSession(conversationId?: string): Promise<Record<string, unknown>> {
+    return this.client.decision.startSession.mutate(conversationId ? { conversationId } : undefined) as Promise<Record<string, unknown>>
+  }
+
+  async endDecisionSession(id: string): Promise<Record<string, unknown>> {
+    return this.client.decision.endSession.mutate({ id }) as Promise<Record<string, unknown>>
+  }
+
+  async reflectDecision(id: string, text: string): Promise<Record<string, unknown>> {
+    return this.client.decision.reflect.mutate({ id, text }) as Promise<Record<string, unknown>>
+  }
+
+  async summarizeDecision(id: string): Promise<Record<string, unknown>> {
+    return this.client.decision.summarize.mutate({ id }) as Promise<Record<string, unknown>>
+  }
+
+  async getDecisionState(id: string): Promise<Record<string, unknown> | null> {
+    return this.client.decision.getState.query({ id }) as Promise<Record<string, unknown> | null>
+  }
+
+  async getDecisionSessions(): Promise<Record<string, unknown>[]> {
+    return this.client.decision.getSessions.query() as Promise<Record<string, unknown>[]>
+  }
+
+  // ===========================================================================
+  // TTS
+  // ===========================================================================
+
+  async synthesizeSpeech(text: string, voice?: string): Promise<Record<string, unknown>> {
+    return this.client.speech.synthesize.mutate({ text, voice: voice as Parameters<typeof this.client.speech.synthesize.mutate>[0]['voice'] }) as Promise<Record<string, unknown>>
   }
 }
 

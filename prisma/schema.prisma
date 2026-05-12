@@ -134,6 +134,10 @@ model Session {
   DeepWorkBoard         DeepWorkBoard[]
   PomodoroSettings      PomodoroSettings?
   PomodoroCycles        PomodoroCycle[]
+  Timer                 Timer[]
+  AgentMemory           AgentMemory[]
+  ConversationSummary   ConversationSummary[]
+  DecisionSession       DecisionSession[]
 }
 
 // Schedule Snapshot - Captures schedule state at a point in time
@@ -239,6 +243,7 @@ model Task {
   WorkSession          WorkSession[]
   TaskStep             TaskStep[]      @relation("TaskSteps")
   EndeavorItem         EndeavorItem[]  // Endeavors this task belongs to
+  Timer                Timer[]         // Timers linked to this task
 }
 
 model TaskStep {
@@ -443,7 +448,9 @@ model Conversation {
   isArchived   Boolean       @default(false)
   Session      Session       @relation(fields: [sessionId], references: [id], onDelete: Cascade)
   JobContext   JobContext?   @relation(fields: [jobContextId], references: [id], onDelete: SetNull)
-  ChatMessage  ChatMessage[]
+  ChatMessage          ChatMessage[]
+  ConversationSummary  ConversationSummary?
+  DecisionSession      DecisionSession[]
 
   @@index([sessionId])
   @@index([createdAt])
@@ -625,4 +632,96 @@ model PomodoroCycle {
   @@index([sessionId])
   @@index([startTime])
   @@index([status])
+}
+
+// Timer - First-class countdown timer
+// Session-scoped, can be linked to a Task or TaskStep (auto-created on async completion)
+// or standalone (user-created for arbitrary countdowns like laundry, deliveries, etc.)
+// Timer state uses absolute timestamps — client derives remaining time from expiresAt - now
+model Timer {
+  id                      String    @id
+  sessionId               String
+  name                    String                        // Display name (e.g., "Wait for API response", "Laundry")
+  status                  String    @default("active")  // TimerStatus: active, paused, expired, dismissed, cancelled
+  originalDurationMinutes Int                           // Original duration as configured
+  extendedByMinutes       Int       @default(0)         // Total minutes added via extend operations
+  startedAt               DateTime                      // When the timer was first started
+  expiresAt               DateTime                      // Absolute expiration time (startedAt + duration + extensions)
+  pausedAt                DateTime?                     // When timer was paused (null if not paused)
+  pausedRemainingMs       Int?                          // Milliseconds remaining when paused (to resume accurately)
+  expiredAt               DateTime?                     // When the timer actually expired
+  dismissedAt             DateTime?                     // When user dismissed the expired notification
+  linkedTaskId            String?                       // Optional: task this timer is for
+  linkedStepId            String?                       // Optional: step this timer is for
+  resumeToStatus          String?                       // Status to transition to on expiry (null = 'completed', 'in_progress' for mid-work wait)
+  createdAt               DateTime  @default(now())
+  updatedAt               DateTime  @default(now())
+  Session                 Session   @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  Task                    Task?     @relation(fields: [linkedTaskId], references: [id], onDelete: SetNull)
+
+  @@index([sessionId])
+  @@index([status])
+  @@index([expiresAt])
+  @@index([linkedTaskId])
+  @@index([linkedStepId])
+}
+
+// AgentMemory - Persistent structured facts the AI agent learns about the user
+// Two-layer memory: core memories (always in context) + conversation summaries (on-demand search)
+model AgentMemory {
+  id             String   @id
+  sessionId      String
+  category       String                        // MemoryCategory: preference, correction, pattern, fact
+  key            String                        // Short label (e.g., "deep_work_preference")
+  value          String                        // The fact itself (e.g., "Prefers morning deep work blocks")
+  confidence     Float    @default(0.8)        // 0-1 confidence score (higher = more certain)
+  source         String   @default("agent_observed") // MemorySource: agent_observed, user_stated, conversation_summary
+  pinned         Boolean  @default(false)      // Pinned memories are never pruned
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @default(now())
+  lastAccessedAt DateTime @default(now())
+  Session        Session  @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@unique([sessionId, key])
+  @@index([sessionId])
+  @@index([category])
+  @@index([updatedAt])
+}
+
+// ConversationSummary - Auto-generated summaries of past conversations
+// Searchable by the agent for "do you remember when we talked about X?"
+model ConversationSummary {
+  id                String       @id
+  sessionId         String
+  conversationId    String       @unique
+  summary           String                     // Natural language summary of the conversation
+  keyDecisions      String       @default("[]") // JSON array of key decisions made
+  memoriesExtracted String       @default("[]") // JSON array of AgentMemory IDs created from this conversation
+  messageCount      Int                        // Number of messages in the conversation when summarized
+  createdAt         DateTime     @default(now())
+  Session           Session      @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  Conversation      Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@index([sessionId])
+  @@index([createdAt])
+}
+
+// DecisionSession — A Socratic decision brainstorming session
+// Stores the decision graph state as JSON. The graph is consumed by
+// D3 force-directed visualization and the task extraction engine.
+model DecisionSession {
+  id             String        @id
+  sessionId      String
+  topic          String?
+  decisionState  String        @default("{}")    // JSON: DecisionState shape
+  connectivity   Float         @default(0)
+  isActive       Boolean       @default(true)
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+  conversationId String?
+  Session        Session       @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  Conversation   Conversation? @relation(fields: [conversationId], references: [id])
+
+  @@index([sessionId])
+  @@index([isActive])
 }

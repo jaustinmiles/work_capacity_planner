@@ -144,7 +144,7 @@ export function DeepWorkActionPanel() {
   // Count total nodes vs completed
   const totalNodes = nodes.size
   const completedNodes = Array.from(nodes.values()).filter((n) =>
-    n.task?.completed || n.step?.status === 'completed' || n.step?.status === 'skipped',
+    n.task?.completed || n.step?.status === 'completed' || n.step?.status === 'skipped' || n.step?.status === 'waiting',
   ).length
 
   return (

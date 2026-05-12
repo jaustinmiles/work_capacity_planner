@@ -164,6 +164,30 @@ export enum ProposedActionStatus {
   Timeout = 'timeout',
 }
 
+// Agent memory category — what kind of fact the agent learned
+export enum MemoryCategory {
+  Preference = 'preference',     // User work style, scheduling preferences
+  Correction = 'correction',     // Things the user told the agent not to do
+  Pattern = 'pattern',           // Observed behavioral patterns
+  Fact = 'fact',                 // Time-sensitive facts (deadlines, blockers)
+}
+
+// Agent memory source — how the memory was created
+export enum MemorySource {
+  AgentObserved = 'agent_observed',           // Agent noticed a pattern
+  UserStated = 'user_stated',                 // User explicitly told the agent
+  ConversationSummary = 'conversation_summary', // Extracted from conversation summary
+}
+
+// Timer status — lifecycle of a countdown timer
+export enum TimerStatus {
+  Active = 'active',
+  Paused = 'paused',
+  Expired = 'expired',
+  Dismissed = 'dismissed',
+  Cancelled = 'cancelled',
+}
+
 // Agent approval decision (user response to a write tool proposal)
 export enum ApprovalDecision {
   Approved = 'approved',
@@ -245,6 +269,36 @@ export enum ViewType {
   Sprint = 'sprint',
   Endeavors = 'endeavors',
   DeepWork = 'deepWork',
+  Timers = 'timers',
+  Memory = 'memory',
+  Decision = 'decision',
+}
+
+// Decision tree node types
+export enum TreeNodeType {
+  Option = 'option',
+  Factor = 'factor',
+  Question = 'question',
+  Insight = 'insight',
+  Risk = 'risk',
+  Milestone = 'milestone',
+}
+
+// Decision thinking sentiment
+export enum ThinkingSentiment {
+  Exploring = 'exploring',
+  Uncertain = 'uncertain',
+  Energized = 'energized',
+  Conflicted = 'conflicted',
+  Clarifying = 'clarifying',
+}
+
+// TTS voice options (OpenAI)
+export enum TTSVoice {
+  Nova = 'nova',
+  Onyx = 'onyx',
+  Echo = 'echo',
+  Shimmer = 'shimmer',
 }
 
 // Sprint filter modes for task list views

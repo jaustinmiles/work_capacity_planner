@@ -6,10 +6,12 @@
  */
 
 import React, { useRef, useEffect, useState, useCallback, useMemo } from 'react'
-import { Input, Button, Spin, Typography, Alert, Switch } from '@arco-design/web-react'
+import { Input, Button, Spin, Typography, Alert, Switch, Tag } from '@arco-design/web-react'
 import { IconSend, IconVoice, IconPause, IconRobot } from '@arco-design/web-react/icon'
 import { useConversationStore, ConversationStatus } from '../../store/useConversationStore'
+import { useTaskStore } from '../../store/useTaskStore'
 import { ChatMessageRecord, AmendmentCard as AmendmentCardType } from '@shared/conversation-types'
+import type { NoToolWarning } from '@shared/agent-types'
 import { ChatMessageRole, ViewType, ToolExecutionStatus } from '@shared/enums'
 import { AmendmentCard } from './AmendmentCard'
 import { ProposedActionCard } from './ProposedActionCard'
@@ -77,6 +79,8 @@ export function ChatView({ onNavigateToView }: ChatViewProps): React.ReactElemen
     setError,
     isAgentMode,
     setAgentMode,
+    autoApproveMode,
+    setAutoApproveMode,
     pendingActions,
     activeToolStatuses,
     addPendingAction,
@@ -90,6 +94,7 @@ export function ChatView({ onNavigateToView }: ChatViewProps): React.ReactElemen
   } = useConversationStore()
 
   const [inputValue, setInputValue] = useState('')
+  const [streamingNoToolWarning, setStreamingNoToolWarning] = useState<NoToolWarning | null>(null)
   const messagesContainerRef = useRef<HTMLDivElement>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const wasAtBottomRef = useRef(true)
@@ -224,6 +229,7 @@ export function ChatView({ onNavigateToView }: ChatViewProps): React.ReactElemen
     setInputValue('')
     setStatus(ConversationStatus.Sending)
     clearAgentState()
+    setStreamingNoToolWarning(null)
 
     try {
       // Add user message to LOCAL state only — server saves to DB
@@ -259,16 +265,29 @@ export function ChatView({ onNavigateToView }: ChatViewProps): React.ReactElemen
             }
           },
           onProposedAction: (event) => {
-            addPendingAction(event)
+            const { autoApproveMode: autoApprove } = useConversationStore.getState()
+            if (autoApprove) {
+              // Auto-approve without showing card
+              approveAgentAction(event.proposalId)
+            } else {
+              addPendingAction(event)
+            }
           },
           onActionResult: (event) => {
             removePendingAction(event.proposalId)
           },
-          onDone: () => {
-            // Reload messages from DB to get canonical state
-            // (server saved both user + assistant messages)
+          onNoToolWarning: (confidence, reasoning) => {
+            setStreamingNoToolWarning({ confidence, reasoning })
+          },
+          onDone: (toolCallCount) => {
+            // Reload conversation messages from DB
             const { selectConversation } = useConversationStore.getState()
             selectConversation(activeConversationId)
+            // Agent operates server-side — if it made tool calls, the DB has
+            // changed independently of client stores. Reload to sync.
+            if (toolCallCount > 0) {
+              useTaskStore.getState().refreshAllData()
+            }
             clearAgentState()
             setStatus(ConversationStatus.Idle)
           },
@@ -276,6 +295,7 @@ export function ChatView({ onNavigateToView }: ChatViewProps): React.ReactElemen
             // Still reload — server may have partially saved
             const { selectConversation } = useConversationStore.getState()
             selectConversation(activeConversationId)
+            useTaskStore.getState().refreshAllData()
             setError(message)
             clearAgentState()
           },
@@ -342,6 +362,16 @@ export function ChatView({ onNavigateToView }: ChatViewProps): React.ReactElemen
           checked={isAgentMode}
           onChange={setAgentMode}
         />
+        {isAgentMode && (
+          <>
+            <span style={{ marginLeft: 12 }}>Auto-approve</span>
+            <Switch
+              size="small"
+              checked={autoApproveMode}
+              onChange={setAutoApproveMode}
+            />
+          </>
+        )}
       </div>
 
       {/* Messages */}
@@ -400,6 +430,11 @@ export function ChatView({ onNavigateToView }: ChatViewProps): React.ReactElemen
                 )}
                 <span className="streaming-cursor" />
               </div>
+            )}
+
+            {/* Agent: no-tool-call warning (shown during/after streaming) */}
+            {streamingNoToolWarning && (
+              <NoToolWarningBanner warning={streamingNoToolWarning} />
             )}
 
             {/* Agent: tool status indicators */}
@@ -541,6 +576,11 @@ function MessageBubble({ message, onNavigateToView }: MessageBubbleProps): React
         )}
       </div>
 
+      {/* No-tool-call warning (persisted with the message) */}
+      {message.noToolWarning && (
+        <NoToolWarningBanner warning={message.noToolWarning} />
+      )}
+
       {/* Amendment cards (legacy) or agent tool call summaries */}
       {message.amendments && Array.isArray(message.amendments) && message.amendments.length > 0 && (
         <div
@@ -553,10 +593,42 @@ function MessageBubble({ message, onNavigateToView }: MessageBubbleProps): React
           }}
         >
           {message.amendments.map((card, index) => {
-            // Guard: agent mode stores StoredToolCall objects (with toolName)
-            // instead of AmendmentCard objects (with amendment.type).
-            // Skip rendering StoredToolCalls — they were already shown during the stream.
-            if (!card.amendment) return null
+            // StoredToolCall objects (from agent mode) have toolName but no amendment
+            if (!card.amendment) {
+              const toolCall = card as unknown as Record<string, unknown>
+              if (!toolCall.toolName) return null
+
+              const isWrite = toolCall.category === 'write'
+              const wasApproved = toolCall.approvalStatus === 'approved'
+              const statusColor = wasApproved ? 'green' : toolCall.approvalStatus === 'rejected' ? 'gray' : 'arcoblue'
+              const statusLabel = isWrite
+                ? (wasApproved ? 'Applied' : toolCall.approvalStatus === 'rejected' ? 'Skipped' : 'Read')
+                : 'Read'
+
+              return (
+                <div
+                  key={toolCall.toolCallId as string || `tool-${index}`}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 8,
+                    padding: '4px 10px',
+                    borderRadius: 6,
+                    background: 'var(--color-fill-1)',
+                    fontSize: 12,
+                    color: 'var(--color-text-3)',
+                    borderLeft: `3px solid var(--color-${statusColor}-6)`,
+                  }}
+                >
+                  <Tag size="small" color={statusColor} style={{ fontSize: 10 }}>
+                    {statusLabel}
+                  </Tag>
+                  <span style={{ fontFamily: 'monospace' }}>
+                    {(toolCall.toolName as string).replace(/_/g, ' ')}
+                  </span>
+                </div>
+              )
+            }
 
             return (
               <AmendmentCard
@@ -583,6 +655,62 @@ function MessageBubble({ message, onNavigateToView }: MessageBubbleProps): React
           minute: '2-digit',
         })}
       </Text>
+    </div>
+  )
+}
+
+// =============================================================================
+// NoToolWarningBanner Sub-component
+// =============================================================================
+
+interface NoToolWarningBannerProps {
+  warning: NoToolWarning
+}
+
+/**
+ * Compact warning banner shown when the agent made no tool calls
+ * but its text appears to describe completed actions.
+ * Confidence level drives the visual intensity.
+ */
+function NoToolWarningBanner({ warning }: NoToolWarningBannerProps): React.ReactElement {
+  const isHigh = warning.confidence >= 0.7
+  const borderColor = isHigh ? 'var(--color-warning-6)' : 'var(--color-text-4)'
+
+  return (
+    <div
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: 8,
+        padding: '6px 10px',
+        marginTop: 6,
+        borderRadius: 6,
+        background: isHigh ? 'var(--color-warning-light-1)' : 'var(--color-fill-1)',
+        borderLeft: `3px solid ${borderColor}`,
+        fontSize: 12,
+        color: 'var(--color-text-2)',
+        maxWidth: '85%',
+      }}
+      title={warning.reasoning}
+    >
+      <span style={{ fontSize: 14, flexShrink: 0 }}>
+        {isHigh ? '\u26A0' : '\u24D8'}
+      </span>
+      <span>
+        <strong>No tools called</strong>
+        {isHigh && (
+          <span style={{ color: 'var(--color-warning-6)', marginLeft: 4 }}>
+            — response may describe actions that were not performed
+          </span>
+        )}
+      </span>
+      <Tag
+        size="small"
+        color={isHigh ? 'orangered' : 'gray'}
+        style={{ fontSize: 10, marginLeft: 'auto', flexShrink: 0 }}
+      >
+        {Math.round(warning.confidence * 100)}%
+      </Tag>
     </div>
   )
 }

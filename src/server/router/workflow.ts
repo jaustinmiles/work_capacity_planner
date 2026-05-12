@@ -9,6 +9,7 @@ import { z } from 'zod'
 import { router, protectedProcedure } from '../trpc'
 import { generateUniqueId, resolveDependenciesAgainstExisting, resolveStepDependencies } from '../../shared/step-id-utils'
 import { getCurrentTime } from '../../shared/time-provider'
+import { StepStatus } from '../../shared/enums'
 
 /**
  * Schema for adding a step to a workflow
@@ -228,29 +229,80 @@ export const workflowRouter = router({
       data,
     })
 
+    // Auto-create timer when step transitions to 'waiting' status
+    if (updates.status === 'waiting' || updates.status === StepStatus.Waiting) {
+      const now = getCurrentTime()
+      // Check if step has async wait time and no existing timer
+      const fullStep = await ctx.prisma.taskStep.findUnique({
+        where: { id: stepId },
+        select: { asyncWaitTime: true, name: true },
+      })
+      if (fullStep && fullStep.asyncWaitTime > 0) {
+        const existingTimer = await ctx.prisma.timer.findFirst({
+          where: { linkedStepId: stepId, status: { in: ['active', 'paused'] } },
+        })
+        if (!existingTimer) {
+          const { createTimerExpiresAt } = await import('../../shared/timer-types')
+          const task = await ctx.prisma.task.findUnique({
+            where: { id: taskId },
+            select: { sessionId: true },
+          })
+          if (task?.sessionId) {
+            await ctx.prisma.timer.create({
+              data: {
+                id: generateUniqueId('timer'),
+                sessionId: task.sessionId,
+                name: `Wait: ${fullStep.name}`,
+                status: 'active',
+                originalDurationMinutes: fullStep.asyncWaitTime,
+                startedAt: now,
+                expiresAt: createTimerExpiresAt(now, fullStep.asyncWaitTime),
+                linkedTaskId: taskId,
+                linkedStepId: stepId,
+                createdAt: now,
+                updatedAt: now,
+              },
+            })
+          }
+        }
+      }
+    }
+
     // Update task's overallStatus if step status changed
     if (updates.status) {
       const allSteps = await ctx.prisma.taskStep.findMany({
         where: { taskId },
       })
 
-      const allCompleted = allSteps.every((s) => s.status === 'completed')
+      // A step is "done" if it's completed, waiting (async timer), or skipped
+      const allDone = allSteps.every(
+        (s) => s.status === 'completed' || s.status === 'waiting' || s.status === 'skipped',
+      )
+      const anyWaiting = allSteps.some((s) => s.status === 'waiting')
       const anyInProgress = allSteps.some((s) => s.status === 'in_progress')
+      const anyStarted = allSteps.some(
+        (s) => s.status === 'completed' || s.status === 'in_progress' || s.status === 'waiting',
+      )
 
       let overallStatus = 'not_started'
-      if (allCompleted) {
+      if (allDone && !anyWaiting) {
         overallStatus = 'completed'
-      } else if (anyInProgress || allSteps.some((s) => s.status === 'completed')) {
+      } else if (allDone && anyWaiting) {
+        // All work done but some steps waiting on async timers
+        overallStatus = 'waiting'
+      } else if (anyInProgress || anyStarted) {
         overallStatus = 'in_progress'
       }
+
+      const isFullyCompleted = allDone && !anyWaiting
 
       await ctx.prisma.task.update({
         where: { id: taskId },
         data: {
           overallStatus,
           updatedAt: getCurrentTime(),
-          completed: allCompleted,
-          completedAt: allCompleted ? getCurrentTime() : null,
+          completed: isFullyCompleted,
+          completedAt: isFullyCompleted ? getCurrentTime() : null,
         },
       })
     }

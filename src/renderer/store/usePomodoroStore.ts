@@ -260,10 +260,13 @@ export const usePomodoroStore = create<PomodoroStoreState>()(
           await workService.pauseWorkSession(activeSession.id)
         }
 
-        // 2. Determine break type
+        // 2. Determine break type and duration
         const breakPhase = activeCycle.cycleNumber % effectiveSettings.cyclesBeforeLongBreak === 0
           ? PomodoroPhase.LongBreak
           : PomodoroPhase.ShortBreak
+        const breakDurationMinutes = breakPhase === PomodoroPhase.LongBreak
+          ? effectiveSettings.longBreakMinutes
+          : effectiveSettings.shortBreakMinutes
 
         // 3. Update cycle phase in database
         await getDatabase().updatePomodoroCyclePhase({
@@ -278,21 +281,35 @@ export const usePomodoroStore = create<PomodoroStoreState>()(
           await useTimeSinkStore.getState().startSession(sinkId)
         }
 
-        // 5. Update local state
+        // 5. Clear task store's active work sessions (service already stopped them)
+        try {
+          const taskStoreModule = await import('./useTaskStore')
+          taskStoreModule.useTaskStore.getState()
+          // Use getState().set pattern for compatibility with test mocks
+          const store = taskStoreModule.useTaskStore
+          if (store && typeof store.setState === 'function') {
+            store.setState({ activeWorkSessions: new Map() })
+          }
+        } catch {
+          // Task store may not be available in test environment
+        }
+
+        // 6. Update local state
         usePomodoroStore.setState({
-          activeCycle: { ...activeCycle, status: breakPhase, phaseStartTime: now, breakTimeSinkId: sinkId ?? null },
+          activeCycle: { ...activeCycle, status: breakPhase, phaseStartTime: now, breakTimeSinkId: sinkId ?? null, breakDurationMinutes },
           timerState: {
             ...usePomodoroStore.getState().timerState,
+            isActive: true, // CRITICAL: tick engine checks this — must be true for break to count down
             currentPhase: breakPhase,
-            remainingSeconds: phaseDurationToSeconds(activeCycle.breakDurationMinutes),
-            totalSeconds: phaseDurationToSeconds(activeCycle.breakDurationMinutes),
+            remainingSeconds: phaseDurationToSeconds(breakDurationMinutes),
+            totalSeconds: phaseDurationToSeconds(breakDurationMinutes),
             currentTaskId: null,
             currentTaskName: null,
           },
           pendingPrompt: null,
         })
 
-        // 6. Restart timer for break phase
+        // 7. Restart timer for break phase
         _startTick()
       },
       (sinkId) => ({ sinkId }),
@@ -306,22 +323,24 @@ export const usePomodoroStore = create<PomodoroStoreState>()(
 
         _stopTick()
 
-        const now = getCurrentTime()
-
         // 1. Stop the break TimeSinkSession (if any)
         const timeSinkState = useTimeSinkStore.getState()
         if (timeSinkState.activeSinkSession) {
           await timeSinkState.stopSession()
         }
 
-        // 2. Update cycle phase to Work in database
-        await getDatabase().updatePomodoroCyclePhase({
-          cycleId: activeCycle.id,
-          status: PomodoroPhase.Work,
-          phaseStartTime: now,
-        })
+        // 2. End the current cycle in DB (work+break = one complete cycle)
+        await getDatabase().endPomodoroCycle(activeCycle.id)
 
-        // 3. Start work via task store — WorkTrackingService will auto-link to this cycle
+        // 3. Start a NEW cycle — pass incremented cycleNumber explicitly
+        const effectiveSettings = getEffectiveSettings(usePomodoroStore.getState().settings)
+        const newCycleRaw = await getDatabase().startPomodoroCycle({
+          workDurationMinutes: effectiveSettings.workDurationMinutes,
+          cycleNumber: activeCycle.cycleNumber + 1,
+        })
+        const newCycle = fromDatabasePomodoroCycle(newCycleRaw)
+
+        // 4. Start work via task store
         const { useTaskStore } = await import('./useTaskStore')
         if (stepId) {
           await useTaskStore.getState().startWorkOnStep(stepId, taskId)
@@ -329,20 +348,22 @@ export const usePomodoroStore = create<PomodoroStoreState>()(
           await useTaskStore.getState().startWorkOnTask(taskId)
         }
 
-        // 4. Update local state — task info is set by setActiveTask() via WorkTrackingService auto-link,
-        //    but we still need to update the phase/timer
+        // 5. Update local state from server-authoritative cycle
         usePomodoroStore.setState({
-          activeCycle: { ...activeCycle, status: PomodoroPhase.Work, phaseStartTime: now },
+          activeCycle: newCycle,
           timerState: {
             ...usePomodoroStore.getState().timerState,
+            isActive: true,
             currentPhase: PomodoroPhase.Work,
-            remainingSeconds: phaseDurationToSeconds(activeCycle.workDurationMinutes),
-            totalSeconds: phaseDurationToSeconds(activeCycle.workDurationMinutes),
+            currentCycleId: newCycle.id,
+            cycleNumber: newCycle.cycleNumber,
+            remainingSeconds: phaseDurationToSeconds(newCycle.workDurationMinutes),
+            totalSeconds: phaseDurationToSeconds(newCycle.workDurationMinutes),
           },
           pendingPrompt: null,
         })
 
-        // 5. Restart timer for work phase
+        // 6. Restart timer
         _startTick()
       },
       (taskId) => ({ taskId }),
@@ -476,7 +497,17 @@ export const usePomodoroStore = create<PomodoroStoreState>()(
     // ==========================================================================
 
     dismissPrompt: (): void => {
+      const { pendingPrompt, activeCycle } = get()
+      // Always clear the prompt first to prevent stuck state
       set({ pendingPrompt: null })
+      // Then auto-transition if there's an active cycle
+      if (activeCycle) {
+        if (pendingPrompt === PomodoroPromptType.BreakActivity) {
+          get().transitionToBreak()
+        } else if (pendingPrompt === PomodoroPromptType.NextTask) {
+          get().endCycle()
+        }
+      }
     },
 
     // ==========================================================================

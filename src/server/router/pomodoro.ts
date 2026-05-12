@@ -32,6 +32,7 @@ const updateSettingsInput = z.object({
 const startCycleInput = z.object({
   workDurationMinutes: z.number().int().min(1).optional(),
   breakDurationMinutes: z.number().int().min(1).optional(),
+  cycleNumber: z.number().int().min(1).optional(),
 })
 
 const updateCyclePhaseInput = z.object({
@@ -131,18 +132,9 @@ export const pomodoroRouter = router({
         ?? settings?.workDurationMinutes
         ?? POMODORO_DEFAULTS.WORK_DURATION_MINUTES
 
-      // Compute cycle number: count today's cycles + 1
-      const today = now.toISOString().slice(0, 10) // YYYY-MM-DD
-      const { startOfDay, endOfDay } = getLocalDateRange(today)
-
-      const todayCycleCount = await ctx.prisma.pomodoroCycle.count({
-        where: {
-          sessionId: ctx.sessionId,
-          startTime: { gte: startOfDay, lte: endOfDay },
-        },
-      })
-
-      const cycleNumber = todayCycleCount + 1
+      // Use explicit cycleNumber if provided, otherwise default to 1
+      // Client passes 1 for fresh starts, previousCycle.cycleNumber + 1 for transitions
+      const cycleNumber = input.cycleNumber ?? 1
 
       // Compute break duration based on cycle number and settings
       const breakMinutes = input.breakDurationMinutes

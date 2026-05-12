@@ -43,12 +43,9 @@ import { useResponsive } from '../../providers/ResponsiveProvider'
 import { Message } from '../common/Message'
 import { ClockTimePicker } from '../common/ClockTimePicker'
 import { TimelineVisualizer } from '../schedule/TimelineVisualizer'
-import { getDatabase } from '../../services/database'
-import dayjs from 'dayjs'
-import { logger } from '@/logger'
 
 
-const { Title, Text } = Typography
+const { Text } = Typography
 const { Row, Col } = Grid
 
 interface WorkBlocksEditorProps {
@@ -99,21 +96,17 @@ const calculateRemainingCapacity = (
 }
 
 export function WorkBlocksEditor({
-  date,
+  date: _date,
   pattern,
   accumulated = {},
   onSave,
-  onClose,
+  onClose: _onClose,
 }: WorkBlocksEditorProps) {
   const [blocks, setBlocks] = useState<WorkBlock[]>(pattern?.blocks || [])
   const [meetings, setMeetings] = useState<WorkMeeting[]>(pattern?.meetings || [])
-  const [selectedTemplate, setSelectedTemplate] = useState<string>('')
   const [showMeetingModal, setShowMeetingModal] = useState(false)
   const [editingMeeting, setEditingMeeting] = useState<WorkMeeting | null>(null)
   const [form] = Form.useForm()
-  const [showSaveAsTemplate, setShowSaveAsTemplate] = useState(false)
-  const [templateName, setTemplateName] = useState('')
-  const [userTemplates, setUserTemplates] = useState<any[]>([])
 
   // Load user-defined task types from the store
   // Use separate selectors to avoid unnecessary re-renders
@@ -140,38 +133,64 @@ export function WorkBlocksEditor({
     }
   }, [pattern])
 
-  // Load user templates
-  useEffect(() => {
-    loadUserTemplates()
-  }, [])
-
-  const loadUserTemplates = async () => {
-    try {
-      const templates = await getDatabase().getWorkTemplates()
-      setUserTemplates(templates)
-    } catch (error) {
-      logger.ui.error('Failed to load user templates', {
-        error: error instanceof Error ? error.message : String(error),
-      }, 'templates-load-error')
-    }
-  }
-
   // Calculate capacity using new helper functions
   const totalCapacity = calculateTotalCapacityByType(blocks)
   const remainingCapacity = calculateRemainingCapacity(totalCapacity, accumulated)
 
   const handleAddBlock = () => {
-    // Default to first user type if available, otherwise fallback to 'focused'
     const defaultTypeId = userTaskTypes[0]?.id ?? 'focused'
     const typeConfig: BlockTypeConfig = {
       kind: BlockConfigKind.Single,
       typeId: defaultTypeId,
     }
-    // Use current time (rounded to nearest hour) as default start time
+
+    const DEFAULT_DURATION_MINUTES = 60
+
+    // Find a good start time: current time rounded to next 15-min mark
     const now = getCurrentTime()
-    const currentHour = new Date(now).getHours()
-    const startTime = formatTimeFromParts(currentHour, 0)
-    const endTime = formatTimeFromParts((currentHour + 3) % 24, 0)
+    const currentMinutes = now.getHours() * 60 + now.getMinutes()
+    const roundedMinutes = Math.ceil(currentMinutes / 15) * 15
+
+    // Parse existing blocks into minute ranges for overlap detection
+    const occupied = blocks.map(b => {
+      const sParts = b.startTime.split(':')
+      const eParts = b.endTime.split(':')
+      const sh = parseInt(sParts[0] ?? '0', 10)
+      const sm = parseInt(sParts[1] ?? '0', 10)
+      const eh = parseInt(eParts[0] ?? '0', 10)
+      const em = parseInt(eParts[1] ?? '0', 10)
+      return { start: sh * 60 + sm, end: eh * 60 + em }
+    }).sort((a, b) => a.start - b.start)
+
+    // Find first gap >= 15 minutes starting from rounded current time
+    let startMinutes = roundedMinutes
+    for (const block of occupied) {
+      if (startMinutes >= block.start && startMinutes < block.end) {
+        // Current position overlaps — jump to end of this block
+        startMinutes = block.end
+      }
+    }
+
+    // Clamp end time to not overlap the next block
+    let endMinutes = startMinutes + DEFAULT_DURATION_MINUTES
+    for (const block of occupied) {
+      if (block.start > startMinutes && block.start < endMinutes) {
+        endMinutes = block.start
+      }
+    }
+
+    // Ensure at least 15 minutes
+    if (endMinutes - startMinutes < 15) {
+      endMinutes = startMinutes + 15
+    }
+
+    // Clamp to 24 hours
+    if (endMinutes > 1440) endMinutes = 1440
+    if (startMinutes >= 1440) startMinutes = 1380
+
+    const startTime = formatTimeFromParts(Math.floor(startMinutes / 60), startMinutes % 60)
+    const endTime = formatTimeFromParts(Math.floor(endMinutes / 60), endMinutes % 60)
+
     const newBlock: WorkBlock = {
       id: generateUniqueId('block'),
       startTime,
@@ -192,29 +211,6 @@ export function WorkBlocksEditor({
 
   const handleDeleteBlock = (id: string) => {
     setBlocks(blocks.filter(b => b.id !== id))
-  }
-
-  const handleApplyTemplate = (templateId: string) => {
-    // Find user template
-    const userTemplate = userTemplates.find(t => t.id === templateId)
-    if (!userTemplate) return
-
-    const newBlocks = userTemplate.blocks.map((b: WorkBlock) => ({
-      ...b,
-      id: generateUniqueId('block'),
-    }))
-    setBlocks(newBlocks)
-
-    // Also apply meetings if present
-    if (userTemplate.meetings) {
-      const newMeetings = userTemplate.meetings.map((m: any, index: number) => ({
-        ...m,
-        id: `meeting-${Date.now()}-${index}-${Math.random().toString(36).substr(2, 9)}`,
-      }))
-      setMeetings(newMeetings)
-    }
-
-    Message.success(`Applied template: ${userTemplate.templateName || 'Custom Template'}`)
   }
 
   const handleAddMeeting = () => {
@@ -260,35 +256,6 @@ export function WorkBlocksEditor({
     await onSave(blocks, meetings)
   }
 
-  const handleSaveAsTemplate = async () => {
-    if (!templateName.trim()) {
-      Message.error('Please enter a template name')
-      return
-    }
-
-    try {
-      // First save the current schedule
-      await handleSave()
-
-      // Then save it as a template
-      await getDatabase().saveAsTemplate(date, templateName.trim())
-
-      Message.success(`Template "${templateName}" saved successfully`)
-      setShowSaveAsTemplate(false)
-      setTemplateName('')
-
-      // Reload templates
-      loadUserTemplates()
-    } catch (error) {
-      logger.ui.error('Failed to save template', {
-        error: error instanceof Error ? error.message : String(error),
-        templateName,
-        date,
-      }, 'template-save-error')
-      Message.error('Failed to save template. Please save the schedule first.')
-    }
-  }
-
   const formatMinutes = (minutes: number) => {
     const hours = Math.floor(minutes / 60)
     const mins = minutes % 60
@@ -297,72 +264,35 @@ export function WorkBlocksEditor({
 
   return (
     <div style={{ height: '100%' }}>
-      {/* Header */}
-      <Card style={{ marginBottom: 16 }}>
-        <Row justify="space-between" align="center">
-          <Col>
-            <Space direction="vertical" size="small">
-              <Space>
-                <IconCalendar style={{ fontSize: 24 }} />
-                <Title heading={4} style={{ margin: 0 }}>
-                  Work Schedule for {dayjs(date).format('MMMM D, YYYY')}
-                </Title>
-              </Space>
-              {pattern?.templateName && (
-                <Text type="secondary" style={{ marginLeft: 32 }}>
-                  Template: {pattern.templateName}
-                </Text>
-              )}
-            </Space>
-          </Col>
-          <Col>
-            <Space>
-              <Select
-                placeholder="Apply template"
-                value={selectedTemplate}
-                onChange={(value) => {
-                  handleApplyTemplate(value)
-                  setSelectedTemplate('') // Clear selection after applying
-                }}
-                style={{ width: 200 }}
-                disabled={userTemplates.length === 0}
-              >
-                {userTemplates.map(template => (
-                  <Select.Option key={template.id} value={template.id}>
-                    {template.templateName || 'Unnamed Template'}
-                  </Select.Option>
-                ))}
-              </Select>
-              <Button type="primary" onClick={handleSave}>
-                Save Schedule
-              </Button>
-              <Button onClick={() => setShowSaveAsTemplate(true)}>
-                Save as Template
-              </Button>
-              {blocks.length > 0 && (
-                <Popconfirm
-                  title="Clear entire schedule?"
-                  content="This will remove all work blocks and meetings for this day."
-                  onOk={async () => {
-                    setBlocks([])
-                    setMeetings([])
-                    // Save the cleared schedule immediately
-                    await onSave([], [])
-                    Message.success('Schedule cleared successfully')
-                  }}
-                >
-                  <Button status="danger">
-                    Clear Schedule
-                  </Button>
-                </Popconfirm>
-              )}
-              {onClose && (
-                <Button onClick={onClose}>Cancel</Button>
-              )}
-            </Space>
-          </Col>
-        </Row>
-      </Card>
+      {/* Header — compact */}
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'flex-end',
+          gap: 8,
+          marginBottom: 12,
+        }}
+      >
+        <Button type="primary" onClick={handleSave}>
+          Save
+        </Button>
+        {blocks.length > 0 && (
+          <Popconfirm
+            title="Clear entire schedule?"
+            content="This will remove all work blocks and meetings for this day."
+            onOk={async () => {
+              setBlocks([])
+              setMeetings([])
+              await onSave([], [])
+              Message.success('Schedule cleared')
+            }}
+          >
+            <Button status="danger" size="small">
+              Clear Day
+            </Button>
+          </Popconfirm>
+        )}
+      </div>
 
       {/* Main layout - stacks on mobile */}
       <Row gutter={[16, 16]}>
@@ -443,134 +373,104 @@ export function WorkBlocksEditor({
         }
       >
         {blocks.length === 0 ? (
-          <Empty description="No work blocks defined. Add blocks or apply a template." />
+          <Empty description="No work blocks. Click Add Block to get started." />
         ) : (
-          <Space direction="vertical" style={{ width: '100%' }} size="medium">
-            {blocks.map((block, index) => (
-              <Card key={block.id} size="small" style={{ background: '#fafafa' }}>
-                <Row gutter={16} align="center">
-                  <Col span={2}>
-                    <Text style={{ fontWeight: 'bold' }}>#{index + 1}</Text>
-                  </Col>
-                  <Col span={4}>
-                    <ClockTimePicker
-                      value={block.startTime}
-                      onChange={(value) => handleUpdateBlock(block.id, { startTime: value })}
-                      style={{ width: '100%' }}
-                    />
-                  </Col>
-                  <Col span={1}>
-                    <Text>to</Text>
-                  </Col>
-                  <Col span={4}>
-                    <ClockTimePicker
-                      value={block.endTime}
-                      onChange={(value) => handleUpdateBlock(block.id, { endTime: value })}
-                      style={{ width: '100%' }}
-                    />
-                  </Col>
-                  <Col span={4}>
-                    <Select
-                      value={
-                        isSystemBlock(block.typeConfig) ? 'system' :
-                        isAnyBlock(block.typeConfig) ? 'any' :
-                        isComboBlock(block.typeConfig) ? 'combo' :
-                        isSingleTypeBlock(block.typeConfig) ? block.typeConfig.typeId :
-                        userTaskTypes[0]?.id ?? 'unknown'
+          <Space direction="vertical" style={{ width: '100%' }} size={4}>
+            {blocks.map((block) => (
+              <div
+                key={block.id}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  padding: '6px 8px',
+                  background: 'var(--color-fill-1)',
+                  borderRadius: 6,
+                  flexWrap: 'wrap',
+                }}
+              >
+                {/* Time range — stays on one line */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexShrink: 0 }}>
+                  <ClockTimePicker
+                    value={block.startTime}
+                    onChange={(value) => handleUpdateBlock(block.id, { startTime: value })}
+                    style={{ width: 70 }}
+                  />
+                  <span style={{ color: 'var(--color-text-4)', fontSize: 12 }}>→</span>
+                  <ClockTimePicker
+                    value={block.endTime}
+                    onChange={(value) => handleUpdateBlock(block.id, { endTime: value })}
+                    style={{ width: 70 }}
+                  />
+                </div>
+
+                {/* Type selector — grows to fill */}
+                <Select
+                  size="small"
+                  value={
+                    isSystemBlock(block.typeConfig) ? 'system' :
+                    isAnyBlock(block.typeConfig) ? 'any' :
+                    isComboBlock(block.typeConfig) ? 'combo' :
+                    isSingleTypeBlock(block.typeConfig) ? block.typeConfig.typeId :
+                    userTaskTypes[0]?.id ?? 'unknown'
+                  }
+                  onChange={(value) => {
+                    let newTypeConfig: BlockTypeConfig
+                    if (value === 'any') {
+                      newTypeConfig = { kind: BlockConfigKind.Any }
+                    } else if (value === 'combo') {
+                      const firstType = userTaskTypes[0]?.id ?? 'focused'
+                      const secondType = userTaskTypes[1]?.id ?? userTaskTypes[0]?.id ?? 'admin'
+                      newTypeConfig = {
+                        kind: BlockConfigKind.Combo,
+                        allocations: [
+                          { typeId: firstType, ratio: 0.7 },
+                          { typeId: secondType, ratio: 0.3 },
+                        ],
                       }
-                      onChange={(value) => {
-                        let newTypeConfig: BlockTypeConfig
-                        if (value === 'any') {
-                          newTypeConfig = { kind: BlockConfigKind.Any }
-                        } else if (value === 'combo') {
-                          // Combo block - use first two types if available
-                          const firstType = userTaskTypes[0]?.id ?? 'focused'
-                          const secondType = userTaskTypes[1]?.id ?? userTaskTypes[0]?.id ?? 'admin'
-                          newTypeConfig = {
-                            kind: BlockConfigKind.Combo,
-                            allocations: [
-                              { typeId: firstType, ratio: 0.7 },
-                              { typeId: secondType, ratio: 0.3 },
-                            ],
-                          }
-                        } else if (value === 'system') {
-                          newTypeConfig = { kind: BlockConfigKind.System, systemType: WorkBlockType.Blocked }
-                        } else {
-                          // Single type block using the selected user type ID
-                          newTypeConfig = { kind: BlockConfigKind.Single, typeId: value }
-                        }
-                        handleUpdateBlock(block.id, {
-                          typeConfig: newTypeConfig,
-                          capacity: calculateBlockCapacity(newTypeConfig, block.startTime, block.endTime),
-                        })
-                      }}
-                      style={{ width: '100%' }}
-                    >
-                      {/* Render user-defined types as options */}
-                      {userTaskTypes.map(type => (
-                        <Select.Option key={type.id} value={type.id}>
-                          {type.emoji} {type.name}
-                        </Select.Option>
-                      ))}
-                      {/* Special options */}
-                      <Select.Option value="any">📋 Any Task</Select.Option>
-                      {userTaskTypes.length >= 2 && (
-                        <Select.Option value="combo">🔀 Combo</Select.Option>
-                      )}
-                      <Select.Option value="system">🚫 Blocked</Select.Option>
-                    </Select>
-                  </Col>
-                  <Col span={6}>
-                    {isComboBlock(block.typeConfig) ? (
-                      <Space direction="vertical" size="small" style={{ width: '100%' }}>
-                        <Text type="secondary" style={{ fontSize: 11 }}>
-                          Total: {block.capacity?.totalMinutes || 0} mins
-                        </Text>
-                        <Text type="secondary" style={{ fontSize: 11 }}>
-                          {block.typeConfig.allocations.map(a => {
-                            const userType = userTaskTypes.find(t => t.id === a.typeId)
-                            return `${Math.round(a.ratio * 100)}% ${userType?.name || 'Unknown'}`
-                          }).join(' / ')}
-                        </Text>
-                      </Space>
-                    ) : isAnyBlock(block.typeConfig) ? (
-                      <Text type="secondary" style={{ fontSize: 11 }}>
-                        {block.capacity?.totalMinutes || 0} mins — any task type
-                      </Text>
-                    ) : isSystemBlock(block.typeConfig) ? (
-                      <Text type="secondary">
-                        Blocked time
-                      </Text>
-                    ) : isSingleTypeBlock(block.typeConfig) ? (() => {
-                      const typeId = block.typeConfig.typeId
-                      const userType = userTaskTypes.find(t => t.id === typeId)
-                      return (
-                        <Text type="secondary">
-                          All {userType?.emoji} {userType?.name || 'Unknown'} time ({block.capacity?.totalMinutes || 0}min)
-                        </Text>
-                      )
-                    })() : (
-                      <Space>
-                        <Text type="error">
-                          ⚠️ Invalid block type: {JSON.stringify(block.typeConfig)}
-                        </Text>
-                      </Space>
-                    )}
-                  </Col>
-                  <Col span={2}>
-                    <Popconfirm
-                      title="Delete this block?"
-                      onOk={() => handleDeleteBlock(block.id)}
-                    >
-                      <Button
-                        type="text"
-                        status="danger"
-                        icon={<IconDelete />}
-                      />
-                    </Popconfirm>
-                  </Col>
-                </Row>
-              </Card>
+                    } else if (value === 'system') {
+                      newTypeConfig = { kind: BlockConfigKind.System, systemType: WorkBlockType.Blocked }
+                    } else {
+                      newTypeConfig = { kind: BlockConfigKind.Single, typeId: value }
+                    }
+                    handleUpdateBlock(block.id, {
+                      typeConfig: newTypeConfig,
+                      capacity: calculateBlockCapacity(newTypeConfig, block.startTime, block.endTime),
+                    })
+                  }}
+                  style={{ flex: 1, minWidth: 100 }}
+                >
+                  {userTaskTypes.map(type => (
+                    <Select.Option key={type.id} value={type.id}>
+                      {type.emoji} {type.name}
+                    </Select.Option>
+                  ))}
+                  <Select.Option value="any">📋 Any Task</Select.Option>
+                  {userTaskTypes.length >= 2 && (
+                    <Select.Option value="combo">🔀 Combo</Select.Option>
+                  )}
+                  <Select.Option value="system">🚫 Blocked</Select.Option>
+                </Select>
+
+                {/* Capacity badge */}
+                <Text type="secondary" style={{ fontSize: 11, flexShrink: 0, whiteSpace: 'nowrap' }}>
+                  {block.capacity?.totalMinutes || 0}m
+                </Text>
+
+                {/* Delete */}
+                <Popconfirm
+                  title="Delete this block?"
+                  onOk={() => handleDeleteBlock(block.id)}
+                >
+                  <Button
+                    type="text"
+                    status="danger"
+                    size="mini"
+                    icon={<IconDelete />}
+                    style={{ flexShrink: 0 }}
+                  />
+                </Popconfirm>
+              </div>
             ))}
           </Space>
         )}
@@ -728,30 +628,6 @@ export function WorkBlocksEditor({
         </Form>
       </Modal>
 
-      {/* Save as Template Modal */}
-      <Modal
-        title="Save Schedule as Template"
-        visible={showSaveAsTemplate}
-        onOk={handleSaveAsTemplate}
-        onCancel={() => {
-          setShowSaveAsTemplate(false)
-          setTemplateName('')
-        }}
-      >
-        <Form layout="vertical">
-          <Form.Item label="Template Name">
-            <Input
-              placeholder="e.g., My Productive Day, Meeting Heavy Tuesday"
-              value={templateName}
-              onChange={setTemplateName}
-              onPressEnter={handleSaveAsTemplate}
-            />
-          </Form.Item>
-          <Text type="secondary">
-            This will save your current schedule configuration as a reusable template
-          </Text>
-        </Form>
-      </Modal>
           </Space>
         </Col>
         <Col xs={24} sm={24} md={12} lg={12}>
@@ -766,8 +642,8 @@ export function WorkBlocksEditor({
               meetings={meetings}
               onBlockUpdate={(id, updates) => handleUpdateBlock(id, updates)}
               onMeetingUpdate={(id, updates) => handleUpdateMeeting(id, updates)}
-              startHour={6}
-              endHour={22}
+              startHour={0}
+              endHour={24}
               height={isMobile ? 400 : Math.max(600, window.innerHeight - 250)}
             />
           </div>
