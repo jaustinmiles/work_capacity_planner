@@ -1,36 +1,34 @@
 /**
- * RankingView — Full-page ranking flow.
+ * RankingView — Full-page ranking flow built around a custom tournament.
  *
- * Single integrated UI (no popups):
- *   - Top toolbar (dimension switcher, progress, sprint scope).
- *   - Matchup card with the two contenders, inline (no modal).
- *   - Forward/Back arrows to navigate the matchup history.
- *   - Tournament bracket below, visible at all times, with the current
- *     matchup highlighted in orange.
- *   - Bottom toolbar (Start Over, Apply Rankings).
+ *   1. Start screen: pick Importance or Urgency.
+ *   2. Setup screen: pick sample size (4/8/16/32), click "Run Tournament".
+ *      The algorithm picks the N items with the most unknown relationships,
+ *      seeds the first-round pairs by adjacent score, and renders a
+ *      traditional bracket.
+ *   3. Bracket view: click an item in the active match to advance. The bracket
+ *      auto-progresses through rounds. After the final, the user can run
+ *      another tournament or apply rankings.
+ *   4. Apply Rankings: uses depth-based leveling so partial graphs work —
+ *      same depth across disjoint subgraphs = same score. Guarded so the user
+ *      can't generate scores with items that have never been in a tournament.
  *
- * Flow:
- *   1. Start screen: explicit "Rank by Importance" vs "Rank by Urgency".
- *      Optional "seed from current scores" produces ~n/2 first-round pairs.
- *   2. First matchup auto-appears. User picks 1 / 2 / = → auto-advance.
- *   3. Back/Forward navigate the history; Forward at the end fetches a
- *      new pair (from the seed queue, then from selectNextPair).
- *   4. Apply Rankings derives 1–10 scores and writes back to tasks.
+ * The DAG "full graph" view is still available below the bracket as a
+ * collapsible technical reference.
  */
 
 import { useState, useEffect, useMemo } from 'react'
-import { Button, Space, Typography, Tag, Card, Switch } from '@arco-design/web-react'
+import { Button, Space, Typography, Tag, Card, Switch, Radio } from '@arco-design/web-react'
 import {
   IconCheck,
   IconLeft,
-  IconRight,
   IconRefresh,
-  IconClockCircle,
+  IconUp,
+  IconDown,
+  IconPlayArrow,
 } from '@arco-design/web-react/icon'
 import { useResponsive } from '../../providers/ResponsiveProvider'
 import { useTaskStore } from '../../store/useTaskStore'
-import { Task } from '@shared/types'
-import { SequencedTask } from '@shared/sequencing-types'
 import { EntityType } from '@shared/enums'
 import { ComparisonType } from '@/shared/constants'
 import { getDatabase } from '../../services/database'
@@ -39,29 +37,27 @@ import { Message } from '../common/Message'
 import { logger } from '@/logger'
 import {
   buildComparisonGraph,
-  selectNextPair,
-  topologicalSort,
-  mapToRankings,
-  getTournamentState,
-  hasTransitiveRelationship,
   type ComparisonResult,
-  type ComparisonGraph,
   type ItemId,
 } from '../../utils/comparison-graph'
 import { TournamentBracket } from '../slideshow/TournamentBracket'
+import { BracketTournament } from './BracketTournament'
+import {
+  selectTournamentItems,
+  seedRound1Pairs,
+  computeRankingScores,
+  UnrankedItemsError,
+  type TournamentItem,
+} from './tournament-utils'
 
 const { Title, Text, Paragraph } = Typography
 
-const RECENT_ITEMS_WINDOW = 6
+type SampleSize = 4 | 8 | 16 | 32
+const SAMPLE_SIZES: readonly SampleSize[] = [4, 8, 16, 32] as const
 
-type RankingItem = {
-  id: ItemId
-  type: EntityType.Task | EntityType.Workflow
-  data: Task | SequencedTask
-}
-
-function itemTitle(item: RankingItem): string {
-  return item.data.name
+interface TournamentSession {
+  items: TournamentItem[]
+  initialPairs: Array<[ItemId, ItemId]>
 }
 
 function hydrateComparisons(rows: PersistedComparison[]): ComparisonResult[] {
@@ -93,40 +89,26 @@ export function RankingView({ onClose }: RankingViewProps) {
   const { tasks, sequencedTasks } = useTaskStore()
   const { isCompact } = useResponsive()
 
-  // null = start screen
   const [activeDimension, setActiveDimension] = useState<ComparisonType | null>(null)
   const [comparisons, setComparisons] = useState<ComparisonResult[]>([])
   const [isHydrated, setIsHydrated] = useState(false)
   const [sprintOnly, setSprintOnly] = useState(false)
-  const [seedFromScores, setSeedFromScores] = useState(true)
-  // Pending matchups queued up by seeding. Consumed by handleNext.
-  const [seedQueue, setSeedQueue] = useState<Array<[ItemId, ItemId]>>([])
-  // Chronological list of matchups the user has seen, plus the current
-  // pointer. Back/Forward navigate this list. Picking an answer at the end
-  // of history appends the next matchup; in the middle it just advances.
-  const [history, setHistory] = useState<Array<[ItemId, ItemId]>>([])
-  const [historyIndex, setHistoryIndex] = useState(0)
-  const [recentItems, setRecentItems] = useState<ItemId[]>([])
-  const [seedNotice, setSeedNotice] = useState<string | null>(null)
+  const [sampleSize, setSampleSize] = useState<SampleSize>(8)
+  const [tournament, setTournament] = useState<TournamentSession | null>(null)
+  const [showFullGraph, setShowFullGraph] = useState(false)
 
-  // Filtered items (exclude completed/archived; optionally restrict to sprint).
-  const items = useMemo<RankingItem[]>(() => {
+  const items = useMemo<TournamentItem[]>(() => {
     const workflowIds = new Set(sequencedTasks.map(w => w.id))
-    const taskItems: RankingItem[] = tasks
+    const taskItems: TournamentItem[] = tasks
       .filter(t => !t.archived && !t.completed && !workflowIds.has(t.id))
       .filter(t => !sprintOnly || t.inActiveSprint)
       .map(task => ({ id: task.id, type: EntityType.Task, data: task }))
-    const workflowItems: RankingItem[] = sequencedTasks
+    const workflowItems: TournamentItem[] = sequencedTasks
       .filter(w => !w.archived && !w.completed)
       .filter(w => !sprintOnly || w.inActiveSprint)
       .map(workflow => ({ id: workflow.id, type: EntityType.Workflow, data: workflow }))
     return [...taskItems, ...workflowItems]
   }, [tasks, sequencedTasks, sprintOnly])
-
-  const itemById = useMemo<Map<ItemId, RankingItem>>(
-    () => new Map(items.map(i => [i.id, i])),
-    [items],
-  )
 
   // Hydrate persisted comparisons on mount + scope change.
   useEffect(() => {
@@ -157,103 +139,25 @@ export function RankingView({ onClose }: RankingViewProps) {
     return { winsGraph: graph.priorityWins, equalsGraph: graph.priorityEquals }
   }, [graph, activeDimension])
 
-  const state = useMemo(() => {
-    if (!activeDimension) return null
-    return getTournamentState(items.map(i => i.id), dimensionGraphs.winsGraph, dimensionGraphs.equalsGraph)
-  }, [activeDimension, items, dimensionGraphs])
-
-  const currentMatchup: [ItemId, ItemId] | null = history[historyIndex] ?? null
-
-  function getScore(item: RankingItem, dim: ComparisonType): number {
-    if (dim === ComparisonType.Priority) return (item.data as Task).importance ?? 5
-    return (item.data as Task).urgency ?? 5
-  }
-
-  // Resolve a pair of IDs to full RankingItems, validating both still exist.
-  const resolvedPair = useMemo<[RankingItem, RankingItem] | null>(() => {
-    if (!currentMatchup) return null
-    const a = itemById.get(currentMatchup[0])
-    const b = itemById.get(currentMatchup[1])
-    if (!a || !b) return null
-    return [a, b]
-  }, [currentMatchup, itemById])
-
-  // Read the current answer (if any) for the active dimension.
-  const currentAnswer: ItemId | 'equal' | null = useMemo(() => {
-    if (!currentMatchup || !activeDimension) return null
-    const [aId, bId] = currentMatchup
-    const existing = comparisons.find(c =>
-      (c.itemA === aId && c.itemB === bId) || (c.itemA === bId && c.itemB === aId),
-    )
-    if (!existing) return null
-    return activeDimension === ComparisonType.Priority ? existing.higherPriority : existing.higherUrgency
-  }, [currentMatchup, activeDimension, comparisons])
-
-  // Seed queue generation: sort by current score in the dimension, pair
-  // adjacent, skip pairs already known transitively. ~n/2 matchups.
-  function generateSeedQueue(dim: ComparisonType, currentGraph: ComparisonGraph): Array<[ItemId, ItemId]> {
-    if (items.length < 2) return []
-    const sorted = [...items].sort((a, b) => getScore(b, dim) - getScore(a, dim))
-    const winsGraph = dim === ComparisonType.Priority ? currentGraph.priorityWins : currentGraph.urgencyWins
-    const equalsGraph = dim === ComparisonType.Priority ? currentGraph.priorityEquals : currentGraph.urgencyEquals
-    const queue: Array<[ItemId, ItemId]> = []
-    for (let i = 0; i + 1 < sorted.length; i += 2) {
-      const a = sorted[i]!.id
-      const b = sorted[i + 1]!.id
-      if (hasTransitiveRelationship(winsGraph, equalsGraph, a, b) === 'unknown') {
-        queue.push([a, b])
+  // Items that have at least one comparison in the active dimension —
+  // used by the Apply guard.
+  const rankedCount = useMemo(() => {
+    if (!activeDimension) return 0
+    const seen = new Set<ItemId>()
+    for (const c of comparisons) {
+      const v = activeDimension === ComparisonType.Priority ? c.higherPriority : c.higherUrgency
+      if (v !== null) {
+        seen.add(c.itemA)
+        seen.add(c.itemB)
       }
     }
-    return queue
-  }
+    let n = 0
+    for (const item of items) if (seen.has(item.id)) n += 1
+    return n
+  }, [activeDimension, comparisons, items])
 
-  // Pick the next pair to show: dequeue from seedQueue, dropping entries that
-  // became known transitively; if queue exhausted, fall back to selectNextPair.
-  function nextPairAfter(
-    queue: Array<[ItemId, ItemId]>,
-    nextComparisons: ComparisonResult[],
-    dim: ComparisonType,
-    recent: ItemId[],
-  ): { next: [ItemId, ItemId] | null; remainingQueue: Array<[ItemId, ItemId]> } {
-    const newGraph = buildComparisonGraph(nextComparisons)
-    const winsGraph = dim === ComparisonType.Priority ? newGraph.priorityWins : newGraph.urgencyWins
-    const equalsGraph = dim === ComparisonType.Priority ? newGraph.priorityEquals : newGraph.urgencyEquals
-    // Filter the queue down to still-unknown pairs.
-    const filtered = queue.filter(([a, b]) => hasTransitiveRelationship(winsGraph, equalsGraph, a, b) === 'unknown')
-    if (filtered.length > 0) {
-      const [head, ...rest] = filtered
-      return { next: head!, remainingQueue: rest }
-    }
-    const algorithmPair = selectNextPair(items.map(i => i.id), winsGraph, equalsGraph, { recentItems: recent })
-    return { next: algorithmPair, remainingQueue: [] }
-  }
-
-  const handleStartDimension = (dim: ComparisonType) => {
-    setActiveDimension(dim)
-    setSeedNotice(null)
-    setRecentItems([])
-    setHistoryIndex(0)
-
-    const currentGraph = buildComparisonGraph(comparisons)
-    let queue: Array<[ItemId, ItemId]> = []
-    if (seedFromScores) {
-      queue = generateSeedQueue(dim, currentGraph)
-      if (queue.length > 0) {
-        setSeedNotice(`Round 1: ${queue.length} matchup${queue.length === 1 ? '' : 's'} from current scores. Use the arrows to navigate, or click an item to answer.`)
-      }
-    }
-
-    const { next, remainingQueue } = nextPairAfter(queue, comparisons, dim, [])
-    setSeedQueue(remainingQueue)
-    setHistory(next ? [next] : [])
-  }
-
-  // Record an answer and (if at end of history) advance to a new matchup.
-  // If the user is in the middle of history (reviewing), just advance the
-  // index — they're moving forward through their already-asked questions.
-  const handlePick = (winner: ItemId | 'equal') => {
-    if (!currentMatchup || !activeDimension) return
-    const [aId, bId] = currentMatchup
+  const handlePersistAnswer = (winner: ItemId | 'equal', aId: ItemId, bId: ItemId) => {
+    if (!activeDimension) return
     const isEqual = winner === 'equal'
 
     void getDatabase()
@@ -266,12 +170,11 @@ export function RankingView({ onClose }: RankingViewProps) {
       })
       .catch(err => logger.ui.error('Failed to persist comparison', { error: String(err) }, 'ranking-record'))
 
-    // Update local comparisons.
     const existing = comparisons.find(c =>
       (c.itemA === aId && c.itemB === bId) || (c.itemA === bId && c.itemB === aId),
     )
     const fieldKey = activeDimension === ComparisonType.Priority ? 'higherPriority' : 'higherUrgency'
-    const nextComparisons: ComparisonResult[] = existing
+    const next: ComparisonResult[] = existing
       ? comparisons.map(c => c === existing ? { ...c, [fieldKey]: winner } : c)
       : [...comparisons, {
           itemA: aId,
@@ -280,75 +183,45 @@ export function RankingView({ onClose }: RankingViewProps) {
           higherUrgency: activeDimension === ComparisonType.Urgency ? winner : null,
           timestamp: Date.now(),
         }]
-    setComparisons(nextComparisons)
-    const newRecent = [...recentItems, aId, bId].slice(-RECENT_ITEMS_WINDOW)
-    setRecentItems(newRecent)
-
-    // If at the end of history, fetch the next matchup. Otherwise just step.
-    if (historyIndex < history.length - 1) {
-      setHistoryIndex(historyIndex + 1)
-      return
-    }
-    const { next, remainingQueue } = nextPairAfter(seedQueue, nextComparisons, activeDimension, newRecent)
-    setSeedQueue(remainingQueue)
-    if (next === null) {
-      Message.success(`${activeDimension === ComparisonType.Priority ? 'Importance' : 'Urgency'} ranking complete!`)
-      return
-    }
-    // Avoid duplicate consecutive entries.
-    setHistory(prev => {
-      const last = prev[prev.length - 1]
-      if (last && last[0] === next[0] && last[1] === next[1]) return prev
-      return [...prev, next]
-    })
-    setHistoryIndex(idx => idx + 1)
+    setComparisons(next)
   }
 
-  const canGoBack = historyIndex > 0
-  const handleBack = () => { if (canGoBack) setHistoryIndex(historyIndex - 1) }
-
-  // Forward: step within history, or fetch a fresh pair if we're at the end.
-  const handleForward = () => {
-    if (historyIndex < history.length - 1) {
-      setHistoryIndex(historyIndex + 1)
-      return
-    }
+  const handleStartTournament = () => {
     if (!activeDimension) return
-    const { next, remainingQueue } = nextPairAfter(seedQueue, comparisons, activeDimension, recentItems)
-    setSeedQueue(remainingQueue)
-    if (next === null) {
-      Message.info('No more matchups need answering. Apply rankings or change dimension.')
+    const size = Math.min(sampleSize, items.length)
+    if (size < 2) {
+      Message.warning('Need at least 2 items to start a tournament.')
       return
     }
-    setHistory(prev => {
-      const last = prev[prev.length - 1]
-      if (last && last[0] === next[0] && last[1] === next[1]) return prev
-      return [...prev, next]
-    })
-    setHistoryIndex(history.length) // points to the just-appended entry
+    // Round to nearest lower power of 2 if size < sampleSize (e.g., 6 items → 4)
+    const pow2 = 2 ** Math.floor(Math.log2(size))
+    const chosen = selectTournamentItems(items, comparisons, activeDimension, pow2)
+    const pairs = seedRound1Pairs(chosen, activeDimension)
+    setTournament({ items: chosen, initialPairs: pairs })
   }
 
-  const handleReset = () => {
-    setComparisons([])
-    setHistory([])
-    setHistoryIndex(0)
-    setSeedQueue([])
-    setRecentItems([])
-    const db = getDatabase()
-    void Promise.all([
-      db.clearComparisonDimension(ComparisonType.Priority),
-      db.clearComparisonDimension(ComparisonType.Urgency),
-    ]).catch(err => logger.ui.error('Failed to clear persisted comparisons', { error: String(err) }, 'ranking-clear'))
-    setActiveDimension(null)
-    Message.info('All comparisons cleared. Pick a dimension to start fresh.')
-  }
-
-  const applyRankings = async () => {
+  const handleApplyRankings = async () => {
     const itemIds = items.map(i => i.id)
-    const prioritySorted = topologicalSort(itemIds, graph.priorityWins) || itemIds
-    const urgencySorted = topologicalSort(itemIds, graph.urgencyWins) || itemIds
-    const priorityScores = new Map(mapToRankings(prioritySorted).map(r => [r.id, r.score]))
-    const urgencyScores = new Map(mapToRankings(urgencySorted).map(r => [r.id, r.score]))
+    let priorityScores: Map<ItemId, number>
+    let urgencyScores: Map<ItemId, number>
+    try {
+      priorityScores = computeRankingScores(itemIds, comparisons, ComparisonType.Priority)
+    } catch (e) {
+      if (e instanceof UnrankedItemsError) {
+        Message.warning(`${e.unrankedIds.length} item(s) have no Importance comparisons yet. Run another tournament that includes them.`)
+        return
+      }
+      throw e
+    }
+    try {
+      urgencyScores = computeRankingScores(itemIds, comparisons, ComparisonType.Urgency)
+    } catch (e) {
+      if (e instanceof UnrankedItemsError) {
+        Message.warning(`${e.unrankedIds.length} item(s) have no Urgency comparisons yet. Run a Urgency tournament that includes them.`)
+        return
+      }
+      throw e
+    }
 
     let updateCount = 0
     const { updateTask, updateSequencedTask } = useTaskStore.getState()
@@ -370,25 +243,20 @@ export function RankingView({ onClose }: RankingViewProps) {
     onClose()
   }
 
-  // Keyboard shortcuts on the main view.
-  useEffect(() => {
-    if (!activeDimension || !resolvedPair) return
-    const handler = (e: KeyboardEvent) => {
-      // Ignore when typing in inputs.
-      const target = e.target as HTMLElement
-      if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable) return
-      if (e.key === '1') handlePick(resolvedPair[0].id)
-      else if (e.key === '2') handlePick(resolvedPair[1].id)
-      else if (e.key === '=') handlePick('equal')
-      else if (e.key === 'ArrowLeft') handleBack()
-      else if (e.key === 'ArrowRight') handleForward()
-    }
-    window.addEventListener('keydown', handler)
-    return () => window.removeEventListener('keydown', handler)
-  }, [activeDimension, resolvedPair, historyIndex, history, seedQueue, comparisons, recentItems])
+  const handleReset = () => {
+    setComparisons([])
+    setTournament(null)
+    const db = getDatabase()
+    void Promise.all([
+      db.clearComparisonDimension(ComparisonType.Priority),
+      db.clearComparisonDimension(ComparisonType.Urgency),
+    ]).catch(err => logger.ui.error('Failed to clear persisted comparisons', { error: String(err) }, 'ranking-clear'))
+    setActiveDimension(null)
+    Message.info('All comparisons cleared. Pick a dimension to start fresh.')
+  }
 
   // ─────────────────────────────────────────────────────────────────
-  // Render: Start screen
+  // Render: Start screen (no dimension picked)
   // ─────────────────────────────────────────────────────────────────
   if (activeDimension === null) {
     return (
@@ -426,38 +294,26 @@ export function RankingView({ onClose }: RankingViewProps) {
               Rank your tasks
             </Title>
             <Paragraph type="secondary" style={{ marginBottom: 0, fontSize: isCompact ? 13 : 14 }}>
-              Compare items pairwise to build a ranking. Pick which dimension to rank below —
-              you can switch later, but only one at a time. Your answers save automatically.
+              Pick a dimension to rank. Tournaments run on a subset of items at a time —
+              run as many as you like; each adds information to the ranking. Apply when
+              you&apos;re ready.
             </Paragraph>
           </div>
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-            <Space size={6}>
-              <Text style={{ fontSize: 13, color: '#86909C' }}>Scope:</Text>
-              <Switch
-                size="small"
-                checked={sprintOnly}
-                onChange={(checked) => {
-                  setSprintOnly(checked)
-                  setIsHydrated(false)
-                  setComparisons([])
-                }}
-              />
-              <Text style={{ fontSize: 13 }}>{sprintOnly ? 'Sprint only' : 'All active items'}</Text>
-              <Tag color="gray" size="small">{items.length} items</Tag>
-            </Space>
-            <Space size={6} align="start">
-              <Switch size="small" checked={seedFromScores} onChange={setSeedFromScores} />
-              <div>
-                <Text style={{ fontSize: 13 }}>Seed first-round matchups from current scores</Text>
-                <div style={{ fontSize: 12, color: '#86909C', lineHeight: 1.4, maxWidth: 540 }}>
-                  Sorts items by their current importance/urgency and pairs adjacent —
-                  about <strong>n/2</strong> matchups for n items. The algorithm picks
-                  follow-up pairs after that.
-                </div>
-              </div>
-            </Space>
-          </div>
+          <Space size={6}>
+            <Text style={{ fontSize: 13, color: '#86909C' }}>Scope:</Text>
+            <Switch
+              size="small"
+              checked={sprintOnly}
+              onChange={(checked) => {
+                setSprintOnly(checked)
+                setIsHydrated(false)
+                setComparisons([])
+              }}
+            />
+            <Text style={{ fontSize: 13 }}>{sprintOnly ? 'Sprint only' : 'All active items'}</Text>
+            <Tag color="gray" size="small">{items.length} items</Tag>
+          </Space>
 
           {items.length < 2 ? (
             <Card style={{ textAlign: 'center', padding: 24 }}>
@@ -481,7 +337,7 @@ export function RankingView({ onClose }: RankingViewProps) {
                 icon="⭐"
                 iconBg="#E8F3FF"
                 hoverColor="#3491FA"
-                onClick={() => handleStartDimension(ComparisonType.Priority)}
+                onClick={() => setActiveDimension(ComparisonType.Priority)}
               />
               <DimensionCard
                 title="Rank by Urgency"
@@ -489,7 +345,7 @@ export function RankingView({ onClose }: RankingViewProps) {
                 icon="⏰"
                 iconBg="#FFF1E8"
                 hoverColor="#F77234"
-                onClick={() => handleStartDimension(ComparisonType.Urgency)}
+                onClick={() => setActiveDimension(ComparisonType.Urgency)}
               />
             </div>
           )}
@@ -515,7 +371,7 @@ export function RankingView({ onClose }: RankingViewProps) {
                 </div>
               </div>
               <Space>
-                <Button type="primary" icon={<IconCheck />} onClick={applyRankings}>
+                <Button type="primary" icon={<IconCheck />} onClick={handleApplyRankings}>
                   Apply Rankings
                 </Button>
                 <Button icon={<IconRefresh />} onClick={handleReset}>
@@ -530,10 +386,10 @@ export function RankingView({ onClose }: RankingViewProps) {
   }
 
   // ─────────────────────────────────────────────────────────────────
-  // Render: Main matchup + bracket view
+  // Render: Tournament / setup view
   // ─────────────────────────────────────────────────────────────────
   const dimensionLabel = activeDimension === ComparisonType.Priority ? 'Importance' : 'Urgency'
-  const progressPct = state && state.totalPairs > 0 ? Math.round(100 * state.knownPairs / state.totalPairs) : 0
+  const coveragePct = items.length === 0 ? 0 : Math.round(100 * rankedCount / items.length)
 
   return (
     <div
@@ -563,7 +419,10 @@ export function RankingView({ onClose }: RankingViewProps) {
           <Button
             size={isCompact ? 'mini' : 'small'}
             icon={<IconLeft />}
-            onClick={() => setActiveDimension(null)}
+            onClick={() => {
+              setActiveDimension(null)
+              setTournament(null)
+            }}
             type="text"
           >
             {isCompact ? '' : 'Change dimension'}
@@ -572,14 +431,8 @@ export function RankingView({ onClose }: RankingViewProps) {
             Ranking by {dimensionLabel}
           </Title>
           <Tag color="blue" size={isCompact ? 'small' : 'default'}>
-            {state ? `${state.knownPairs}/${state.totalPairs}` : '—'}
-            {state && state.totalPairs > 0 && ` · ${progressPct}%`}
+            {rankedCount}/{items.length} ranked · {coveragePct}%
           </Tag>
-          {state?.placed && state.placed.size > 0 && (
-            <Tag color="green" size={isCompact ? 'small' : 'default'}>
-              {state.placed.size} placed
-            </Tag>
-          )}
         </Space>
         <Space size={6} wrap>
           <Text style={{ fontSize: 12, color: '#86909C' }}>Sprint only</Text>
@@ -590,80 +443,109 @@ export function RankingView({ onClose }: RankingViewProps) {
               setSprintOnly(checked)
               setIsHydrated(false)
               setComparisons([])
-              setHistory([])
-              setHistoryIndex(0)
-              setSeedQueue([])
+              setTournament(null)
             }}
           />
           <Tag size={isCompact ? 'small' : 'default'} color="gray">{items.length} items</Tag>
         </Space>
       </div>
 
-      {seedNotice && (
-        <div
-          style={{
-            flexShrink: 0,
-            padding: '6px 20px',
-            background: '#FFFBE6',
-            borderBottom: '1px solid #FFE58F',
-            color: '#7C5400',
-            fontSize: 12,
-            lineHeight: 1.4,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-          }}
-        >
-          <span>{seedNotice}</span>
-          <Button size="mini" type="text" onClick={() => setSeedNotice(null)}>Dismiss</Button>
-        </div>
-      )}
-
-      {/* Matchup panel (inline, no popup) */}
-      <div
-        style={{
-          flexShrink: 0,
-          padding: isCompact ? '12px' : '16px 20px',
-          background: '#FFFFFF',
-          borderBottom: '1px solid #E5E6EB',
-        }}
-      >
-        {resolvedPair ? (
-          <MatchupPanel
-            pair={resolvedPair}
-            currentAnswer={currentAnswer}
-            dimension={activeDimension}
-            historyIndex={historyIndex}
-            historyLength={history.length}
-            canGoBack={canGoBack}
-            onPick={handlePick}
-            onBack={handleBack}
-            onForward={handleForward}
+      {/* Tournament setup OR active bracket */}
+      <div style={{ flexShrink: 0, background: '#FFFFFF', borderBottom: '1px solid #E5E6EB' }}>
+        {tournament ? (
+          <ActiveBracketHeader
+            tournamentSize={tournament.items.length}
+            onAbort={() => setTournament(null)}
             isCompact={isCompact}
           />
         ) : (
-          <div style={{ textAlign: 'center', padding: 16 }}>
-            <Text type="secondary">
-              {state?.isComplete
-                ? `${dimensionLabel} ranking is complete. Apply rankings or change dimension.`
-                : 'No matchups available. Try toggling sprint scope or starting over.'}
-            </Text>
+          <TournamentSetup
+            sampleSize={sampleSize}
+            onSampleSizeChange={setSampleSize}
+            availableCount={items.length}
+            onStart={handleStartTournament}
+            isCompact={isCompact}
+          />
+        )}
+      </div>
+
+      {/* Main canvas: bracket OR placeholder */}
+      <div style={{ flex: 1, position: 'relative', overflow: 'hidden', background: '#FAFBFC' }}>
+        {tournament ? (
+          <div style={{ position: 'absolute', inset: 0, overflow: 'auto' }}>
+            <BracketTournament
+              items={tournament.items}
+              initialPairs={tournament.initialPairs}
+              dimension={activeDimension}
+              comparisons={comparisons}
+              onPick={handlePersistAnswer}
+              onComplete={() => {
+                Message.success('Tournament complete! Run another or apply rankings.')
+              }}
+              isCompact={isCompact}
+            />
+          </div>
+        ) : (
+          <div
+            style={{
+              position: 'absolute',
+              inset: 0,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              padding: 24,
+              textAlign: 'center',
+              color: '#86909C',
+            }}
+          >
+            <div>
+              <Title heading={6} style={{ color: '#86909C', marginBottom: 4 }}>
+                Pick a sample size and run a tournament
+              </Title>
+              <Text type="secondary" style={{ fontSize: 13 }}>
+                Each tournament pairs items that need refinement. Run multiple
+                tournaments to cover more ground.
+              </Text>
+            </div>
           </div>
         )}
       </div>
 
-      {/* Bracket fills the rest */}
-      <div style={{ flex: 1, position: 'relative', overflow: 'hidden', background: '#FAFBFC' }}>
-        <div style={{ position: 'absolute', inset: 0 }}>
-          <TournamentBracket
-            items={items.map(i => ({ id: i.id, title: itemTitle(i) }))}
-            winsGraph={dimensionGraphs.winsGraph}
-            equalsGraph={dimensionGraphs.equalsGraph}
-            currentPair={currentMatchup}
-            width="100%"
-            height="100%"
-          />
-        </div>
+      {/* Collapsible full-graph view */}
+      <div style={{ flexShrink: 0, background: '#FFFFFF', borderTop: '1px solid #E5E6EB' }}>
+        <button
+          type="button"
+          onClick={() => setShowFullGraph(v => !v)}
+          style={{
+            width: '100%',
+            padding: '8px 20px',
+            background: 'transparent',
+            border: 'none',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            cursor: 'pointer',
+            font: 'inherit',
+          }}
+        >
+          <Text style={{ fontSize: 13, color: '#4E5969' }}>
+            Full graph view <Text type="secondary" style={{ fontSize: 12 }}>(technical reference — all comparisons)</Text>
+          </Text>
+          {showFullGraph ? <IconDown /> : <IconUp />}
+        </button>
+        {showFullGraph && (
+          <div style={{ height: 280, position: 'relative', borderTop: '1px solid #F2F3F5' }}>
+            <div style={{ position: 'absolute', inset: 0 }}>
+              <TournamentBracket
+                items={items.map(i => ({ id: i.id, title: i.data.name }))}
+                winsGraph={dimensionGraphs.winsGraph}
+                equalsGraph={dimensionGraphs.equalsGraph}
+                width="100%"
+                height="100%"
+              />
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Bottom action bar */}
@@ -687,7 +569,7 @@ export function RankingView({ onClose }: RankingViewProps) {
           size={isCompact ? 'small' : 'default'}
           type="primary"
           icon={<IconCheck />}
-          onClick={applyRankings}
+          onClick={handleApplyRankings}
           disabled={comparisons.length === 0}
         >
           Apply Rankings
@@ -759,169 +641,88 @@ function DimensionCard({ title, description, icon, iconBg, hoverColor, onClick }
   )
 }
 
-interface MatchupPanelProps {
-  pair: [RankingItem, RankingItem]
-  currentAnswer: ItemId | 'equal' | null
-  dimension: ComparisonType
-  historyIndex: number
-  historyLength: number
-  canGoBack: boolean
-  onPick: (winner: ItemId | 'equal') => void
-  onBack: () => void
-  onForward: () => void
+interface TournamentSetupProps {
+  sampleSize: SampleSize
+  onSampleSizeChange: (n: SampleSize) => void
+  availableCount: number
+  onStart: () => void
   isCompact: boolean
 }
-function MatchupPanel({
-  pair, currentAnswer, dimension, historyIndex, historyLength,
-  canGoBack, onPick, onBack, onForward, isCompact,
-}: MatchupPanelProps) {
-  const [itemA, itemB] = pair
-  const isPriority = dimension === ComparisonType.Priority
-  const dimLabel = isPriority ? 'IMPORTANCE' : 'URGENCY'
-
+function TournamentSetup({ sampleSize, onSampleSizeChange, availableCount, onStart, isCompact }: TournamentSetupProps) {
   return (
-    <div>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
-        <div>
-          <Title heading={isCompact ? 6 : 5} style={{ margin: 0 }}>
-            Which has higher {dimLabel}?
-          </Title>
-          <Text type="secondary" style={{ fontSize: 12 }}>
-            {isPriority
-              ? 'Intrinsic value, impact, or significance.'
-              : 'How time-sensitive is this item?'}
-          </Text>
-        </div>
-        <Tag color={currentAnswer !== null ? 'green' : 'gray'} size="small">
-          Matchup {historyIndex + 1} of {historyLength}
-          {currentAnswer !== null && ' · answered'}
-        </Tag>
-      </div>
-
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: isCompact ? '1fr' : '1fr auto 1fr',
-          gap: 12,
-          alignItems: 'stretch',
-        }}
+    <div
+      style={{
+        padding: isCompact ? '12px' : '14px 20px',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        gap: 12,
+        flexWrap: 'wrap',
+      }}
+    >
+      <Space size={8} wrap>
+        <Text style={{ fontSize: 13, color: '#4E5969', fontWeight: 600 }}>Tournament size:</Text>
+        <Radio.Group
+          type="button"
+          size="small"
+          value={sampleSize}
+          onChange={(v) => onSampleSizeChange(v as SampleSize)}
+        >
+          {SAMPLE_SIZES.map(n => (
+            <Radio
+              key={n}
+              value={n}
+              disabled={n > availableCount}
+            >
+              {n}
+            </Radio>
+          ))}
+        </Radio.Group>
+        <Text type="secondary" style={{ fontSize: 12 }}>
+          {sampleSize > availableCount ? `(only ${availableCount} available)` : `~${sampleSize - 1} matches`}
+        </Text>
+      </Space>
+      <Button
+        size={isCompact ? 'small' : 'default'}
+        type="primary"
+        icon={<IconPlayArrow />}
+        onClick={onStart}
+        disabled={availableCount < 2}
       >
-        <ItemCard
-          item={itemA}
-          hotkey="1"
-          isWinner={currentAnswer === itemA.id}
-          onClick={() => onPick(itemA.id)}
-        />
-        {!isCompact && (
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 8px' }}>
-            <Text style={{ fontSize: 12, color: '#86909C', fontWeight: 600 }}>vs</Text>
-          </div>
-        )}
-        <ItemCard
-          item={itemB}
-          hotkey="2"
-          isWinner={currentAnswer === itemB.id}
-          onClick={() => onPick(itemB.id)}
-        />
-      </div>
-
-      <div
-        style={{
-          marginTop: 12,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          gap: 8,
-          flexWrap: 'wrap',
-        }}
-      >
-        <Button
-          size={isCompact ? 'small' : 'default'}
-          icon={<IconLeft />}
-          onClick={onBack}
-          disabled={!canGoBack}
-        >
-          Back
-        </Button>
-        <Button
-          size={isCompact ? 'small' : 'default'}
-          type={currentAnswer === 'equal' ? 'primary' : 'default'}
-          onClick={() => onPick('equal')}
-        >
-          = Equal
-        </Button>
-        <Button
-          size={isCompact ? 'small' : 'default'}
-          onClick={onForward}
-        >
-          {historyIndex < historyLength - 1 ? 'Forward' : 'Skip'}
-          <IconRight style={{ marginLeft: 4 }} />
-        </Button>
-      </div>
+        Run Tournament
+      </Button>
     </div>
   )
 }
 
-interface ItemCardProps {
-  item: RankingItem
-  hotkey: string
-  isWinner: boolean
-  onClick: () => void
+interface ActiveBracketHeaderProps {
+  tournamentSize: number
+  onAbort: () => void
+  isCompact: boolean
 }
-function ItemCard({ item, hotkey, isWinner, onClick }: ItemCardProps) {
-  const isTask = item.type === EntityType.Task
-  const duration = item.data.duration || 0
+function ActiveBracketHeader({ tournamentSize, onAbort, isCompact }: ActiveBracketHeaderProps) {
   return (
-    <button
-      type="button"
-      onClick={onClick}
+    <div
       style={{
-        textAlign: 'left',
-        padding: '12px 14px',
-        background: isWinner ? '#E8F3FF' : '#FFFFFF',
-        border: `2px solid ${isWinner ? '#3491FA' : '#E5E6EB'}`,
-        borderRadius: 8,
-        cursor: 'pointer',
-        transition: 'all 0.15s ease',
-        font: 'inherit',
-        color: 'inherit',
+        padding: isCompact ? '8px 12px' : '10px 20px',
         display: 'flex',
-        flexDirection: 'column',
-        gap: 6,
-      }}
-      onMouseEnter={(e) => {
-        if (!isWinner) e.currentTarget.style.borderColor = '#94BFFF'
-      }}
-      onMouseLeave={(e) => {
-        if (!isWinner) e.currentTarget.style.borderColor = '#E5E6EB'
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        gap: 8,
       }}
     >
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
-        <Text style={{ fontWeight: 600, fontSize: 14, lineHeight: 1.3 }}>
-          {item.data.name}
+      <Space size={6}>
+        <Tag color="orange" size={isCompact ? 'small' : 'default'}>Tournament in progress</Tag>
+        <Text type="secondary" style={{ fontSize: 12 }}>
+          {tournamentSize}-item bracket · click a card to pick the winner
         </Text>
-        <Tag size="small" color={isTask ? 'arcoblue' : 'purple'}>
-          {isTask ? 'Task' : 'Workflow'}
-        </Tag>
-      </div>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12, fontSize: 12, color: '#86909C' }}>
-        <Space size={4}>
-          <IconClockCircle style={{ fontSize: 12 }} />
-          <span>{duration} min</span>
-        </Space>
-        <span>·</span>
-        <span>Importance {(item.data as Task).importance ?? '—'}/10</span>
-        <span>·</span>
-        <span>Urgency {(item.data as Task).urgency ?? '—'}/10</span>
-      </div>
-      {item.data.notes && (
-        <div style={{ fontSize: 12, color: '#4E5969', lineHeight: 1.4 }}>
-          {item.data.notes.substring(0, 120)}{item.data.notes.length > 120 && '…'}
-        </div>
-      )}
-      <div style={{ marginTop: 4, fontSize: 11, color: isWinner ? '#1D4FAA' : '#86909C' }}>
-        {isWinner ? '✓ Selected' : `Press "${hotkey}" or click`}
-      </div>
-    </button>
+      </Space>
+      <Button
+        size={isCompact ? 'mini' : 'small'}
+        onClick={onAbort}
+      >
+        End Tournament
+      </Button>
+    </div>
   )
 }
