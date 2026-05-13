@@ -97,6 +97,12 @@ export function RankingView({ onClose }: RankingViewProps) {
   const [activeMatchup, setActiveMatchup] = useState<[ItemId, ItemId] | null>(null)
   // Anti-anchor window for selectNextPair.
   const [recentItems, setRecentItems] = useState<ItemId[]>([])
+  // Start-screen option: pre-seed the comparison graph using each item's
+  // existing importance/urgency. Default ON because it dramatically reduces
+  // the number of pairs the user has to answer.
+  const [seedFromScores, setSeedFromScores] = useState(true)
+  // Lightweight banner shown after seeding so the user knows what happened.
+  const [seedNotice, setSeedNotice] = useState<string | null>(null)
 
   // Filtered items (exclude completed/archived; optionally restrict to sprint).
   const items = useMemo<RankingItem[]>(() => {
@@ -153,11 +159,19 @@ export function RankingView({ onClose }: RankingViewProps) {
     return getTournamentState(items.map(i => i.id), dimensionGraphs.winsGraph, dimensionGraphs.equalsGraph)
   }, [activeDimension, items, dimensionGraphs])
 
-  // Persist + record one comparison answer.
-  const recordAnswer = (aId: ItemId, bId: ItemId, winner: ItemId | 'equal') => {
-    if (!activeDimension) return
+  // Read importance/urgency off a Task or SequencedTask (both have these fields).
+  function getScore(item: RankingItem, dim: ComparisonType): number {
+    if (dim === ComparisonType.Priority) {
+      return (item.data as Task).importance ?? 5
+    }
+    return (item.data as Task).urgency ?? 5
+  }
+
+  // Persist + record one comparison answer. Returns the updated comparisons
+  // array so callers can use the post-update state without waiting for React.
+  const recordAnswer = (aId: ItemId, bId: ItemId, winner: ItemId | 'equal'): ComparisonResult[] => {
+    if (!activeDimension) return comparisons
     const isEqual = winner === 'equal'
-    // Fire-and-forget DB write.
     void getDatabase()
       .recordComparison({
         itemAId: aId,
@@ -168,7 +182,6 @@ export function RankingView({ onClose }: RankingViewProps) {
       })
       .catch(err => logger.ui.error('Failed to persist comparison', { error: String(err) }, 'ranking-record'))
 
-    // Update local comparisons.
     const existing = comparisons.find(c =>
       (c.itemA === aId && c.itemB === bId) || (c.itemA === bId && c.itemB === aId),
     )
@@ -187,6 +200,83 @@ export function RankingView({ onClose }: RankingViewProps) {
     }
     setComparisons(next)
     setRecentItems(prev => [...prev, aId, bId].slice(-RECENT_ITEMS_WINDOW))
+    return next
+  }
+
+  // Seed the comparison graph from each item's current importance/urgency.
+  // For every pair where the dimension's scores differ AND the user hasn't
+  // already answered that pair, record an inferred comparison. Pairs with
+  // equal scores remain unanswered — those are what the user disambiguates.
+  // Returns the count seeded so we can show a small banner.
+  const seedComparisonsFromScores = async (dim: ComparisonType): Promise<number> => {
+    if (items.length < 2) return 0
+    const existingKeys = new Set(
+      comparisons
+        .filter(c => (dim === ComparisonType.Priority ? c.higherPriority : c.higherUrgency) !== null)
+        .map(c => {
+          const [lo, hi] = c.itemA < c.itemB ? [c.itemA, c.itemB] : [c.itemB, c.itemA]
+          return `${lo}|${hi}`
+        }),
+    )
+    const db = getDatabase()
+    const pending: Array<Promise<unknown>> = []
+    let count = 0
+    for (let i = 0; i < items.length; i++) {
+      for (let j = i + 1; j < items.length; j++) {
+        const a = items[i]!
+        const b = items[j]!
+        const [lo, hi] = a.id < b.id ? [a.id, b.id] : [b.id, a.id]
+        if (existingKeys.has(`${lo}|${hi}`)) continue
+        const scoreA = getScore(a, dim)
+        const scoreB = getScore(b, dim)
+        if (scoreA === scoreB) continue // ambiguous — let user disambiguate
+        const winnerId = scoreA > scoreB ? a.id : b.id
+        pending.push(db.recordComparison({
+          itemAId: a.id,
+          itemBId: b.id,
+          winnerId,
+          isEqual: false,
+          dimension: dim,
+        }))
+        count += 1
+      }
+    }
+    if (pending.length === 0) return 0
+    await Promise.allSettled(pending)
+    // Refetch local state from DB to capture the seeded rows.
+    const rows = await db.listComparisons(items.map(i => i.id))
+    setComparisons(hydrateComparisons(rows))
+    return count
+  }
+
+  // Pick a dimension to start: seed (if enabled), then auto-open the first
+  // matchup that the algorithm wants resolved.
+  const handleStartDimension = async (dim: ComparisonType) => {
+    setActiveDimension(dim)
+    setSeedNotice(null)
+    if (seedFromScores) {
+      try {
+        const seeded = await seedComparisonsFromScores(dim)
+        if (seeded > 0) {
+          setSeedNotice(`Seeded ${seeded} comparison${seeded === 1 ? '' : 's'} from existing scores. Only ambiguous pairs remain.`)
+        }
+      } catch (err) {
+        logger.ui.error('Failed to seed comparisons from scores', { error: String(err) }, 'ranking-seed')
+      }
+    }
+    // Auto-pick the first matchup after seeding settles.
+    // The recentItems is empty here, so anti-anchor doesn't bias the first pair.
+    setTimeout(() => {
+      // Read the latest comparisons via setComparisons callback to be safe.
+      setComparisons(latest => {
+        const newGraph = buildComparisonGraph(latest)
+        const newWins = dim === ComparisonType.Priority ? newGraph.priorityWins : newGraph.urgencyWins
+        const newEquals = dim === ComparisonType.Priority ? newGraph.priorityEquals : newGraph.urgencyEquals
+        const next = selectNextPair(items.map(i => i.id), newWins, newEquals, { recentItems: [] })
+        setActiveMatchup(next)
+        return latest
+      })
+    }, 0)
   }
 
   // Pick next matchup automatically via the algorithm.
@@ -219,10 +309,22 @@ export function RankingView({ onClose }: RankingViewProps) {
   }
 
   // Matchup dialog handlers.
+  // After picking, auto-advance to the next matchup so the user stays in a
+  // tight rhythm. Esc/Cancel closes the chain and returns control to the bracket.
   const handleMatchupPick = (winner: ItemId | 'equal') => {
-    if (!activeMatchup) return
-    recordAnswer(activeMatchup[0], activeMatchup[1], winner)
-    setActiveMatchup(null)
+    if (!activeMatchup || !activeDimension) return
+    const [aId, bId] = activeMatchup
+    const next = recordAnswer(aId, bId, winner)
+    const newGraph = buildComparisonGraph(next)
+    const newWins = activeDimension === ComparisonType.Priority ? newGraph.priorityWins : newGraph.urgencyWins
+    const newEquals = activeDimension === ComparisonType.Priority ? newGraph.priorityEquals : newGraph.urgencyEquals
+    const newRecent = [...recentItems, aId, bId].slice(-RECENT_ITEMS_WINDOW)
+    const nextPair = selectNextPair(items.map(i => i.id), newWins, newEquals, { recentItems: newRecent })
+    setActiveMatchup(nextPair)
+    setSelectedItem(null)
+    if (nextPair === null) {
+      Message.success(`${activeDimension === ComparisonType.Priority ? 'Importance' : 'Urgency'} ranking is complete!`)
+    }
   }
   const handleMatchupCancel = () => {
     setActiveMatchup(null)
@@ -338,21 +440,38 @@ export function RankingView({ onClose }: RankingViewProps) {
             </Paragraph>
           </div>
 
-          {/* Scope chip */}
-          <Space size={6} style={{ alignSelf: 'flex-start' }}>
-            <Text style={{ fontSize: 13, color: '#86909C' }}>Scope:</Text>
-            <Switch
-              size="small"
-              checked={sprintOnly}
-              onChange={(checked) => {
-                setSprintOnly(checked)
-                setIsHydrated(false)
-                setComparisons([])
-              }}
-            />
-            <Text style={{ fontSize: 13 }}>{sprintOnly ? 'Sprint only' : 'All active items'}</Text>
-            <Tag color="gray" size="small">{items.length} items</Tag>
-          </Space>
+          {/* Scope + seed options row */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            <Space size={6}>
+              <Text style={{ fontSize: 13, color: '#86909C' }}>Scope:</Text>
+              <Switch
+                size="small"
+                checked={sprintOnly}
+                onChange={(checked) => {
+                  setSprintOnly(checked)
+                  setIsHydrated(false)
+                  setComparisons([])
+                }}
+              />
+              <Text style={{ fontSize: 13 }}>{sprintOnly ? 'Sprint only' : 'All active items'}</Text>
+              <Tag color="gray" size="small">{items.length} items</Tag>
+            </Space>
+            <Space size={6} align="start">
+              <Switch
+                size="small"
+                checked={seedFromScores}
+                onChange={(checked) => setSeedFromScores(checked)}
+              />
+              <div>
+                <Text style={{ fontSize: 13 }}>Pre-seed from current scores</Text>
+                <div style={{ fontSize: 12, color: '#86909C', lineHeight: 1.4, maxWidth: 540 }}>
+                  Use each item&apos;s existing importance/urgency to auto-resolve pairs with
+                  different scores. You&apos;ll only be asked to disambiguate pairs that are tied
+                  on the dimension you pick. (Won&apos;t overwrite answers you&apos;ve already given.)
+                </div>
+              </div>
+            </Space>
+          </div>
 
           {/* Dimension picker or empty state */}
           {items.length < 2 ? (
@@ -373,7 +492,7 @@ export function RankingView({ onClose }: RankingViewProps) {
             >
               <button
                 type="button"
-                onClick={() => setActiveDimension(ComparisonType.Priority)}
+                onClick={() => void handleStartDimension(ComparisonType.Priority)}
                 style={{
                   textAlign: 'left',
                   padding: 24,
@@ -422,7 +541,7 @@ export function RankingView({ onClose }: RankingViewProps) {
 
               <button
                 type="button"
-                onClick={() => setActiveDimension(ComparisonType.Urgency)}
+                onClick={() => void handleStartDimension(ComparisonType.Urgency)}
                 style={{
                   textAlign: 'left',
                   padding: 24,
@@ -592,6 +711,28 @@ export function RankingView({ onClose }: RankingViewProps) {
           <Tag size={isCompact ? 'small' : 'default'} color="gray">{items.length} items</Tag>
         </Space>
       </div>
+
+      {/* Seed notice — shown once after seeding, dismissible */}
+      {seedNotice && (
+        <div
+          style={{
+            flexShrink: 0,
+            padding: '8px 20px',
+            background: '#FFFBE6',
+            borderBottom: '1px solid #FFE58F',
+            color: '#7C5400',
+            fontSize: 13,
+            lineHeight: 1.4,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: 12,
+          }}
+        >
+          <span>{seedNotice}</span>
+          <Button size="mini" type="text" onClick={() => setSeedNotice(null)}>Dismiss</Button>
+        </div>
+      )}
 
       {/* Status banner — thin, ambient, color-coded to interaction state */}
       <div
