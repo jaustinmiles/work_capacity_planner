@@ -25,7 +25,7 @@ import { SessionManager } from './components/session/SessionManager'
 import { TaskTypeManager } from './components/settings/TaskTypeManager'
 import { SchedulingSettings } from './components/settings/SchedulingSettings'
 import { WorkLoggerDual } from './components/work-logger/WorkLoggerDual'
-import { TaskSlideshow } from './components/slideshow/TaskSlideshow'
+import { RankingView } from './components/ranking/RankingView'
 import { SprintBoard } from './components/sprint/SprintBoard'
 import { EndeavorList } from './components/endeavors/EndeavorList'
 import { EndeavorDetail } from './components/endeavors/EndeavorDetail'
@@ -162,7 +162,6 @@ function AppContent() {
   const [showWorkSchedule, setShowWorkSchedule] = useState(false)
   const [showSessionManager, setShowSessionManager] = useState(false)
   const [showWorkLoggerDual, setShowWorkLoggerDual] = useState(false)
-  const [showTaskSlideshow, setShowTaskSlideshow] = useState(false)
   const [showDevTools, setShowDevTools] = useState(false)
   const [showTaskTypeManager, setShowTaskTypeManager] = useState(false)
   const [selectedEndeavorId, setSelectedEndeavorId] = useState<string | null>(null)
@@ -757,7 +756,13 @@ function AppContent() {
                   <>
                     {activeView === ViewType.Tasks && (
                       <ErrorBoundary>
-                        <TaskList onAddTask={() => setTaskFormVisible(true)} onOpenTournament={() => setShowTaskSlideshow(true)} />
+                        <TaskList onAddTask={() => setTaskFormVisible(true)} onOpenTournament={() => setActiveView(ViewType.Ranking)} />
+                      </ErrorBoundary>
+                    )}
+
+                    {activeView === ViewType.Ranking && (
+                      <ErrorBoundary>
+                        <RankingView onClose={() => setActiveView(ViewType.Tasks)} />
                       </ErrorBoundary>
                     )}
 
@@ -965,11 +970,6 @@ function AppContent() {
           <WorkLoggerDual
             visible={showWorkLoggerDual}
             onClose={() => setShowWorkLoggerDual(false)}
-          />
-
-          <TaskSlideshow
-            visible={showTaskSlideshow}
-            onClose={() => setShowTaskSlideshow(false)}
           />
 
           <SessionManager
