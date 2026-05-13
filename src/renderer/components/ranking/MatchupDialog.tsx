@@ -10,6 +10,7 @@
 
 import { useEffect } from 'react'
 import { Modal, Button, Card, Space, Typography, Tag, Divider } from '@arco-design/web-react'
+// (Note: this file doesn't call Message directly — kept arco imports clean.)
 import { IconClockCircle } from '@arco-design/web-react/icon'
 import { Task } from '@shared/types'
 import { SequencedTask } from '@shared/sequencing-types'

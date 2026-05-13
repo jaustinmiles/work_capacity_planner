@@ -182,7 +182,7 @@ function AppContent() {
 
   // Graph mode and Deep Work Board need full-height container without padding/maxWidth constraints
   const isGraphMode = activeView === ViewType.Endeavors && endeavorViewMode === 'graph' && !selectedEndeavorId
-  const isFullCanvasMode = isGraphMode || activeView === ViewType.DeepWork
+  const isFullCanvasMode = isGraphMode || activeView === ViewType.DeepWork || activeView === ViewType.Ranking
 
   // Responsive breakpoints
   const [screenWidth, setScreenWidth] = useState(window.innerWidth)
