@@ -44,10 +44,6 @@ interface TournamentBracketProps {
   winsGraph: Map<ItemId, Set<ItemId>>
   equalsGraph: Map<ItemId, Set<ItemId>>
   currentPair?: [ItemId, ItemId] | null
-  /** If set, this node renders with a blue selection halo (click-to-challenge UI). */
-  selectedItem?: ItemId | null
-  /** Click handler for individual items. Receives the clicked item's ID. */
-  onItemClick?: (id: ItemId) => void
   width?: number | string
   height?: number | string
 }
@@ -111,8 +107,6 @@ export function TournamentBracket({
   winsGraph,
   equalsGraph,
   currentPair,
-  selectedItem,
-  onItemClick,
   width = 800,
   height = 400,
 }: TournamentBracketProps) {
@@ -145,15 +139,13 @@ export function TournamentBracket({
       colItems.forEach((id, rowIdx) => {
         const isPlaced = state.placed.has(id)
         const isActive = !!currentPair && (currentPair[0] === id || currentPair[1] === id)
-        const isSelected = selectedItem === id
         const wins = state.winCount.get(id) ?? 0
         const losses = state.lossCount.get(id) ?? 0
         const rank = isPlaced ? rankById.get(id) : undefined
 
-        // Priority: selected (blue) > active (orange) > placed (green) > neutral (grey).
-        const borderColor = isSelected ? '#3491FA' : isActive ? '#FF7D00' : isPlaced ? '#00B42A' : '#C9CDD4'
-        const bg = isSelected ? '#E8F3FF' : isActive ? '#FFF7E6' : isPlaced ? '#F6FFED' : '#FFFFFF'
-        const borderWidth = isSelected ? 3 : isActive ? 3 : isPlaced ? 2 : 1
+        const borderColor = isActive ? '#FF7D00' : isPlaced ? '#00B42A' : '#C9CDD4'
+        const bg = isActive ? '#FFF7E6' : isPlaced ? '#F6FFED' : '#FFFFFF'
+        const borderWidth = isActive ? 3 : isPlaced ? 2 : 1
 
         newNodes.push({
           id,
@@ -177,8 +169,6 @@ export function TournamentBracket({
             padding: 6,
             background: bg,
             width: NODE_WIDTH,
-            cursor: onItemClick ? 'pointer' : 'default',
-            boxShadow: isSelected ? '0 0 0 4px rgba(52, 145, 250, 0.15)' : undefined,
           },
           draggable: false,
           selectable: false,
@@ -217,7 +207,7 @@ export function TournamentBracket({
     })
 
     return { nodes: newNodes, edges: newEdges }
-  }, [items, winsGraph, equalsGraph, currentPair, selectedItem, onItemClick])
+  }, [items, winsGraph, equalsGraph, currentPair])
 
   if (items.length === 0) {
     return (
@@ -251,7 +241,6 @@ export function TournamentBracket({
         nodesDraggable={false}
         nodesConnectable={false}
         elementsSelectable={false}
-        onNodeClick={onItemClick ? (_, node) => onItemClick(node.id) : undefined}
         proOptions={{ hideAttribution: true }}
       >
         <Background gap={16} size={1} />
