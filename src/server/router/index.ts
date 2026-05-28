@@ -28,6 +28,7 @@ import { agentRouter } from './agent'
 import { timerRouter } from './timer'
 import { memoryRouter } from './memory'
 import { decisionRouter } from './decision'
+import { comparisonRouter } from './comparison'
 
 /**
  * Main application router
@@ -75,6 +76,7 @@ export const appRouter = router({
   timer: timerRouter,
   memory: memoryRouter,
   decision: decisionRouter,
+  comparison: comparisonRouter,
 })
 
 /**

@@ -29,6 +29,7 @@ import type {
 } from '@shared/deep-work-board-types'
 import type { SequencedTask } from '@shared/sequencing-types'
 import { ChatMessageRole, EndeavorStatus, DeadlineType, PomodoroPhase } from '@shared/enums'
+import { ComparisonType } from '@shared/constants'
 import type { UpdatePomodoroSettingsInput } from '@shared/pomodoro-types'
 import type { UserTaskType, CreateUserTaskTypeInput, UpdateUserTaskTypeInput, AccumulatedTimeResult } from '@shared/user-task-types'
 import type { TimeSink, TimeSinkSession, CreateTimeSinkInput, UpdateTimeSinkInput, TimeSinkAccumulatedResult } from '@shared/time-sink-types'
@@ -49,6 +50,40 @@ declare global {
       apiKey: string
       useTrpc: boolean
     }
+  }
+}
+
+/**
+ * Persisted pairwise comparison row, as returned by the comparison router.
+ * Mirrors the TaskComparison Prisma model with `dimension` narrowed to ComparisonType.
+ */
+export interface PersistedComparison {
+  id: string
+  itemAId: string
+  itemBId: string
+  winnerId: string | null
+  dimension: ComparisonType
+  isEqual: boolean
+  createdAt: Date
+}
+
+function toPersistedComparison(row: {
+  id: string
+  itemAId: string
+  itemBId: string
+  winnerId: string | null
+  dimension: string
+  isEqual: boolean
+  createdAt: Date
+}): PersistedComparison {
+  return {
+    id: row.id,
+    itemAId: row.itemAId,
+    itemBId: row.itemBId,
+    winnerId: row.winnerId,
+    dimension: row.dimension as ComparisonType,
+    isEqual: row.isEqual,
+    createdAt: row.createdAt,
   }
 }
 
@@ -1688,6 +1723,37 @@ export class TrpcDatabaseService {
 
   async getDecisionSessions(): Promise<Record<string, unknown>[]> {
     return this.client.decision.getSessions.query() as Promise<Record<string, unknown>[]>
+  }
+
+  // ===========================================================================
+  // Comparisons (pairwise tournament ranking)
+  // ===========================================================================
+
+  async listComparisons(itemIds: string[], dimension?: ComparisonType): Promise<PersistedComparison[]> {
+    if (itemIds.length === 0) return []
+    const rows = await this.client.comparison.list.query({ itemIds, dimension })
+    return rows.map(toPersistedComparison)
+  }
+
+  async recordComparison(input: {
+    itemAId: string
+    itemBId: string
+    winnerId: string | null
+    isEqual: boolean
+    dimension: ComparisonType
+  }): Promise<PersistedComparison> {
+    const row = await this.client.comparison.record.mutate(input)
+    return toPersistedComparison(row)
+  }
+
+  async deleteComparisonsForItem(itemId: string): Promise<number> {
+    const result = await this.client.comparison.deleteForItem.mutate({ itemId })
+    return result.deletedCount
+  }
+
+  async clearComparisonDimension(dimension: ComparisonType): Promise<number> {
+    const result = await this.client.comparison.clearDimension.mutate({ dimension })
+    return result.deletedCount
   }
 
   // ===========================================================================
