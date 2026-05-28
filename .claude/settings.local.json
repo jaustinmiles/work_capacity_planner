@@ -25,7 +25,8 @@
       "Bash(ls:*)",
       "Bash(grep:*)",
       "mcp__diagnostic__build",
-      "WebSearch"
+      "WebSearch",
+      "mcp__git__push_and_create_pr"
     ],
     "deny": [],
     "defaultMode": "acceptEdits",

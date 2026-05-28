@@ -185,9 +185,10 @@ function areTransitivelyEqual(
 }
 
 /**
- * Check if there's a path from source to target using DFS
+ * Check if there's a directed path from source to target in a wins graph.
+ * Returns true iff source transitively beats target.
  */
-function hasPath(
+export function hasPath(
   graph: Map<ItemId, Set<ItemId>>,
   source: ItemId,
   target: ItemId,
@@ -355,6 +356,203 @@ export function topologicalSort(
   })
 
   return sorted
+}
+
+// ============================================================================
+// Tournament algorithm — smart pair selection, incremental insertion, state
+// ============================================================================
+
+/**
+ * Counts of direct (non-transitive) wins and losses for each item.
+ * Plus the transitive-closure stats and a "placed" set for items whose final
+ * rank position is fully determined.
+ */
+export interface TournamentState {
+  winCount: Map<ItemId, number>
+  lossCount: Map<ItemId, number>
+  /** Items whose relationship to every other item is known (direct or transitive). */
+  placed: Set<ItemId>
+  /** Pairs (i, j) with i < j whose relationship is known. */
+  knownPairs: number
+  totalPairs: number
+  isComplete: boolean
+}
+
+/**
+ * Compute per-item win/loss counts, fully-placed items, and progress for one
+ * dimension. Used to drive the bracket UI and the next-pair heuristic.
+ */
+export function getTournamentState(
+  items: ItemId[],
+  winsGraph: Map<ItemId, Set<ItemId>>,
+  equalsGraph: Map<ItemId, Set<ItemId>>,
+): TournamentState {
+  const winCount = new Map<ItemId, number>()
+  const lossCount = new Map<ItemId, number>()
+  const itemSet = new Set(items)
+  items.forEach(id => {
+    winCount.set(id, 0)
+    lossCount.set(id, 0)
+  })
+
+  winsGraph.forEach((losers, winner) => {
+    if (!itemSet.has(winner)) return
+    let scopedWins = 0
+    losers.forEach(loser => {
+      if (!itemSet.has(loser)) return
+      scopedWins += 1
+      lossCount.set(loser, (lossCount.get(loser) ?? 0) + 1)
+    })
+    winCount.set(winner, (winCount.get(winner) ?? 0) + scopedWins)
+  })
+
+  const placed = new Set<ItemId>(items)
+  let knownPairs = 0
+  const totalPairs = items.length * (items.length - 1) / 2
+
+  for (let i = 0; i < items.length; i++) {
+    for (let j = i + 1; j < items.length; j++) {
+      const rel = hasTransitiveRelationship(winsGraph, equalsGraph, items[i]!, items[j]!)
+      if (rel === 'unknown') {
+        placed.delete(items[i]!)
+        placed.delete(items[j]!)
+      } else {
+        knownPairs += 1
+      }
+    }
+  }
+
+  return {
+    winCount,
+    lossCount,
+    placed,
+    knownPairs,
+    totalPairs,
+    isComplete: knownPairs === totalPairs,
+  }
+}
+
+/**
+ * Options that tune selectNextPair() behavior.
+ */
+export interface SelectNextPairOptions {
+  /**
+   * Most-recently-compared items (ordered oldest → newest). Items appearing
+   * recently are penalized so the same item doesn't anchor every matchup.
+   */
+  recentItems?: ItemId[]
+}
+
+/**
+ * Pick the next pair to compare in a tournament. Returns null when every
+ * pair's relationship is already known (directly or transitively).
+ *
+ * Heuristic (cheap, bracket-natural):
+ *   - Only unknown pairs are candidates.
+ *   - Prefer items with similar win/loss counts (tight matches → more info per
+ *     comparison than top-vs-bottom matchups).
+ *   - Prefer items with fewer total comparisons (need attention).
+ *   - Penalize items that appeared in `recentItems` (anti-anchor): heaviest
+ *     penalty for the most-recent, decaying for older entries.
+ *   - Deterministic tiebreak by item ID for test stability.
+ */
+export function selectNextPair(
+  items: ItemId[],
+  winsGraph: Map<ItemId, Set<ItemId>>,
+  equalsGraph: Map<ItemId, Set<ItemId>>,
+  options: SelectNextPairOptions = {},
+): [ItemId, ItemId] | null {
+  if (items.length < 2) return null
+
+  const state = getTournamentState(items, winsGraph, equalsGraph)
+  if (state.isComplete) return null
+
+  const recent = options.recentItems ?? []
+
+  // Anti-anchor penalty: most recent = highest penalty (linear decay).
+  // recent[recent.length-1] gets penalty=recent.length, recent[0] gets penalty=1.
+  function anchorPenalty(id: ItemId): number {
+    const idx = recent.lastIndexOf(id)
+    if (idx === -1) return 0
+    return idx + 1
+  }
+
+  let bestScore = -Infinity
+  let bestPair: [ItemId, ItemId] | null = null
+
+  for (let i = 0; i < items.length; i++) {
+    for (let j = i + 1; j < items.length; j++) {
+      const a = items[i]!
+      const b = items[j]!
+      const rel = hasTransitiveRelationship(winsGraph, equalsGraph, a, b)
+      if (rel !== 'unknown') continue
+
+      const winsA = state.winCount.get(a) ?? 0
+      const winsB = state.winCount.get(b) ?? 0
+      const lossesA = state.lossCount.get(a) ?? 0
+      const lossesB = state.lossCount.get(b) ?? 0
+      const totalA = winsA + lossesA
+      const totalB = winsB + lossesB
+
+      // Higher is better.
+      const balance = -(Math.abs(winsA - winsB) + Math.abs(lossesA - lossesB))
+      const underComparedBonus = -Math.min(totalA, totalB)
+      const anchor = -(anchorPenalty(a) + anchorPenalty(b)) * 2
+
+      const score = balance + underComparedBonus + anchor
+
+      if (
+        score > bestScore ||
+        (score === bestScore && bestPair !== null && (
+          a < bestPair[0] ||
+          (a === bestPair[0] && b < bestPair[1])
+        ))
+      ) {
+        bestScore = score
+        bestPair = [a, b]
+      }
+    }
+  }
+
+  return bestPair
+}
+
+/**
+ * Pick the next comparison that places `newItemId` into the existing ranking
+ * via binary-search-style probing. Assumes `sortedItems` is a topological
+ * sort (highest → lowest) of the current ranked items.
+ *
+ * Returns null when newItemId's position is fully bracketed (no probe needed).
+ */
+export function insertNewItem(
+  newItemId: ItemId,
+  sortedItems: ItemId[],
+  winsGraph: Map<ItemId, Set<ItemId>>,
+): [ItemId, ItemId] | null {
+  const list = sortedItems.filter(id => id !== newItemId)
+  if (list.length === 0) return null
+
+  // lo: largest index i such that list[i] transitively beats newItemId
+  //     (newItemId must rank strictly after lo)
+  // hi: smallest index i such that newItemId transitively beats list[i]
+  //     (newItemId must rank strictly before hi)
+  let lo = -1
+  let hi = list.length
+  for (let i = 0; i < list.length; i++) {
+    const item = list[i]!
+    if (hasPath(winsGraph, item, newItemId)) {
+      if (i > lo) lo = i
+    }
+    if (hasPath(winsGraph, newItemId, item)) {
+      if (i < hi) hi = i
+    }
+  }
+
+  // Position is locked when the open interval (lo, hi) is empty.
+  if (lo + 1 >= hi) return null
+
+  const mid = Math.floor((lo + hi) / 2)
+  return [newItemId, list[mid]!]
 }
 
 /**
