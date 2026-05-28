@@ -25,6 +25,8 @@ import { createToolExecutor } from './tool-executors'
 import { buildAgentSystemPrompt, AgentSessionInfo } from './agent-context'
 import { generateActionPreview, PreviewEntityContext, EntityNameMap } from './action-previews'
 import { checkForHallucination } from './hallucination-check'
+import { validateToolReferences } from './reference-validator'
+import { appRouter } from '../router'
 import { prisma } from '../prisma'
 import { generateUniqueId } from '../../shared/step-id-utils'
 import { getCurrentTime } from '../../shared/time-provider'
@@ -82,6 +84,7 @@ export async function runAgentLoop(options: AgentLoopOptions): Promise<AgentLoop
 
   const aiService = getAIService()
   const toolExecutor = createToolExecutor(ctx)
+  const validationCaller = appRouter.createCaller(ctx)
 
   // Load core memories (Layer 1) for injection into system prompt
   const coreMemories = await prisma.agentMemory.findMany({
@@ -204,7 +207,34 @@ export async function runAgentLoop(options: AgentLoopOptions): Promise<AgentLoop
             is_error: !result.success,
           })
         } else {
-          // Write tool — pause for user approval
+          // Write tool — validate references before showing the proposal so
+          // hallucinated IDs (made-up task types, fake task IDs, etc.) get
+          // caught and fed back to Claude without bothering the user.
+          const validation = await validateToolReferences(toolName, toolInput, validationCaller)
+          if (!validation.valid) {
+            logger.system.info('Write tool rejected by reference validator', {
+              toolName,
+              error: validation.error,
+            }, 'agent-validator')
+
+            storedToolCalls.push({
+              toolCallId,
+              toolName,
+              toolInput,
+              category: 'write',
+              approvalStatus: ApprovalDecision.Rejected,
+              error: validation.error,
+            })
+
+            toolResultMessages.push({
+              type: 'tool_result',
+              tool_use_id: toolCallId,
+              content: JSON.stringify({ error: validation.error }),
+              is_error: true,
+            })
+            continue
+          }
+
           const proposalId = generateUniqueId('proposal')
           const entityContext = await buildEntityContext(toolInput)
           const preview = generateActionPreview(toolName, toolInput, entityContext)

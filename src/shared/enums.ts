@@ -272,6 +272,7 @@ export enum ViewType {
   Timers = 'timers',
   Memory = 'memory',
   Decision = 'decision',
+  Ranking = 'ranking',
 }
 
 // Decision tree node types
