@@ -12,9 +12,18 @@ enum AgentEvent {
     case error(String)
 }
 
+/// Mirrors the server's `AgentChatMode` (src/shared/enums.ts). Quick = fast model,
+/// auto-applied writes, one-shot "didn't catch that" on ambiguity — no Apply/Skip cards.
+enum AgentChatMode: String {
+    case full
+    case quick
+}
+
 private struct AgentChatRequest: Encodable {
     let userMessage: String
     let conversationId: String
+    /// nil for full mode keeps the original wire format (synthesized Encodable omits nil).
+    let mode: String?
 }
 
 /// Streams the Electron brainstorm agent into the Vision app. The agent endpoint is a RAW Express
@@ -29,7 +38,11 @@ final class AgentStreamService {
         self.authManager = authManager
     }
 
-    func stream(userMessage: String, conversationId: String) -> AsyncThrowingStream<AgentEvent, Error> {
+    func stream(
+        userMessage: String,
+        conversationId: String,
+        mode: AgentChatMode = .full
+    ) -> AsyncThrowingStream<AgentEvent, Error> {
         AsyncThrowingStream { continuation in
             let work = Task {
                 do {
@@ -41,7 +54,11 @@ final class AgentStreamService {
                     if let key = authManager.apiKey { request.setValue(key, forHTTPHeaderField: "x-api-key") }
                     if let sid = authManager.activeSessionId { request.setValue(sid, forHTTPHeaderField: "x-session-id") }
                     request.httpBody = try JSONEncoder().encode(
-                        AgentChatRequest(userMessage: userMessage, conversationId: conversationId)
+                        AgentChatRequest(
+                            userMessage: userMessage,
+                            conversationId: conversationId,
+                            mode: mode == .full ? nil : mode.rawValue
+                        )
                     )
 
                     let (bytes, response) = try await URLSession.shared.bytes(for: request)

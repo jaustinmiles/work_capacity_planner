@@ -18,6 +18,7 @@ import { useDeepWorkBoardStore, BoardLoadStatus } from '../../store/useDeepWorkB
 import { DeepWorkCanvas } from './DeepWorkCanvas'
 import { DeepWorkToolbar } from './DeepWorkToolbar'
 import { DeepWorkActionPanel } from './DeepWorkActionPanel'
+import { QuickChatBar } from './QuickChatBar'
 import { logger } from '@/logger'
 
 // Width threshold below which the action panel auto-collapses
@@ -173,6 +174,9 @@ export function DeepWorkBoardView() {
         {/* Main canvas area — minHeight: 0 is critical for flexbox to allow ReactFlow to measure */}
         <div style={{ flex: 1, minHeight: 0, position: 'relative' }}>
           <DeepWorkCanvas onConnect={handleConnect} onDisconnect={handleDisconnect} />
+
+          {/* One-shot AI quick command input (floating, bottom center) */}
+          <QuickChatBar />
 
           {/* Loading overlay — shown OVER the canvas, not INSTEAD of it */}
           {isInitialLoading && (

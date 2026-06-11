@@ -19,10 +19,11 @@ import {
   ApprovalDecision,
   ToolExecutionStatus,
   ActionResultStatus,
+  AgentChatMode,
 } from '../../shared/enums'
 import { ALL_TOOLS, READ_TOOL_NAMES, MEMORY_TOOL_NAMES, TOOL_REGISTRY } from './tool-definitions'
 import { createToolExecutor } from './tool-executors'
-import { buildAgentSystemPrompt, AgentSessionInfo } from './agent-context'
+import { buildAgentSystemPrompt, buildQuickAgentSystemPrompt, AgentSessionInfo } from './agent-context'
 import { generateActionPreview, PreviewEntityContext, EntityNameMap } from './action-previews'
 import { checkForHallucination } from './hallucination-check'
 import { validateToolReferences } from './reference-validator'
@@ -34,6 +35,12 @@ import { logger } from '../../logger'
 
 /** Maximum number of API round-trips in a single agent turn */
 const MAX_LOOP_ITERATIONS = 15
+
+/** Quick mode is a one-shot command: resolve IDs, write, confirm — a tighter cap keeps it snappy */
+const MAX_LOOP_ITERATIONS_QUICK = 5
+
+/** Fast model for quick command mode — latency matters more than depth there */
+export const QUICK_AGENT_MODEL = 'claude-haiku-4-5-20251001'
 
 /** Timeout for waiting on user approval of write tools (ms) */
 const APPROVAL_TIMEOUT_MS = 5 * 60 * 1000 // 5 minutes
@@ -59,6 +66,8 @@ export interface AgentLoopOptions {
   sessionInfo: AgentSessionInfo
   ctx: Context
   onEvent: (event: AgentSSEEvent) => void
+  /** Omitted means AgentChatMode.Full. Quick = fast model, auto-applied writes, one-shot. */
+  mode?: AgentChatMode
 }
 
 export interface AgentLoopResult {
@@ -81,34 +90,44 @@ export interface AgentLoopResult {
  */
 export async function runAgentLoop(options: AgentLoopOptions): Promise<AgentLoopResult> {
   const { userMessage, conversationHistory, sessionInfo, ctx, onEvent } = options
+  const mode = options.mode ?? AgentChatMode.Full
+  const isQuick = mode === AgentChatMode.Quick
+  const maxIterations = isQuick ? MAX_LOOP_ITERATIONS_QUICK : MAX_LOOP_ITERATIONS
 
   const aiService = getAIService()
   const toolExecutor = createToolExecutor(ctx)
   const validationCaller = appRouter.createCaller(ctx)
 
-  // Load core memories (Layer 1) for injection into system prompt
-  const coreMemories = await prisma.agentMemory.findMany({
-    where: { sessionId: sessionInfo.sessionId },
-    orderBy: [{ pinned: 'desc' }, { lastAccessedAt: 'desc' }],
-    take: 30,
-  })
-
-  // Mark memories as accessed
-  if (coreMemories.length > 0) {
-    await prisma.agentMemory.updateMany({
-      where: { id: { in: coreMemories.map(m => m.id) } },
-      data: { lastAccessedAt: getCurrentTime() },
+  let systemPrompt: string
+  if (isQuick) {
+    // Quick mode skips the memory load + the full persona: a small prompt on a
+    // fast model is what makes back-to-back voice commands feel instant.
+    systemPrompt = buildQuickAgentSystemPrompt(sessionInfo)
+  } else {
+    // Load core memories (Layer 1) for injection into system prompt
+    const coreMemories = await prisma.agentMemory.findMany({
+      where: { sessionId: sessionInfo.sessionId },
+      orderBy: [{ pinned: 'desc' }, { lastAccessedAt: 'desc' }],
+      take: 30,
     })
-  }
 
-  const systemPrompt = buildAgentSystemPrompt(
-    sessionInfo,
-    coreMemories.map(m => ({
-      ...m,
-      category: m.category as import('../../shared/enums').MemoryCategory,
-      source: m.source as import('../../shared/enums').MemorySource,
-    })),
-  )
+    // Mark memories as accessed
+    if (coreMemories.length > 0) {
+      await prisma.agentMemory.updateMany({
+        where: { id: { in: coreMemories.map(m => m.id) } },
+        data: { lastAccessedAt: getCurrentTime() },
+      })
+    }
+
+    systemPrompt = buildAgentSystemPrompt(
+      sessionInfo,
+      coreMemories.map(m => ({
+        ...m,
+        category: m.category as import('../../shared/enums').MemoryCategory,
+        source: m.source as import('../../shared/enums').MemorySource,
+      })),
+    )
+  }
 
   // Build the messages array: history + new user message
   const messages: Anthropic.MessageParam[] = [
@@ -121,12 +140,13 @@ export async function runAgentLoop(options: AgentLoopOptions): Promise<AgentLoop
   let loopIterations = 0
 
   // Agentic loop — keep calling Claude until it stops requesting tools
-  while (loopIterations < MAX_LOOP_ITERATIONS) {
+  while (loopIterations < maxIterations) {
     loopIterations++
 
     logger.system.info('Agent loop iteration', {
       iteration: loopIterations,
       messageCount: messages.length,
+      mode,
     }, 'agent-loop')
 
     // Stream the response from Claude
@@ -134,7 +154,8 @@ export async function runAgentLoop(options: AgentLoopOptions): Promise<AgentLoop
       systemPrompt,
       messages,
       tools: ALL_TOOLS,
-      maxTokens: 8000,
+      maxTokens: isQuick ? 2000 : 8000,
+      ...(isQuick ? { model: QUICK_AGENT_MODEL } : {}),
     })
 
     // Collect the response content blocks for the messages array
@@ -247,8 +268,11 @@ export async function runAgentLoop(options: AgentLoopOptions): Promise<AgentLoop
             preview,
           })
 
-          // Wait for user decision
-          const decision = await waitForApproval(proposalId, toolName, toolInput)
+          // Quick mode auto-applies validated writes — no Apply/Skip round-trip.
+          // Full mode waits for the user's decision on the proposal card.
+          const decision = isQuick
+            ? ApprovalDecision.Approved
+            : await waitForApproval(proposalId, toolName, toolInput)
 
           if (decision === ApprovalDecision.Approved) {
             // Execute the write tool
@@ -346,9 +370,10 @@ export async function runAgentLoop(options: AgentLoopOptions): Promise<AgentLoop
     }
   }
 
-  if (loopIterations >= MAX_LOOP_ITERATIONS) {
+  if (loopIterations >= maxIterations) {
     logger.system.warn('Agent loop hit max iterations', {
-      maxIterations: MAX_LOOP_ITERATIONS,
+      maxIterations,
+      mode,
     }, 'agent-loop')
     onEvent({
       type: 'error',
@@ -363,6 +388,9 @@ export async function runAgentLoop(options: AgentLoopOptions): Promise<AgentLoop
   // zero tool calls of ANY kind made this check unreachable in practice.
   // Validator-rejected, user-rejected, timed-out, and errored writes all
   // count as NOT applied — the agent cannot truthfully claim success then.
+  // Quick mode skips the check: it's an extra model round-trip (latency), and
+  // the quick contract already forces an explicit "didn't catch that" reply
+  // instead of narrating actions that didn't happen.
   let noToolWarning: NoToolWarning | null = null
   const hasAppliedWrite = storedToolCalls.some(
     call =>
@@ -370,7 +398,7 @@ export async function runAgentLoop(options: AgentLoopOptions): Promise<AgentLoop
       && call.approvalStatus === ApprovalDecision.Approved
       && call.error === undefined,
   )
-  if (!hasAppliedWrite && responseText.length > 0) {
+  if (!isQuick && !hasAppliedWrite && responseText.length > 0) {
     const readToolsRan = storedToolCalls.some(call => call.category === 'read')
     noToolWarning = await checkForHallucination(userMessage, responseText, { readToolsRan })
     if (noToolWarning) {

@@ -16,12 +16,15 @@ import type Anthropic from '@anthropic-ai/sdk'
 import { validateApiKey } from '../middleware/auth'
 import { prisma } from '../prisma'
 import { runAgentLoop } from './agent-loop'
-import { ChatMessageRole } from '../../shared/enums'
+import { AgentChatMode, ChatMessageRole } from '../../shared/enums'
 import { generateUniqueId } from '../../shared/step-id-utils'
 import { getCurrentTime } from '../../shared/time-provider'
 import type { AgentSSEEvent } from '../../shared/agent-types'
 import type { Context } from '../trpc'
 import { logger } from '../../logger'
+
+/** Most recent messages kept as context for a quick-mode turn (pairs of user+assistant). */
+const QUICK_MODE_HISTORY_LIMIT = 10
 
 /**
  * Express handler for the agent chat SSE endpoint.
@@ -43,14 +46,16 @@ export async function agentChatHandler(req: Request, res: Response): Promise<voi
   }
 
   // Validate request body
-  const { userMessage, conversationId } = req.body as {
+  const { userMessage, conversationId, mode: rawMode } = req.body as {
     userMessage?: string
     conversationId?: string
+    mode?: string
   }
   if (!userMessage || !conversationId) {
     res.status(400).json({ error: 'Missing userMessage or conversationId' })
     return
   }
+  const mode = rawMode === AgentChatMode.Quick ? AgentChatMode.Quick : AgentChatMode.Full
 
   // Set up SSE headers
   res.setHeader('Content-Type', 'text/event-stream')
@@ -77,8 +82,18 @@ export async function agentChatHandler(req: Request, res: Response): Promise<voi
       return
     }
 
-    // Load conversation history from DB
-    const conversationHistory = await loadConversationHistory(conversationId)
+    // Load conversation history from DB. Quick mode keeps only a short tail —
+    // enough for "now make it depend on the other one" follow-ups without
+    // paying full-history latency on every one-shot command.
+    let conversationHistory = await loadConversationHistory(conversationId)
+    if (mode === AgentChatMode.Quick) {
+      conversationHistory = conversationHistory.slice(-QUICK_MODE_HISTORY_LIMIT)
+      // The Messages API requires the first message to be from the user — an
+      // uneven tail (orphaned assistant reply) would 500 the whole turn.
+      while (conversationHistory[0]?.role === 'assistant') {
+        conversationHistory = conversationHistory.slice(1)
+      }
+    }
 
     // Save the user message to the conversation
     await prisma.chatMessage.create({
@@ -108,6 +123,7 @@ export async function agentChatHandler(req: Request, res: Response): Promise<voi
     // Run the agent loop
     const result = await runAgentLoop({
       userMessage,
+      mode,
       conversationHistory,
       sessionInfo: {
         sessionName: session.name,

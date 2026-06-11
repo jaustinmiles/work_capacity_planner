@@ -91,14 +91,26 @@ private struct ChatBody: View {
             }
             .help("Dictate")
 
-            TextField("Ask the assistant…", text: $model.input, axis: .vertical)
+            TextField(
+                model.quickMode ? "Quick command — create, edit, connect…" : "Ask the assistant…",
+                text: $model.input,
+                axis: .vertical
+            )
                 .lineLimit(1...4)
                 .textFieldStyle(.roundedBorder)
                 .onSubmit { model.send() }
 
-            Toggle("Auto", isOn: $model.autoApprove)
+            Toggle(isOn: $model.quickMode) {
+                Image(systemName: "bolt.fill")
+            }
                 .toggleStyle(.button)
-                .help("Auto-approve proposed actions")
+                .help("Quick mode — one-shot commands on a fast model; writes apply instantly")
+
+            if !model.quickMode {
+                Toggle("Auto", isOn: $model.autoApprove)
+                    .toggleStyle(.button)
+                    .help("Auto-approve proposed actions")
+            }
 
             Button {
                 model.send()

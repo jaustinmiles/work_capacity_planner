@@ -83,6 +83,20 @@ A: Check if the data can be a column on an existing table or a JSON field first.
 **Q: How do I handle a feature that spans planning AND execution?**
 A: This is normal. Most features do. Make sure both phases work. A scheduling feature that doesn't reflect in the work logger is incomplete. A logging feature that doesn't feed back into planning analytics is incomplete.
 
+## AI agent quick mode (2026-06-11)
+
+The agent SSE route (`POST /api/agent/chat`) accepts `mode: 'quick'` (`AgentChatMode` enum):
+- **Quick** = one-shot command execution for flow-state surfaces (deep work board `QuickChatBar`,
+  Vision chat ⚡ toggle): fast model (`QUICK_AGENT_MODEL` in `agent-loop.ts`), small dedicated system
+  prompt (`buildQuickAgentSystemPrompt` — no memories/persona), capped history tail + iterations,
+  **writes auto-apply** after the reference validator (which stays — it's the trust boundary), and
+  ambiguity must produce a one-line "didn't catch that", never a clarifying question. The
+  hallucination check is skipped (latency; the contract forbids narrating unexecuted actions).
+- **Full** (default, `mode` omitted) is unchanged: Opus, memories, Apply/Skip approval cards.
+- Clients reuse the SAME event protocol: quick mode still emits `proposed_action` + an immediate
+  `action_result(applied)`, so existing renderers work without new event types. Desktop quick
+  commands accumulate in a per-session "Quick Chat" conversation (`quick-chat-service.ts`).
+
 ## Hardening decisions (2026-06-11)
 
 - **Feedback lives in the Prisma `Feedback` table** — the ONE central store for every client (desktop, web, CLI/MCP; mobile pending). `context/feedback.json` is a read-only archive (imported via `node scripts/analysis/feedback-utils.js import-json`, idempotent). The MCP feedback tools and the tRPC `feedback` router read/write the same table with id-based operations; never reintroduce file writes or full-array updates.

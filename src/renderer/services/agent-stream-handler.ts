@@ -11,6 +11,7 @@ import type {
   AgentSSEEvent,
   AgentProposedActionEvent,
 } from '@shared/agent-types'
+import type { AgentChatMode } from '@shared/enums'
 import { logger } from '@/logger'
 
 export interface AgentStreamCallbacks {
@@ -39,6 +40,7 @@ export function sendAgentMessage(
   userMessage: string,
   conversationId: string,
   callbacks: AgentStreamCallbacks,
+  mode?: AgentChatMode,
 ): AbortController {
   const controller = new AbortController()
   const { serverUrl, apiKey } = window.appConfig
@@ -53,6 +55,7 @@ export function sendAgentMessage(
     conversationId,
     callbacks,
     controller.signal,
+    mode,
   ).catch((error) => {
     if (error instanceof Error && error.name === 'AbortError') return
     callbacks.onError(error instanceof Error ? error.message : String(error))
@@ -72,6 +75,7 @@ async function connectToAgentSSE(
   conversationId: string,
   callbacks: AgentStreamCallbacks,
   signal: AbortSignal,
+  mode?: AgentChatMode,
 ): Promise<void> {
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
@@ -82,7 +86,7 @@ async function connectToAgentSSE(
   const response = await fetch(`${serverUrl}/api/agent/chat`, {
     method: 'POST',
     headers,
-    body: JSON.stringify({ userMessage, conversationId }),
+    body: JSON.stringify({ userMessage, conversationId, ...(mode ? { mode } : {}) }),
     signal,
   })
 
