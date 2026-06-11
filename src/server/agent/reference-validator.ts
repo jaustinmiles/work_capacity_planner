@@ -164,6 +164,28 @@ const extractUpdateWorkflowStep: ReferenceExtractor = input => {
   return refs
 }
 
+const extractReorderWorkflowSteps: ReferenceExtractor = input => {
+  const refs: Reference[] = []
+  const taskId = getString(input, 'taskId')
+  if (taskId !== undefined) {
+    refs.push({ entityType: EntityType.Task, id: taskId, fieldPath: 'taskId' })
+  }
+  const orderedStepIds = input['orderedStepIds']
+  if (Array.isArray(orderedStepIds)) {
+    orderedStepIds.forEach((stepId, index) => {
+      if (typeof stepId === 'string' && stepId.length > 0) {
+        refs.push({
+          entityType: EntityType.WorkflowStep,
+          id: stepId,
+          fieldPath: `orderedStepIds[${index}]`,
+          parentTaskId: taskId,
+        })
+      }
+    })
+  }
+  return refs
+}
+
 const extractRemoveWorkflowStep: ReferenceExtractor = input => {
   const refs: Reference[] = []
   const taskId = getString(input, 'taskId')
@@ -278,6 +300,7 @@ export const TOOL_VALIDATORS: Record<string, ReferenceExtractor> = {
   create_workflow: extractCreateWorkflow,
   add_workflow_step: extractAddWorkflowStep,
   update_workflow_step: extractUpdateWorkflowStep,
+  reorder_workflow_steps: extractReorderWorkflowSteps,
   remove_workflow_step: extractRemoveWorkflowStep,
   log_work_session: extractLogWorkSession,
   link_task_to_endeavor: extractLinkTaskToEndeavor,

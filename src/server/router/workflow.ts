@@ -47,6 +47,10 @@ const updateStepInput = z.object({
   type: z.string().optional(),
   cognitiveComplexity: z.number().int().min(1).max(5).nullable().optional(),
   dependsOn: z.array(z.string()).optional(),
+  // Per-step priority overrides — the scheduler uses these instead of the parent
+  // workflow's importance/urgency when present (null clears the override).
+  importance: z.number().int().min(1).max(10).nullable().optional(),
+  urgency: z.number().int().min(1).max(10).nullable().optional(),
 })
 
 /**
@@ -338,6 +342,60 @@ export const workflowRouter = router({
   }),
 
   /**
+   * Reorder the steps of a workflow.
+   *
+   * Takes the COMPLETE list of the workflow's step IDs in the desired order and
+   * rewrites every stepIndex in one transaction. Requiring the full list (each
+   * step exactly once) means a concurrent add/remove can't silently corrupt the
+   * ordering — the mismatch is rejected instead.
+   */
+  reorderSteps: protectedProcedure
+    .input(z.object({
+      taskId: z.string(),
+      orderedStepIds: z.array(z.string()).min(1),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      const workflowTask = await ctx.prisma.task.findUnique({
+        where: { id: input.taskId },
+        select: { id: true },
+      })
+      if (!workflowTask) {
+        throw new TRPCError({ code: 'NOT_FOUND', message: `Workflow ${input.taskId} not found` })
+      }
+
+      const steps = await ctx.prisma.taskStep.findMany({
+        where: { taskId: input.taskId },
+        select: { id: true },
+      })
+      const providedIds = new Set(input.orderedStepIds)
+      const isCompleteReorder =
+        input.orderedStepIds.length === steps.length &&
+        providedIds.size === input.orderedStepIds.length &&
+        steps.every(step => providedIds.has(step.id))
+      if (!isCompleteReorder) {
+        throw new TRPCError({
+          code: 'BAD_REQUEST',
+          message: `orderedStepIds must contain each of the workflow's ${steps.length} step IDs exactly once`,
+        })
+      }
+
+      await ctx.prisma.$transaction(
+        input.orderedStepIds.map((stepId, index) =>
+          ctx.prisma.taskStep.update({ where: { id: stepId }, data: { stepIndex: index } }),
+        ),
+      )
+
+      const reordered = await ctx.prisma.taskStep.findMany({
+        where: { taskId: input.taskId },
+        orderBy: { stepIndex: 'asc' },
+      })
+      return reordered.map(step => ({
+        ...step,
+        dependsOn: JSON.parse(step.dependsOn),
+      }))
+    }),
+
+  /**
    * Delete a step from a workflow
    */
   deleteStep: protectedProcedure
@@ -402,29 +460,6 @@ export const workflowRouter = router({
         where: { stepId: input.stepId },
         orderBy: { startTime: 'asc' },
       })
-    }),
-
-  /**
-   * Reorder steps in a workflow
-   */
-  reorderSteps: protectedProcedure
-    .input(
-      z.object({
-        taskId: z.string(),
-        orderedIds: z.array(z.string()),
-      }),
-    )
-    .mutation(async ({ ctx, input }) => {
-      await ctx.prisma.$transaction(
-        input.orderedIds.map((id, index) =>
-          ctx.prisma.taskStep.update({
-            where: { id },
-            data: { stepIndex: index },
-          }),
-        ),
-      )
-
-      return { success: true }
     }),
 
   /**

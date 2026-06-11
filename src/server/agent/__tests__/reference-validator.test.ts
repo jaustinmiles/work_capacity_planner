@@ -108,6 +108,26 @@ describe('reference-validator extractors', () => {
     expect(refs).toContainEqual({ entityType: EntityType.TaskType, id: 'type-x', fieldPath: 'type' })
   })
 
+  it('emits Task + every WorkflowStep reference for reorder_workflow_steps', () => {
+    const refs = TOOL_VALIDATORS.reorder_workflow_steps({
+      taskId: 'task-1',
+      orderedStepIds: ['step-b', 'step-a'],
+    })
+    expect(refs).toContainEqual({ entityType: EntityType.Task, id: 'task-1', fieldPath: 'taskId' })
+    expect(refs).toContainEqual({
+      entityType: EntityType.WorkflowStep,
+      id: 'step-b',
+      fieldPath: 'orderedStepIds[0]',
+      parentTaskId: 'task-1',
+    })
+    expect(refs).toContainEqual({
+      entityType: EntityType.WorkflowStep,
+      id: 'step-a',
+      fieldPath: 'orderedStepIds[1]',
+      parentTaskId: 'task-1',
+    })
+  })
+
   it('walks blocks for create_schedule and emits typeId refs from Single + Combo configs', () => {
     const refs = TOOL_VALIDATORS.create_schedule({
       date: '2026-05-28',

@@ -144,6 +144,16 @@ export function generateActionPreview(
       }
     }
 
+    case 'reorder_workflow_steps': {
+      const taskName = resolveName(toolInput.taskId, entityContext?.taskNames)
+      const stepCount = Array.isArray(toolInput.orderedStepIds) ? toolInput.orderedStepIds.length : 0
+      return {
+        title: 'Reorder Workflow Steps',
+        description: `Reorder the ${stepCount} steps of "${taskName}"`,
+        details: { workflowName: taskName, orderedStepIds: toolInput.orderedStepIds },
+      }
+    }
+
     case 'remove_workflow_step': {
       const taskName = resolveName(toolInput.taskId, entityContext?.taskNames)
       return {

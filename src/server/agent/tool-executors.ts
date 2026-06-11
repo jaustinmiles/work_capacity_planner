@@ -244,10 +244,20 @@ export class ToolExecutor {
         if (input.dependsOn !== undefined) updateData.dependsOn = input.dependsOn
         if (input.cognitiveComplexity !== undefined) updateData.cognitiveComplexity = input.cognitiveComplexity
         if (input.notes !== undefined) updateData.notes = input.notes
+        if (input.importance !== undefined) updateData.importance = input.importance
+        if (input.urgency !== undefined) updateData.urgency = input.urgency
 
         const data = await this.caller.workflow.updateStep(
           updateData as Parameters<RouterCaller['workflow']['updateStep']>[0],
         )
+        return { success: true, data }
+      }
+
+      case 'reorder_workflow_steps': {
+        const data = await this.caller.workflow.reorderSteps({
+          taskId: input.taskId as string,
+          orderedStepIds: input.orderedStepIds as string[],
+        })
         return { success: true, data }
       }
 

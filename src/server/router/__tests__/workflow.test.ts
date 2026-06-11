@@ -271,29 +271,141 @@ describe('workflow router', () => {
     })
   })
 
+  // Reordering is the AI's lever for surfacing specific steps first: among steps
+  // with equal priority the scheduler's stable sort falls back to stepIndex, so
+  // a validated, transactional rewrite of every index IS the ordering feature.
   describe('reorderSteps', () => {
-    it('should update step indices according to new order', async () => {
-      const orderedIds = ['step-3', 'step-1', 'step-2']
+    const existingStepIds = [{ id: 'step-1' }, { id: 'step-2' }, { id: 'step-3' }]
 
-      // Each step should be updated with its new index
-      for (let i = 0; i < orderedIds.length; i++) {
-        mockPrisma.taskStep.update.mockResolvedValueOnce(
-          createMockStep({ id: orderedIds[i], stepIndex: i }),
-        )
-      }
+    it('rewrites every stepIndex to match the provided order', async () => {
+      mockPrisma.task.findUnique.mockResolvedValue({ id: 'workflow-123' })
+      mockPrisma.taskStep.findMany
+        .mockResolvedValueOnce(existingStepIds)
+        .mockResolvedValueOnce([
+          createMockStep({ id: 'step-3', stepIndex: 0, dependsOn: '[]' }),
+          createMockStep({ id: 'step-1', stepIndex: 1, dependsOn: '[]' }),
+          createMockStep({ id: 'step-2', stepIndex: 2, dependsOn: '[]' }),
+        ])
+      mockPrisma.taskStep.update.mockResolvedValue(createMockStep({ dependsOn: '[]' }))
 
-      // Verify each update call would set correct index
-      const updates = orderedIds.map((id, index) => ({
-        where: { id },
-        data: { stepIndex: index },
-      }))
+      const caller = appRouter.createCaller(ctx)
+      const result = await caller.workflow.reorderSteps({
+        taskId: 'workflow-123',
+        orderedStepIds: ['step-3', 'step-1', 'step-2'],
+      })
 
-      expect(updates[0].data.stepIndex).toBe(0)
-      expect(updates[0].where.id).toBe('step-3')
-      expect(updates[1].data.stepIndex).toBe(1)
-      expect(updates[1].where.id).toBe('step-1')
-      expect(updates[2].data.stepIndex).toBe(2)
-      expect(updates[2].where.id).toBe('step-2')
+      expect(mockPrisma.taskStep.update).toHaveBeenCalledWith({ where: { id: 'step-3' }, data: { stepIndex: 0 } })
+      expect(mockPrisma.taskStep.update).toHaveBeenCalledWith({ where: { id: 'step-1' }, data: { stepIndex: 1 } })
+      expect(mockPrisma.taskStep.update).toHaveBeenCalledWith({ where: { id: 'step-2' }, data: { stepIndex: 2 } })
+      expect(result.map(step => step.id)).toEqual(['step-3', 'step-1', 'step-2'])
+    })
+
+    it('rejects a partial list so a concurrent add/remove cannot corrupt the ordering', async () => {
+      mockPrisma.task.findUnique.mockResolvedValue({ id: 'workflow-123' })
+      mockPrisma.taskStep.findMany.mockResolvedValueOnce(existingStepIds)
+
+      const caller = appRouter.createCaller(ctx)
+      await expect(
+        caller.workflow.reorderSteps({ taskId: 'workflow-123', orderedStepIds: ['step-2', 'step-1'] }),
+      ).rejects.toMatchObject({ code: 'BAD_REQUEST' })
+
+      expect(mockPrisma.taskStep.update).not.toHaveBeenCalled()
+    })
+
+    it('rejects duplicated ids even when the count matches', async () => {
+      mockPrisma.task.findUnique.mockResolvedValue({ id: 'workflow-123' })
+      mockPrisma.taskStep.findMany.mockResolvedValueOnce(existingStepIds)
+
+      const caller = appRouter.createCaller(ctx)
+      await expect(
+        caller.workflow.reorderSteps({
+          taskId: 'workflow-123',
+          orderedStepIds: ['step-1', 'step-1', 'step-2'],
+        }),
+      ).rejects.toMatchObject({ code: 'BAD_REQUEST' })
+
+      expect(mockPrisma.taskStep.update).not.toHaveBeenCalled()
+    })
+
+    it('rejects ids that belong to a different workflow', async () => {
+      mockPrisma.task.findUnique.mockResolvedValue({ id: 'workflow-123' })
+      mockPrisma.taskStep.findMany.mockResolvedValueOnce(existingStepIds)
+
+      const caller = appRouter.createCaller(ctx)
+      await expect(
+        caller.workflow.reorderSteps({
+          taskId: 'workflow-123',
+          orderedStepIds: ['step-1', 'step-2', 'foreign-step'],
+        }),
+      ).rejects.toMatchObject({ code: 'BAD_REQUEST' })
+
+      expect(mockPrisma.taskStep.update).not.toHaveBeenCalled()
+    })
+
+    it('throws NOT_FOUND for an unknown workflow', async () => {
+      mockPrisma.task.findUnique.mockResolvedValue(null)
+
+      const caller = appRouter.createCaller(ctx)
+      await expect(
+        caller.workflow.reorderSteps({ taskId: 'missing', orderedStepIds: ['step-1'] }),
+      ).rejects.toMatchObject({ code: 'NOT_FOUND' })
+    })
+  })
+
+  // Per-step priority overrides: the scheduler reads step.importance/urgency ahead of
+  // the parent workflow's values (scheduler-converters), but the router used to strip
+  // these fields from updateStep input — the AI would set them and they came back null.
+  describe('updateStep per-step priority', () => {
+    it('persists importance and urgency overrides', async () => {
+      mockPrisma.taskStep.update.mockResolvedValue(
+        createMockStep({ id: 'step-1', importance: 9, urgency: 10, dependsOn: '[]' }),
+      )
+
+      const caller = appRouter.createCaller(ctx)
+      const step = await caller.workflow.updateStep({
+        taskId: 'workflow-123',
+        stepId: 'step-1',
+        importance: 9,
+        urgency: 10,
+      })
+
+      expect(mockPrisma.taskStep.update).toHaveBeenCalledWith({
+        where: { id: 'step-1' },
+        data: { importance: 9, urgency: 10 },
+      })
+      expect(step.importance).toBe(9)
+      expect(step.urgency).toBe(10)
+    })
+
+    it('clears an override back to the parent value when null is sent', async () => {
+      mockPrisma.taskStep.update.mockResolvedValue(
+        createMockStep({ id: 'step-1', importance: null, urgency: null, dependsOn: '[]' }),
+      )
+
+      const caller = appRouter.createCaller(ctx)
+      await caller.workflow.updateStep({
+        taskId: 'workflow-123',
+        stepId: 'step-1',
+        importance: null,
+      })
+
+      expect(mockPrisma.taskStep.update).toHaveBeenCalledWith({
+        where: { id: 'step-1' },
+        data: { importance: null },
+      })
+    })
+
+    it('rejects out-of-range priority values', async () => {
+      const caller = appRouter.createCaller(ctx)
+      await expect(
+        caller.workflow.updateStep({
+          taskId: 'workflow-123',
+          stepId: 'step-1',
+          urgency: 11,
+        }),
+      ).rejects.toMatchObject({ code: 'BAD_REQUEST' })
+
+      expect(mockPrisma.taskStep.update).not.toHaveBeenCalled()
     })
   })
 
