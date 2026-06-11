@@ -10,6 +10,7 @@ import {
 } from './SessionState'
 import { useContainerQuery } from '../../hooks/useContainerQuery'
 import { useResponsive } from '../../providers/ResponsiveProvider'
+import { resolveDragCreateRange, isDragReleased } from '../../utils/work-logger-drag'
 import { Meeting } from '@shared/work-blocks-types'
 import { MeetingType } from '@shared/enums'
 import { parseTimeString } from '@shared/time-utils'
@@ -48,6 +49,9 @@ const WORKDAY_START = 0 // 12 AM (midnight)
 const WORKDAY_END = 24 // 12 AM next day (full day)
 const WORKDAY_HOURS = WORKDAY_END - WORKDAY_START // 24 hours
 
+// Minimum duration for a drag-created session (one quarter-hour snap step)
+const MIN_CREATE_DURATION_MINUTES = 15
+
 // Default circadian rhythm peaks and dips (based on 10 PM bedtime)
 const DEFAULT_BEDTIME = 22 // 10 PM
 const DEFAULT_WAKE_TIME = 6 // 6 AM
@@ -68,6 +72,9 @@ export function CircularClock({
 }: CircularClockProps) {
   const svgRef = useRef<any>(null)
   const [dragState, setDragState] = useState<DragState | null>(null)
+  // Tracks whether the pointer actually moved during a drag, so a plain click
+  // on an arc/handle never commits a (snapped) position change on release
+  const dragDidMoveRef = useRef(false)
   const [creatingSession, setCreatingSession] = useState<{
     startMinutes: number
     currentMinutes: number
@@ -204,6 +211,7 @@ export function CircularClock({
 
     const minutes = getMinutesFromMouse(e)
 
+    dragDidMoveRef.current = false
     setDragState({
       sessionId,
       edge,
@@ -215,12 +223,16 @@ export function CircularClock({
     onSessionSelect(sessionId)
   }
 
-  // Handle clock face click to create new session
-  const handleClockClick = (e: React.MouseEvent) => {
-    // Check if clicking on empty space
+  // Handle clock face press to start creating a new session.
+  // The gesture is press (anchor) → drag (rubber band) → release (commit),
+  // so creation is wired to mousedown — never to click, which fires on
+  // release and would leave the rubber band armed after the gesture ended.
+  const handleClockFaceMouseDown = (e: React.MouseEvent): void => {
+    // Check if pressing on empty space
     const target = e.target as Element
     if (!target.classList.contains('clock-face')) return
 
+    e.preventDefault()
     const minutes = roundToQuarter(getMinutesFromMouse(e))
     setCreatingSession({
       startMinutes: minutes,
@@ -230,110 +242,141 @@ export function CircularClock({
 
   // Handle drag and creation
   useEffect(() => {
-    const handleMouseMove = (e: MouseEvent) => {
+    // Apply the session move/resize implied by the pointer position in `e`.
+    // Used for every mousemove AND for the final mouseup, so the position the
+    // user releases at is exactly what persists.
+    const applyDragMove = (e: MouseEvent): void => {
+      if (!dragState) return
       const minutes = getMinutesFromMouse(e)
+      const deltaMinutes = minutes - dragState.initialAngle
 
-      if (dragState) {
-        const deltaMinutes = minutes - dragState.initialAngle
+      if (dragState.edge === 'move') {
+        let newStart = dragState.initialStartMinutes + deltaMinutes
+        let newEnd = dragState.initialEndMinutes + deltaMinutes
 
-        if (dragState.edge === 'move') {
-          let newStart = dragState.initialStartMinutes + deltaMinutes
-          let newEnd = dragState.initialEndMinutes + deltaMinutes
+        // Handle wrap-around at midnight
+        if (newStart < 0) {
+          newStart += 1440
+          newEnd += 1440
+        } else if (newEnd > 1440) {
+          newStart -= 1440
+          newEnd -= 1440
+        }
 
-          // Handle wrap-around at midnight
-          if (newStart < 0) {
-            newStart += 1440
-            newEnd += 1440
-          } else if (newEnd > 1440) {
-            newStart -= 1440
-            newEnd -= 1440
-          }
+        // Check for overlaps
+        const movedSession: WorkSessionData = {
+          id: dragState.sessionId,
+          taskId: '',
+          taskName: '',
+          startMinutes: roundToQuarter(newStart % 1440),
+          endMinutes: roundToQuarter(newEnd % 1440),
+          type: sessions.find(s => s.id === dragState.sessionId)?.type || '',
+          color: sessions.find(s => s.id === dragState.sessionId)?.color || '',
+        }
 
-          // Check for overlaps
-          const movedSession: WorkSessionData = {
+        if (!checkOverlap(movedSession, displaySessions, dragState.sessionId)) {
+          onSessionUpdate(
+            dragState.sessionId,
+            roundToQuarter(newStart % 1440),
+            roundToQuarter(newEnd % 1440),
+          )
+        }
+      } else if (dragState.edge === 'start') {
+        const newStart = roundToQuarter(minutes)
+        if (newStart !== dragState.initialEndMinutes) {
+          const resizedSession: WorkSessionData = {
             id: dragState.sessionId,
             taskId: '',
             taskName: '',
-            startMinutes: roundToQuarter(newStart % 1440),
-            endMinutes: roundToQuarter(newEnd % 1440),
+            startMinutes: newStart,
+            endMinutes: dragState.initialEndMinutes,
             type: sessions.find(s => s.id === dragState.sessionId)?.type || '',
             color: sessions.find(s => s.id === dragState.sessionId)?.color || '',
           }
 
-          if (!checkOverlap(movedSession, displaySessions, dragState.sessionId)) {
-            onSessionUpdate(
-              dragState.sessionId,
-              roundToQuarter(newStart % 1440),
-              roundToQuarter(newEnd % 1440),
-            )
-          }
-        } else if (dragState.edge === 'start') {
-          const newStart = roundToQuarter(minutes)
-          if (newStart !== dragState.initialEndMinutes) {
-            const resizedSession: WorkSessionData = {
-              id: dragState.sessionId,
-              taskId: '',
-              taskName: '',
-              startMinutes: newStart,
-              endMinutes: dragState.initialEndMinutes,
-              type: sessions.find(s => s.id === dragState.sessionId)?.type || '',
-              color: sessions.find(s => s.id === dragState.sessionId)?.color || '',
-            }
-
-            if (!checkOverlap(resizedSession, displaySessions, dragState.sessionId)) {
-              onSessionUpdate(dragState.sessionId, newStart, dragState.initialEndMinutes)
-            }
-          }
-        } else if (dragState.edge === 'end') {
-          const newEnd = roundToQuarter(minutes)
-          if (newEnd !== dragState.initialStartMinutes) {
-            const resizedSession: WorkSessionData = {
-              id: dragState.sessionId,
-              taskId: '',
-              taskName: '',
-              startMinutes: dragState.initialStartMinutes,
-              endMinutes: newEnd,
-              type: sessions.find(s => s.id === dragState.sessionId)?.type || '',
-              color: sessions.find(s => s.id === dragState.sessionId)?.color || '',
-            }
-
-            if (!checkOverlap(resizedSession, displaySessions, dragState.sessionId)) {
-              onSessionUpdate(dragState.sessionId, dragState.initialStartMinutes, newEnd)
-            }
+          if (!checkOverlap(resizedSession, displaySessions, dragState.sessionId)) {
+            onSessionUpdate(dragState.sessionId, newStart, dragState.initialEndMinutes)
           }
         }
-      } else if (creatingSession) {
-        setCreatingSession({
-          ...creatingSession,
-          currentMinutes: roundToQuarter(minutes),
-        })
+      } else if (dragState.edge === 'end') {
+        const newEnd = roundToQuarter(minutes)
+        if (newEnd !== dragState.initialStartMinutes) {
+          const resizedSession: WorkSessionData = {
+            id: dragState.sessionId,
+            taskId: '',
+            taskName: '',
+            startMinutes: dragState.initialStartMinutes,
+            endMinutes: newEnd,
+            type: sessions.find(s => s.id === dragState.sessionId)?.type || '',
+            color: sessions.find(s => s.id === dragState.sessionId)?.color || '',
+          }
+
+          if (!checkOverlap(resizedSession, displaySessions, dragState.sessionId)) {
+            onSessionUpdate(dragState.sessionId, dragState.initialStartMinutes, newEnd)
+          }
+        }
       }
     }
 
-    const handleMouseUp = () => {
-      if (creatingSession) {
-        const start = Math.min(creatingSession.startMinutes, creatingSession.currentMinutes)
-        const end = Math.max(creatingSession.startMinutes, creatingSession.currentMinutes)
+    // Commit the gesture from the release event's position. This is the ONLY
+    // place a drag-create is committed, so the end the user placed (and not
+    // some later unrelated mouseup) is exactly what persists.
+    const finishGesture = (e: MouseEvent): void => {
+      if (dragState) {
+        if (dragDidMoveRef.current) {
+          applyDragMove(e)
+        }
+      } else if (creatingSession) {
+        const releaseMinutes = roundToQuarter(getMinutesFromMouse(e))
+        const range = resolveDragCreateRange(
+          creatingSession.startMinutes,
+          releaseMinutes,
+          MIN_CREATE_DURATION_MINUTES,
+        )
 
-        if (end - start >= 15) {
+        if (range) {
           // Check for overlaps with existing sessions
           const newSession: WorkSessionData = {
             id: 'temp-new',
             taskId: '',
             taskName: '',
-            startMinutes: start,
-            endMinutes: end,
-            type: sessions.find(s => s.id === 'temp-new')?.type || '',
-            color: sessions.find(s => s.id === 'temp-new')?.color || '',
+            startMinutes: range.startMinutes,
+            endMinutes: range.endMinutes,
+            type: '',
+            color: '',
           }
 
           if (!checkOverlap(newSession, displaySessions)) {
-            onSessionCreate(start, end)
+            onSessionCreate(range.startMinutes, range.endMinutes)
           }
         }
         setCreatingSession(null)
       }
       setDragState(null)
+    }
+
+    const handleMouseMove = (e: MouseEvent): void => {
+      if (isDragReleased(e.buttons)) {
+        // The mouseup happened where the document could not observe it
+        // (e.g. outside the window) - terminate at this position instead of
+        // leaving the gesture armed for an arbitrary later mouseup.
+        finishGesture(e)
+        return
+      }
+
+      if (dragState) {
+        dragDidMoveRef.current = true
+        applyDragMove(e)
+      } else if (creatingSession) {
+        setCreatingSession({
+          ...creatingSession,
+          currentMinutes: roundToQuarter(getMinutesFromMouse(e)),
+        })
+      }
+    }
+
+    const handleMouseUp = (e: MouseEvent): void => {
+      finishGesture(e)
     }
 
     if (dragState || creatingSession) {
@@ -364,7 +407,7 @@ export function CircularClock({
           fill="#f5f7fa"
           stroke="#e5e6eb"
           strokeWidth={2}
-          onClick={handleClockClick}
+          onMouseDown={handleClockFaceMouseDown}
         />
 
         {/* Inner circle */}

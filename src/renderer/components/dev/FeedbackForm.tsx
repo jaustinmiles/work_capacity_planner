@@ -3,7 +3,7 @@ import { Form, Input, Button, Radio, Typography, Space, Alert, Checkbox } from '
 import { IconMessage, IconSave } from '@arco-design/web-react/icon'
 import { Message } from '../common/Message'
 import { logger } from '@/logger'
-import { saveFeedback as saveFeedbackViaService, type FeedbackItem } from '../../services/feedback-service'
+import { saveFeedback as saveFeedbackViaService, type NewFeedbackItem } from '../../services/feedback-service'
 import { getCurrentTime } from '@shared/time-provider'
 
 const FormItem = Form.Item
@@ -18,8 +18,8 @@ interface FeedbackFormProps {
 
 /** Form values before adding timestamp and sessionId */
 interface FeedbackFormValues {
-  type: FeedbackItem['type']
-  priority: FeedbackItem['priority']
+  type: NewFeedbackItem['type']
+  priority: NewFeedbackItem['priority']
   title: string
   description: string
   components?: string[]
@@ -61,7 +61,7 @@ const COMPONENT_OPTIONS = [
 export function FeedbackForm({ onClose }: FeedbackFormProps): React.ReactElement {
   const [form] = Form.useForm()
   const [loading, setLoading] = useState(false)
-  const [feedbackType, setFeedbackType] = useState<FeedbackItem['type']>('improvement')
+  const [feedbackType, setFeedbackType] = useState<NewFeedbackItem['type']>('improvement')
 
   // Set default values when component mounts
   React.useEffect(() => {
@@ -78,7 +78,7 @@ export function FeedbackForm({ onClose }: FeedbackFormProps): React.ReactElement
 
       const sessionId = await window.electronAPI?.getSessionId?.() || 'unknown'
 
-      const feedback: FeedbackItem = {
+      const feedback: NewFeedbackItem = {
         type: values.type,
         priority: values.priority,
         title: values.title,
@@ -91,9 +91,13 @@ export function FeedbackForm({ onClose }: FeedbackFormProps): React.ReactElement
         sessionId,
       }
 
-      await saveFeedbackViaService(feedback)
+      const result = await saveFeedbackViaService(feedback)
 
-      Message.success('Feedback saved successfully!')
+      if (result.queued) {
+        Message.success('Feedback saved locally — it will be submitted when the server is reachable.')
+      } else {
+        Message.success('Feedback saved successfully!')
+      }
       logger.ui.info('Feedback submitted:', feedback)
 
       form.resetFields()
@@ -135,7 +139,7 @@ export function FeedbackForm({ onClose }: FeedbackFormProps): React.ReactElement
         <FormItem label="Feedback Type" field="type" rules={[{ required: true }]}>
           <RadioGroup
             value={feedbackType}
-            onChange={(value) => setFeedbackType(value as FeedbackItem['type'])}
+            onChange={(value) => setFeedbackType(value as NewFeedbackItem['type'])}
           >
             <Radio value="bug">Bug Report</Radio>
             <Radio value="feature">Feature Request</Radio>

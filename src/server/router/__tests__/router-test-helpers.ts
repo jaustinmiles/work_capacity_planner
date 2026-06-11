@@ -138,8 +138,17 @@ export function createMockPrisma() {
       create: vi.fn(),
       delete: vi.fn(),
     },
+    taskComparison: {
+      findMany: vi.fn(),
+      findFirst: vi.fn(),
+      create: vi.fn(),
+      update: vi.fn(),
+      delete: vi.fn(),
+      deleteMany: vi.fn(),
+    },
     userTaskType: {
       findMany: vi.fn(),
+      findFirst: vi.fn(),
       findUnique: vi.fn(),
       create: vi.fn(),
       update: vi.fn(),
@@ -152,6 +161,32 @@ export function createMockPrisma() {
       create: vi.fn(),
       update: vi.fn(),
       delete: vi.fn(),
+    },
+    spatialScene: {
+      findFirst: vi.fn(),
+      findFirstOrThrow: vi.fn(),
+      findUnique: vi.fn(),
+      findMany: vi.fn(),
+      create: vi.fn(),
+      update: vi.fn(),
+      delete: vi.fn(),
+    },
+    spatialEntity: {
+      findFirst: vi.fn(),
+      findUnique: vi.fn(),
+      findMany: vi.fn(),
+      create: vi.fn(),
+      update: vi.fn(),
+      delete: vi.fn(),
+    },
+    feedback: {
+      findMany: vi.fn(),
+      findFirst: vi.fn(),
+      findUnique: vi.fn(),
+      create: vi.fn(),
+      update: vi.fn(),
+      delete: vi.fn(),
+      count: vi.fn(),
     },
     $transaction: vi.fn((callback) => {
       // For simple transactions, just execute the callback
@@ -424,6 +459,46 @@ export function createMockSnapshot(overrides: Record<string, unknown> = {}) {
     label: 'Morning Snapshot',
     snapshotData: '{}',
     createdAt: new Date(),
+    ...overrides,
+  }
+}
+
+/**
+ * Creates a mock task comparison for testing
+ */
+export function createMockComparison(overrides: Record<string, unknown> = {}) {
+  return {
+    id: 'cmp-123',
+    sessionId: 'test-session-id',
+    itemAId: 'item-a',
+    itemBId: 'item-b',
+    winnerId: 'item-a',
+    dimension: 'priority',
+    isEqual: false,
+    createdAt: new Date(),
+    ...overrides,
+  }
+}
+
+/**
+ * Creates a mock feedback row (database shape: components is a JSON string)
+ */
+export function createMockFeedbackRow(overrides: Record<string, unknown> = {}) {
+  return {
+    id: 'feedback-123',
+    type: 'bug',
+    priority: 'high',
+    title: 'Test feedback',
+    description: 'Something is broken',
+    components: null,
+    steps: null,
+    expected: null,
+    actual: null,
+    sessionId: 'test-session-id',
+    createdAt: new Date('2026-06-01T10:00:00.000Z'),
+    resolved: false,
+    resolvedDate: null,
+    resolvedIn: null,
     ...overrides,
   }
 }

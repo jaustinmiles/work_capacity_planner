@@ -21,7 +21,7 @@
     "server": "dotenv -e .env.server -- tsx src/server/index.ts",
     "server:dev": "dotenv -e .env.server -- tsx watch src/server/index.ts",
     "server:dev:stable": "dotenv -e .env.server -- tsx src/server/index.ts",
-    "server:prod": "npm run build:web && npm run server",
+    "server:prod": "npm run build:web && cross-env NODE_ENV=production npm run server",
     "build:web": "vite build --config vite.config.web.ts",
     "dev:web": "vite --config vite.config.web.ts",
     "preview:web": "vite preview --config vite.config.web.ts",

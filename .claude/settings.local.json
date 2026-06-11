@@ -25,7 +25,11 @@
       "Bash(ls:*)",
       "Bash(grep:*)",
       "mcp__diagnostic__build",
-      "WebSearch"
+      "WebSearch",
+      "mcp__git__push_and_create_pr",
+      "Bash(xcodebuild build *)",
+      "Bash(xcodebuild -project TaskPlannerMobile.xcodeproj -scheme TaskPlannerVision -destination 'generic/platform=visionOS Simulator' -derivedDataPath /tmp/tpv-dd build)",
+      "Bash(swift test *)"
     ],
     "deny": [],
     "defaultMode": "acceptEdits",

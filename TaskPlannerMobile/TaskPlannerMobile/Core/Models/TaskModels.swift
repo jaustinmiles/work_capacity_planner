@@ -224,6 +224,8 @@ struct UpdateTaskInput: Codable {
     var importance: Int?
     var urgency: Int?
     var type: String?
+    var asyncWaitTime: Int?
+    var cognitiveComplexity: Int?
     var completed: Bool?
     var completedAt: Date?
     var actualDuration: Int?
@@ -233,4 +235,7 @@ struct UpdateTaskInput: Codable {
     var overallStatus: String?
     var archived: Bool?
     var inActiveSprint: Bool?
+    /// Full step list — used when editing a workflow step (the parent task's steps are
+    /// reconstructed and saved, mirroring the desktop deep-work detail panel).
+    var steps: [CreateStepInput]?
 }

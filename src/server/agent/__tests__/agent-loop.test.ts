@@ -1,14 +1,82 @@
 /**
- * Tests for agent loop approval mechanism
+ * Tests for agent loop approval mechanism and hallucination-warning gating
  *
- * Tests the pendingApprovals map and resolveApproval function
- * which form the bridge between the SSE-based agent loop
- * and the tRPC approve/reject endpoints.
+ * Covers:
+ * - The pendingApprovals map and resolveApproval function which form the
+ *   bridge between the SSE-based agent loop and the tRPC approve/reject
+ *   endpoints.
+ * - The no-tool-warning gate in runAgentLoop: the hallucination check must
+ *   run whenever no write tool was APPLIED (read-only turns included —
+ *   regression for the gate that skipped the check on any tool call), and
+ *   must not run when a write was approved and succeeded.
  */
 
 import { describe, it, expect, beforeEach, vi } from 'vitest'
-import { pendingApprovals, resolveApproval } from '../agent-loop'
+
+const { mockCreateAgentStream, mockExecute, mockCheckForHallucination } = vi.hoisted(() => ({
+  mockCreateAgentStream: vi.fn(),
+  mockExecute: vi.fn(),
+  mockCheckForHallucination: vi.fn(),
+}))
+
+vi.mock('../../../shared/ai-service', () => ({
+  getAIService: vi.fn(() => ({ createAgentStream: mockCreateAgentStream })),
+}))
+
+vi.mock('../hallucination-check', () => ({
+  checkForHallucination: mockCheckForHallucination,
+}))
+
+vi.mock('../../prisma', () => ({
+  prisma: {
+    agentMemory: {
+      findMany: vi.fn(async () => []),
+      updateMany: vi.fn(async () => ({ count: 0 })),
+    },
+    task: { findMany: vi.fn(async () => []) },
+    endeavor: { findMany: vi.fn(async () => []) },
+    userTaskType: { findMany: vi.fn(async () => []) },
+  },
+}))
+
+vi.mock('../../router', () => ({
+  appRouter: { createCaller: vi.fn(() => ({})) },
+}))
+
+vi.mock('../reference-validator', () => ({
+  validateToolReferences: vi.fn(async () => ({ valid: true })),
+}))
+
+vi.mock('../tool-executors', () => ({
+  createToolExecutor: vi.fn(() => ({ execute: mockExecute })),
+}))
+
+vi.mock('../agent-context', () => ({
+  buildAgentSystemPrompt: vi.fn(() => 'test system prompt'),
+}))
+
+vi.mock('../action-previews', () => ({
+  generateActionPreview: vi.fn(() => ({
+    title: 'Create Task',
+    description: 'Test preview',
+    details: {},
+  })),
+}))
+
+vi.mock('../../../logger', () => ({
+  logger: {
+    system: {
+      info: vi.fn(),
+      warn: vi.fn(),
+      error: vi.fn(),
+    },
+  },
+}))
+
+import { runAgentLoop, pendingApprovals, resolveApproval } from '../agent-loop'
 import { ApprovalDecision } from '../../../shared/enums'
+import type { AgentSSEEvent } from '../../../shared/agent-types'
+import { createMockContext } from '../../router/__tests__/router-test-helpers'
 
 describe('agent loop approval mechanism', () => {
   beforeEach(() => {
@@ -94,5 +162,235 @@ describe('agent loop approval mechanism', () => {
       resolveApproval('p2', ApprovalDecision.Rejected)
       expect(pendingApprovals.size).toBe(0)
     })
+  })
+})
+
+// ============================================================================
+// runAgentLoop — no-tool-warning gating
+// ============================================================================
+
+interface FakeTextBlock {
+  type: 'text'
+  text: string
+}
+
+interface FakeToolUseBlock {
+  type: 'tool_use'
+  id: string
+  name: string
+  input: Record<string, unknown>
+}
+
+interface FakeAgentMessage {
+  content: Array<FakeTextBlock | FakeToolUseBlock>
+  stop_reason: 'end_turn' | 'tool_use'
+}
+
+/** Queue fake Claude responses, one per agent-loop iteration */
+function queueStreamMessages(...messages: FakeAgentMessage[]): void {
+  for (const message of messages) {
+    mockCreateAgentStream.mockImplementationOnce(() => ({
+      finalMessage: () => Promise.resolve(message),
+    }))
+  }
+}
+
+const CLAIM_TEXT = 'Done! I created the three tasks you asked for and scheduled them all.'
+
+interface RunLoopOutcome {
+  result: Awaited<ReturnType<typeof runAgentLoop>>
+  events: AgentSSEEvent[]
+}
+
+/**
+ * Run the agent loop with collected events. When a write tool proposal
+ * is emitted, the optional decision is applied on the next macrotask
+ * (mirroring the real tRPC approve/reject round-trip).
+ */
+async function runLoop(
+  approvalDecision?: ApprovalDecision.Approved | ApprovalDecision.Rejected,
+): Promise<RunLoopOutcome> {
+  const events: AgentSSEEvent[] = []
+  const result = await runAgentLoop({
+    userMessage: 'create my tasks',
+    conversationHistory: [],
+    sessionInfo: { sessionName: 'Test Session', sessionId: 'session-1' },
+    ctx: createMockContext(),
+    onEvent: event => {
+      events.push(event)
+      if (event.type === 'proposed_action' && approvalDecision) {
+        setTimeout(() => resolveApproval(event.proposalId, approvalDecision), 0)
+      }
+    },
+  })
+  return { result, events }
+}
+
+describe('runAgentLoop no-tool-warning gating', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    // mockClear keeps queued once-implementations — reset the stream queue fully
+    mockCreateAgentStream.mockReset()
+    pendingApprovals.clear()
+    mockCheckForHallucination.mockResolvedValue(null)
+  })
+
+  it('runs the check and emits the warning when no tools were called', async () => {
+    queueStreamMessages({
+      content: [{ type: 'text', text: CLAIM_TEXT }],
+      stop_reason: 'end_turn',
+    })
+    mockCheckForHallucination.mockResolvedValue({
+      confidence: 0.8,
+      reasoning: 'claims completed actions',
+    })
+
+    const { result, events } = await runLoop()
+
+    expect(mockCheckForHallucination).toHaveBeenCalledTimes(1)
+    expect(mockCheckForHallucination).toHaveBeenCalledWith('create my tasks', CLAIM_TEXT, {
+      readToolsRan: false,
+    })
+    expect(events).toContainEqual({
+      type: 'no_tool_warning',
+      confidence: 0.8,
+      reasoning: 'claims completed actions',
+    })
+    expect(result.noToolWarning).toEqual({
+      confidence: 0.8,
+      reasoning: 'claims completed actions',
+    })
+  })
+
+  it('runs the check when only READ tools ran (regression: any tool call suppressed it)', async () => {
+    queueStreamMessages(
+      {
+        content: [{ type: 'tool_use', id: 'tu-1', name: 'get_tasks', input: {} }],
+        stop_reason: 'tool_use',
+      },
+      {
+        content: [{ type: 'text', text: CLAIM_TEXT }],
+        stop_reason: 'end_turn',
+      },
+    )
+    mockExecute.mockResolvedValue({ success: true, data: [] })
+    mockCheckForHallucination.mockResolvedValue({
+      confidence: 0.9,
+      reasoning: 'claims writes after read-only turn',
+    })
+
+    const { result, events } = await runLoop()
+
+    // The read tool was recorded — and the check must STILL run
+    expect(result.toolCalls).toHaveLength(1)
+    expect(result.toolCalls[0].category).toBe('read')
+    expect(mockCheckForHallucination).toHaveBeenCalledTimes(1)
+    expect(mockCheckForHallucination).toHaveBeenCalledWith('create my tasks', CLAIM_TEXT, {
+      readToolsRan: true,
+    })
+    expect(events).toContainEqual({
+      type: 'no_tool_warning',
+      confidence: 0.9,
+      reasoning: 'claims writes after read-only turn',
+    })
+    expect(result.noToolWarning).not.toBeNull()
+  })
+
+  it('does NOT run the check when a write tool was approved and applied', async () => {
+    queueStreamMessages(
+      {
+        content: [
+          { type: 'tool_use', id: 'tu-2', name: 'create_task', input: { name: 'Test' } },
+        ],
+        stop_reason: 'tool_use',
+      },
+      {
+        content: [{ type: 'text', text: CLAIM_TEXT }],
+        stop_reason: 'end_turn',
+      },
+    )
+    mockExecute.mockResolvedValue({ success: true, data: { id: 'task-1' } })
+
+    const { result, events } = await runLoop(ApprovalDecision.Approved)
+
+    expect(result.toolCalls).toHaveLength(1)
+    expect(result.toolCalls[0].approvalStatus).toBe(ApprovalDecision.Approved)
+    expect(mockCheckForHallucination).not.toHaveBeenCalled()
+    expect(events.some(event => event.type === 'no_tool_warning')).toBe(false)
+    expect(result.noToolWarning).toBeNull()
+  })
+
+  it('runs the check when the only write tool was rejected by the user', async () => {
+    queueStreamMessages(
+      {
+        content: [
+          { type: 'tool_use', id: 'tu-3', name: 'create_task', input: { name: 'Test' } },
+        ],
+        stop_reason: 'tool_use',
+      },
+      {
+        content: [{ type: 'text', text: CLAIM_TEXT }],
+        stop_reason: 'end_turn',
+      },
+    )
+    mockCheckForHallucination.mockResolvedValue({
+      confidence: 0.7,
+      reasoning: 'claims success after rejection',
+    })
+
+    const { result, events } = await runLoop(ApprovalDecision.Rejected)
+
+    expect(result.toolCalls[0].approvalStatus).toBe(ApprovalDecision.Rejected)
+    expect(mockCheckForHallucination).toHaveBeenCalledWith('create my tasks', CLAIM_TEXT, {
+      readToolsRan: false,
+    })
+    expect(events).toContainEqual({
+      type: 'no_tool_warning',
+      confidence: 0.7,
+      reasoning: 'claims success after rejection',
+    })
+  })
+
+  it('runs the check when the approved write tool FAILED to execute', async () => {
+    queueStreamMessages(
+      {
+        content: [
+          { type: 'tool_use', id: 'tu-4', name: 'create_task', input: { name: 'Test' } },
+        ],
+        stop_reason: 'tool_use',
+      },
+      {
+        content: [{ type: 'text', text: CLAIM_TEXT }],
+        stop_reason: 'end_turn',
+      },
+    )
+    mockExecute.mockResolvedValue({ success: false, error: 'database error' })
+    mockCheckForHallucination.mockResolvedValue({
+      confidence: 0.6,
+      reasoning: 'claims success after failed write',
+    })
+
+    const { result } = await runLoop(ApprovalDecision.Approved)
+
+    expect(result.toolCalls[0].error).toBe('database error')
+    expect(mockCheckForHallucination).toHaveBeenCalledTimes(1)
+    expect(result.noToolWarning).toEqual({
+      confidence: 0.6,
+      reasoning: 'claims success after failed write',
+    })
+  })
+
+  it('emits no warning event when the check returns null', async () => {
+    queueStreamMessages({
+      content: [{ type: 'text', text: 'Here is how scheduling works in this app, explained.' }],
+      stop_reason: 'end_turn',
+    })
+    mockCheckForHallucination.mockResolvedValue(null)
+
+    const { result, events } = await runLoop()
+
+    expect(mockCheckForHallucination).toHaveBeenCalledTimes(1)
+    expect(events.some(event => event.type === 'no_tool_warning')).toBe(false)
+    expect(result.noToolWarning).toBeNull()
   })
 })

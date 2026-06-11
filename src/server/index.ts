@@ -19,6 +19,8 @@ import { appRouter } from './router'
 import { createContext } from './trpc'
 import { disconnectPrisma } from './prisma'
 import { agentChatHandler } from './agent/agent-chat-handler'
+import { ApiKeyBootStatus, evaluateApiKeyBootPolicy } from './middleware/auth'
+import { logger } from '../logger'
 
 const app = express()
 
@@ -136,6 +138,24 @@ const port = parseInt(process.env.TASK_PLANNER_PORT || '3001', 10)
 // Check if web client is available
 const hasWebClient = fs.existsSync(webDistPath) && fs.existsSync(webIndexPath)
 
+// Boot guard: the API fails CLOSED in production. Without an API key,
+// validateApiKey authenticates every request, so a production server
+// (NODE_ENV=production, set by `npm run server:prod`) must refuse to start
+// rather than serve the internet unauthenticated through the tunnel.
+const apiKeyBootStatus = evaluateApiKeyBootPolicy(
+  process.env.NODE_ENV,
+  process.env.TASK_PLANNER_API_KEY,
+)
+
+if (apiKeyBootStatus === ApiKeyBootStatus.MissingProduction) {
+  logger.system.error(
+    'FATAL: TASK_PLANNER_API_KEY is not set while NODE_ENV=production — refusing to start. ' +
+      'Every request would be served unauthenticated. ' +
+      'Generate a key with `openssl rand -hex 32` and set TASK_PLANNER_API_KEY in .env.server.',
+  )
+  process.exit(1)
+}
+
 // Start server
 const server = app.listen(port, '0.0.0.0', () => {
   const webStatus = hasWebClient ? 'Available' : 'Not built (run: npm run build:web)'
@@ -155,10 +175,23 @@ const server = app.listen(port, '0.0.0.0', () => {
   ╚════════════════════════════════════════════════════════════╝
   `)
 
-  if (!process.env.TASK_PLANNER_API_KEY) {
-    console.warn(
-      '  ⚠️  No TASK_PLANNER_API_KEY set — all requests are unauthenticated.\n' +
-        '  Set TASK_PLANNER_API_KEY in .env.server for secure remote access.\n',
+  if (apiKeyBootStatus === ApiKeyBootStatus.MissingDevelopment) {
+    logger.system.warn(
+      '\n' +
+        '  ╔════════════════════════════════════════════════════════════╗\n' +
+        '  ║  ⚠️  SECURITY WARNING: TASK_PLANNER_API_KEY is NOT set.     ║\n' +
+        '  ║                                                            ║\n' +
+        '  ║  EVERY request to this server is accepted with NO          ║\n' +
+        '  ║  authentication. This is only acceptable for local         ║\n' +
+        '  ║  development. NEVER expose this server (e.g. via a         ║\n' +
+        '  ║  Cloudflare tunnel) without an API key.                    ║\n' +
+        '  ║                                                            ║\n' +
+        '  ║  Generate one with `openssl rand -hex 32` and set          ║\n' +
+        '  ║  TASK_PLANNER_API_KEY in .env.server.                      ║\n' +
+        '  ║                                                            ║\n' +
+        '  ║  In production (NODE_ENV=production) the server refuses    ║\n' +
+        '  ║  to start in this state.                                   ║\n' +
+        '  ╚════════════════════════════════════════════════════════════╝\n',
     )
   }
 })

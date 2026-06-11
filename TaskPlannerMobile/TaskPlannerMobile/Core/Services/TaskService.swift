@@ -63,6 +63,19 @@ final class TaskService {
         ))
     }
 
+    /// Reopen a completed standalone task: clear completion, put it back in progress, and add it to
+    /// the active sprint. The inverse of `complete`. (Workflows reopen via `reopenStep` instead, so
+    /// the server re-derives their status from their steps.)
+    func reopen(id: String) async throws -> TaskItem {
+        try await client.mutate("task.update", input: UpdateTaskInput(
+            id: id,
+            completed: false,
+            completedAt: nil,
+            overallStatus: TaskStatus.inProgress.rawValue,
+            inActiveSprint: true
+        ))
+    }
+
     /// Archive a task
     func archive(id: String) async throws -> TaskItem {
         try await client.mutate("task.update", input: UpdateTaskInput(
@@ -97,6 +110,23 @@ final class TaskService {
             stepId: stepId
         ))
     }
+
+    /// Delete a step from a workflow (the server reindexes the remaining steps).
+    func deleteStep(taskId: String, stepId: String) async throws {
+        try await client.mutateVoid("workflow.deleteStep", input: DeleteStepInput(taskId: taskId, stepId: stepId))
+    }
+
+    /// Reopen a workflow step to `pending`. The server recomputes the parent workflow's
+    /// `overallStatus`/`completed`/`completedAt` roll-up from its steps — so reopening a finished
+    /// workflow's last step returns the whole workflow to a coherent in-progress, not-completed
+    /// state in one call (used by spatial Done-tray reactivation).
+    func reopenStep(taskId: String, stepId: String) async throws {
+        try await client.mutateVoid("workflow.updateStep", input: ReopenStepInput(
+            taskId: taskId,
+            stepId: stepId,
+            status: StepStatus.pending.rawValue
+        ))
+    }
 }
 
 // MARK: - Input Types
@@ -118,4 +148,15 @@ private struct CompleteStepInput: Codable {
 private struct StartStepInput: Codable {
     let taskId: String
     let stepId: String
+}
+
+private struct DeleteStepInput: Codable {
+    let taskId: String
+    let stepId: String
+}
+
+private struct ReopenStepInput: Codable {
+    let taskId: String
+    let stepId: String
+    let status: String
 }

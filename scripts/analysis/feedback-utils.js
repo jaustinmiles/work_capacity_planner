@@ -1,9 +1,14 @@
 #!/usr/bin/env node
 
 /**
- * Utility script for managing feedback items
+ * Utility script for managing feedback items.
+ *
+ * Feedback lives in the Prisma `Feedback` table (the central store shared by
+ * every client and the tRPC feedback router). The legacy context/feedback.json
+ * file is a read-only archive; use `import-json` to migrate it into the table.
+ *
  * Usage:
- *   node scripts/feedback-utils.js [command] [options]
+ *   node scripts/analysis/feedback-utils.js [command] [options]
  *
  * Commands:
  *   unresolved - Show all unresolved feedback items
@@ -13,12 +18,16 @@
  *     Types: bug, feature, improvement, technical_debt, enhancement, refactoring, other
  *   resolve [title] - Mark item(s) as resolved by title substring match
  *   add [type] [priority] [title] [description] - Add a new feedback item
+ *   import-json - One-time idempotent import of context/feedback.json into the table
  */
 
 const fs = require('fs')
 const path = require('path')
+const { PrismaClient } = require('@prisma/client')
 
-const FEEDBACK_FILE = path.join(__dirname, '..', '..', 'context', 'feedback.json')
+const LEGACY_FEEDBACK_FILE = path.join(__dirname, '..', '..', 'context', 'feedback.json')
+
+const prisma = new PrismaClient()
 
 // Color codes for terminal output
 const colors = {
@@ -30,16 +39,6 @@ const colors = {
   cyan: '\x1b[36m',
   reset: '\x1b[0m',
   bold: '\x1b[1m',
-}
-
-function loadFeedback() {
-  try {
-    const data = fs.readFileSync(FEEDBACK_FILE, 'utf8')
-    return JSON.parse(data)
-  } catch (error) {
-    console.error('Error loading feedback.json:', error.message)
-    process.exit(1)
-  }
 }
 
 function getPriorityColor(priority) {
@@ -64,6 +63,16 @@ function getTypeColor(type) {
   }
 }
 
+function parseComponents(components) {
+  if (!components) return []
+  try {
+    const parsed = JSON.parse(components)
+    return Array.isArray(parsed) ? parsed : []
+  } catch {
+    return []
+  }
+}
+
 function formatFeedbackItem(item, index) {
   const priorityColor = getPriorityColor(item.priority)
   const typeColor = getTypeColor(item.type)
@@ -71,18 +80,28 @@ function formatFeedbackItem(item, index) {
   console.log(`\n${colors.bold}#${index + 1}${colors.reset} ${typeColor}[${item.type.toUpperCase()}]${colors.reset} ${priorityColor}(${item.priority})${colors.reset}`)
   console.log(`  ${colors.bold}Title:${colors.reset} ${item.title}`)
   console.log(`  ${colors.bold}Description:${colors.reset} ${item.description}`)
-  if (item.components && item.components.length > 0) {
-    console.log(`  ${colors.bold}Components:${colors.reset} ${item.components.join(', ')}`)
+  const components = parseComponents(item.components)
+  if (components.length > 0) {
+    console.log(`  ${colors.bold}Components:${colors.reset} ${components.join(', ')}`)
   }
-  if (item.timestamp) {
-    const date = new Date(item.timestamp)
+  if (item.createdAt) {
+    const date = new Date(item.createdAt)
     console.log(`  ${colors.bold}Date:${colors.reset} ${date.toLocaleDateString()} ${date.toLocaleTimeString()}`)
   }
 }
 
-function showUnresolved() {
-  const feedback = loadFeedback()
-  const unresolved = feedback.filter(item => !item.resolved)
+const PRIORITY_ORDER = { critical: 0, high: 1, medium: 2, low: 3 }
+
+function sortByPriorityThenType(items) {
+  return [...items].sort((a, b) => {
+    const priorityDiff = (PRIORITY_ORDER[a.priority] ?? 9) - (PRIORITY_ORDER[b.priority] ?? 9)
+    if (priorityDiff !== 0) return priorityDiff
+    return a.type.localeCompare(b.type)
+  })
+}
+
+async function showUnresolved() {
+  const unresolved = await prisma.feedback.findMany({ where: { resolved: false } })
 
   if (unresolved.length === 0) {
     console.log(`${colors.green}✓ All feedback items are resolved!${colors.reset}`)
@@ -90,17 +109,7 @@ function showUnresolved() {
   }
 
   console.log(`${colors.bold}Found ${unresolved.length} unresolved feedback items:${colors.reset}`)
-
-  // Sort by priority
-  const priorityOrder = { critical: 0, high: 1, medium: 2, low: 3 }
-  unresolved.sort((a, b) => {
-    const priorityDiff = priorityOrder[a.priority] - priorityOrder[b.priority]
-    if (priorityDiff !== 0) return priorityDiff
-    // Then by type
-    return a.type.localeCompare(b.type)
-  })
-
-  unresolved.forEach((item, index) => formatFeedbackItem(item, index))
+  sortByPriorityThenType(unresolved).forEach((item, index) => formatFeedbackItem(item, index))
 
   // Summary
   console.log(`\n${colors.bold}Summary:${colors.reset}`)
@@ -123,35 +132,38 @@ function showUnresolved() {
   })
 }
 
-function showSummary() {
-  const feedback = loadFeedback()
-  const resolved = feedback.filter(item => item.resolved)
-  const unresolved = feedback.filter(item => !item.resolved)
+async function showSummary() {
+  const [total, resolved] = await Promise.all([
+    prisma.feedback.count(),
+    prisma.feedback.count({ where: { resolved: true } }),
+  ])
+  const unresolvedCount = total - resolved
 
   console.log(`${colors.bold}Feedback Summary:${colors.reset}`)
-  console.log(`  Total items: ${feedback.length}`)
-  console.log(`  ${colors.green}Resolved: ${resolved.length}${colors.reset}`)
-  console.log(`  ${colors.yellow}Unresolved: ${unresolved.length}${colors.reset}`)
+  console.log(`  Total items: ${total}`)
+  console.log(`  ${colors.green}Resolved: ${resolved}${colors.reset}`)
+  console.log(`  ${colors.yellow}Unresolved: ${unresolvedCount}${colors.reset}`)
 
-  if (unresolved.length > 0) {
+  if (unresolvedCount > 0) {
+    const counts = await prisma.feedback.groupBy({
+      by: ['priority'],
+      where: { resolved: false },
+      _count: { _all: true },
+    })
+    const byPriority = Object.fromEntries(counts.map(row => [row.priority, row._count._all]))
+
     console.log(`\n${colors.bold}Unresolved by Priority:${colors.reset}`)
-    const critical = unresolved.filter(i => i.priority === 'critical')
-    const high = unresolved.filter(i => i.priority === 'high')
-    const medium = unresolved.filter(i => i.priority === 'medium')
-    const low = unresolved.filter(i => i.priority === 'low')
-
-    if (critical.length > 0) console.log(`  ${colors.red}Critical: ${critical.length}${colors.reset}`)
-    if (high.length > 0) console.log(`  ${colors.yellow}High: ${high.length}${colors.reset}`)
-    if (medium.length > 0) console.log(`  ${colors.cyan}Medium: ${medium.length}${colors.reset}`)
-    if (low.length > 0) console.log(`  ${colors.green}Low: ${low.length}${colors.reset}`)
+    if (byPriority.critical) console.log(`  ${colors.red}Critical: ${byPriority.critical}${colors.reset}`)
+    if (byPriority.high) console.log(`  ${colors.yellow}High: ${byPriority.high}${colors.reset}`)
+    if (byPriority.medium) console.log(`  ${colors.cyan}Medium: ${byPriority.medium}${colors.reset}`)
+    if (byPriority.low) console.log(`  ${colors.green}Low: ${byPriority.low}${colors.reset}`)
   }
 }
 
-function showHighPriority() {
-  const feedback = loadFeedback()
-  const highPriority = feedback.filter(item =>
-    !item.resolved && (item.priority === 'critical' || item.priority === 'high'),
-  )
+async function showHighPriority() {
+  const highPriority = await prisma.feedback.findMany({
+    where: { resolved: false, priority: { in: ['critical', 'high'] } },
+  })
 
   if (highPriority.length === 0) {
     console.log(`${colors.green}✓ No high priority unresolved items!${colors.reset}`)
@@ -159,14 +171,11 @@ function showHighPriority() {
   }
 
   console.log(`${colors.bold}Found ${highPriority.length} high priority unresolved items:${colors.reset}`)
-  highPriority.forEach((item, index) => formatFeedbackItem(item, index))
+  sortByPriorityThenType(highPriority).forEach((item, index) => formatFeedbackItem(item, index))
 }
 
-function showByType(type) {
-  const feedback = loadFeedback()
-  const filtered = feedback.filter(item =>
-    !item.resolved && item.type === type,
-  )
+async function showByType(type) {
+  const filtered = await prisma.feedback.findMany({ where: { resolved: false, type } })
 
   if (filtered.length === 0) {
     console.log(`${colors.green}✓ No unresolved ${type} items!${colors.reset}`)
@@ -177,33 +186,32 @@ function showByType(type) {
   filtered.forEach((item, index) => formatFeedbackItem(item, index))
 }
 
-function resolveFeedback(titleSearch) {
-  const feedback = loadFeedback()
-  const searchLower = titleSearch.toLowerCase()
-  let resolvedCount = 0
-
-  feedback.forEach(item => {
-    if (!item.resolved && item.title.toLowerCase().includes(searchLower)) {
-      item.resolved = true
-      item.resolvedDate = new Date().toISOString()
-      resolvedCount++
-      console.log(`${colors.green}✓ Resolved:${colors.reset} ${item.title}`)
-    }
+async function resolveFeedback(titleSearch) {
+  const matches = await prisma.feedback.findMany({
+    where: { resolved: false, title: { contains: titleSearch, mode: 'insensitive' } },
   })
 
-  if (resolvedCount === 0) {
+  if (matches.length === 0) {
     console.log(`${colors.yellow}No unresolved items matching "${titleSearch}" found.${colors.reset}`)
     return
   }
 
-  fs.writeFileSync(FEEDBACK_FILE, JSON.stringify(feedback, null, 2))
-  console.log(`\n${colors.bold}Resolved ${resolvedCount} item(s).${colors.reset}`)
+  const now = new Date()
+  await prisma.feedback.updateMany({
+    where: { id: { in: matches.map(item => item.id) } },
+    data: { resolved: true, resolvedDate: now },
+  })
+
+  matches.forEach(item => {
+    console.log(`${colors.green}✓ Resolved:${colors.reset} ${item.title}`)
+  })
+  console.log(`\n${colors.bold}Resolved ${matches.length} item(s).${colors.reset}`)
 }
 
 const VALID_TYPES = ['bug', 'feature', 'improvement', 'technical_debt', 'enhancement', 'refactoring', 'other']
 const VALID_PRIORITIES = ['critical', 'high', 'medium', 'low']
 
-function addFeedback(type, priority, title, description) {
+async function addFeedback(type, priority, title, description) {
   if (!VALID_TYPES.includes(type)) {
     console.error(`Invalid type: ${type}. Valid types: ${VALID_TYPES.join(', ')}`)
     process.exit(1)
@@ -213,26 +221,86 @@ function addFeedback(type, priority, title, description) {
     process.exit(1)
   }
 
-  const feedback = loadFeedback()
-  const newItem = {
-    type,
-    priority,
-    title,
-    description,
-    components: [],
-    timestamp: new Date().toISOString(),
-    sessionId: 'cli-feedback-utils',
-    resolved: false,
+  await prisma.feedback.create({
+    data: {
+      type,
+      priority,
+      title,
+      description,
+      components: null,
+      sessionId: 'cli-feedback-utils',
+    },
+  })
+  console.log(`${colors.green}✓ Added new ${type} feedback:${colors.reset} ${title}`)
+}
+
+/**
+ * One-time idempotent import of the legacy context/feedback.json archive into
+ * the Feedback table. Identity key: (title, sessionId, createdAt) — re-running
+ * skips rows that already exist.
+ */
+async function importLegacyJson() {
+  let raw
+  try {
+    raw = fs.readFileSync(LEGACY_FEEDBACK_FILE, 'utf8')
+  } catch (error) {
+    console.error(`Cannot read ${LEGACY_FEEDBACK_FILE}: ${error.message}`)
+    process.exit(1)
   }
 
-  feedback.push(newItem)
-  fs.writeFileSync(FEEDBACK_FILE, JSON.stringify(feedback, null, 2))
-  console.log(`${colors.green}✓ Added new ${type} feedback:${colors.reset} ${title}`)
+  const items = JSON.parse(raw)
+  if (!Array.isArray(items)) {
+    console.error('feedback.json is not an array — aborting')
+    process.exit(1)
+  }
+
+  let imported = 0
+  let skipped = 0
+  for (const item of items) {
+    if (!item || typeof item.title !== 'string') {
+      skipped++
+      continue
+    }
+    const createdAt = item.timestamp ? new Date(item.timestamp) : new Date()
+    const sessionId = typeof item.sessionId === 'string' ? item.sessionId : 'unknown'
+
+    const existing = await prisma.feedback.findFirst({
+      where: { title: item.title, sessionId, createdAt },
+      select: { id: true },
+    })
+    if (existing) {
+      skipped++
+      continue
+    }
+
+    await prisma.feedback.create({
+      data: {
+        type: VALID_TYPES.includes(item.type) ? item.type : 'other',
+        priority: VALID_PRIORITIES.includes(item.priority) ? item.priority : 'medium',
+        title: item.title,
+        description: typeof item.description === 'string' ? item.description : '',
+        components: Array.isArray(item.components) && item.components.length > 0
+          ? JSON.stringify(item.components)
+          : null,
+        steps: typeof item.steps === 'string' ? item.steps : null,
+        expected: typeof item.expected === 'string' ? item.expected : null,
+        actual: typeof item.actual === 'string' ? item.actual : null,
+        sessionId,
+        createdAt,
+        resolved: Boolean(item.resolved),
+        resolvedDate: item.resolvedDate ? new Date(item.resolvedDate) : null,
+        resolvedIn: typeof item.resolvedIn === 'string' ? item.resolvedIn : null,
+      },
+    })
+    imported++
+  }
+
+  console.log(`${colors.green}✓ Import complete:${colors.reset} ${imported} imported, ${skipped} skipped (already present or invalid)`)
 }
 
 function showHelp() {
   console.log(`${colors.bold}Feedback Utility Script${colors.reset}`)
-  console.log('\nUsage: node scripts/feedback-utils.js [command] [options]\n')
+  console.log('\nUsage: node scripts/analysis/feedback-utils.js [command] [options]\n')
   console.log('Commands:')
   console.log('  unresolved          - Show all unresolved feedback items (default)')
   console.log('  summary             - Show summary of feedback by status')
@@ -241,56 +309,68 @@ function showHelp() {
   console.log(`                        Types: ${VALID_TYPES.join(', ')}`)
   console.log('  resolve TITLE       - Mark items as resolved by title substring match')
   console.log('  add TYPE PRI TITLE DESC - Add a new feedback item')
+  console.log('  import-json         - Import the legacy context/feedback.json archive (idempotent)')
   console.log('  help                - Show this help message')
 }
 
-// Main execution
-const command = process.argv[2] || 'unresolved'
-const arg = process.argv[3]
+async function main() {
+  const command = process.argv[2] || 'unresolved'
+  const arg = process.argv[3]
 
-switch (command) {
-  case 'unresolved':
-    showUnresolved()
-    break
-  case 'summary':
-    showSummary()
-    break
-  case 'high':
-    showHighPriority()
-    break
-  case 'by-type':
-    if (!arg) {
-      console.error(`Please specify a type: ${VALID_TYPES.join(', ')}`)
-      process.exit(1)
+  switch (command) {
+    case 'unresolved':
+      await showUnresolved()
+      break
+    case 'summary':
+      await showSummary()
+      break
+    case 'high':
+      await showHighPriority()
+      break
+    case 'by-type':
+      if (!arg) {
+        console.error(`Please specify a type: ${VALID_TYPES.join(', ')}`)
+        process.exit(1)
+      }
+      await showByType(arg)
+      break
+    case 'resolve':
+      if (!arg) {
+        console.error('Please specify a title substring to match')
+        process.exit(1)
+      }
+      await resolveFeedback(process.argv.slice(3).join(' '))
+      break
+    case 'add': {
+      const addType = process.argv[3]
+      const addPriority = process.argv[4]
+      const addTitle = process.argv[5]
+      const addDescription = process.argv.slice(6).join(' ')
+      if (!addType || !addPriority || !addTitle || !addDescription) {
+        console.error('Usage: add TYPE PRIORITY TITLE DESCRIPTION')
+        process.exit(1)
+      }
+      await addFeedback(addType, addPriority, addTitle, addDescription)
+      break
     }
-    showByType(arg)
-    break
-  case 'resolve':
-    if (!arg) {
-      console.error('Please specify a title substring to match')
+    case 'import-json':
+      await importLegacyJson()
+      break
+    case 'help':
+    case '--help':
+    case '-h':
+      showHelp()
+      break
+    default:
+      console.error(`Unknown command: ${command}`)
+      showHelp()
       process.exit(1)
-    }
-    resolveFeedback(process.argv.slice(3).join(' '))
-    break
-  case 'add': {
-    const addType = process.argv[3]
-    const addPriority = process.argv[4]
-    const addTitle = process.argv[5]
-    const addDescription = process.argv.slice(6).join(' ')
-    if (!addType || !addPriority || !addTitle || !addDescription) {
-      console.error('Usage: add TYPE PRIORITY TITLE DESCRIPTION')
-      process.exit(1)
-    }
-    addFeedback(addType, addPriority, addTitle, addDescription)
-    break
   }
-  case 'help':
-  case '--help':
-  case '-h':
-    showHelp()
-    break
-  default:
-    console.error(`Unknown command: ${command}`)
-    showHelp()
-    process.exit(1)
 }
+
+main()
+  .catch(error => {
+    console.error(`Feedback command failed: ${error.message}`)
+    process.exitCode = 1
+  })
+  .finally(() => prisma.$disconnect())

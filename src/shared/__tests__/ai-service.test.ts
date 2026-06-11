@@ -85,6 +85,11 @@ describe('AIService', () => {
   })
 
   describe('extractWorkflowsFromBrainstorm', () => {
+    const availableTypes = [
+      { id: 'type-deep', name: 'Deep Work' },
+      { id: 'type-ops', name: 'Operations' },
+    ]
+
     it('should extract workflows from brainstorm text', async () => {
       const brainstormText = 'I need to complete the main safety task and deploy it'
       const jobContext = 'Working on safety systems'
@@ -105,7 +110,7 @@ describe('AIService', () => {
         }],
       })
 
-      const result = await aiService.extractWorkflowsFromBrainstorm(brainstormText, jobContext)
+      const result = await aiService.extractWorkflowsFromBrainstorm(brainstormText, availableTypes, jobContext)
 
       expect(result).toEqual(expectedResponse)
     })
@@ -118,9 +123,85 @@ describe('AIService', () => {
         }],
       })
 
-      const result = await aiService.extractWorkflowsFromBrainstorm('test', 'context')
+      const result = await aiService.extractWorkflowsFromBrainstorm('test', availableTypes, 'context')
 
       expect(result).toEqual({ workflows: [], standaloneTasks: [] })
+    })
+
+    // Regression: prompts hardcoded the legacy "focused"/"admin" types, instructing the
+    // model to emit type ids that don't exist in any session (server now rejects them).
+    it('injects the user-defined task types into the prompt instead of hardcoded legacy types', async () => {
+      mockAnthropicClient.messages.create.mockResolvedValue({
+        content: [{
+          type: 'text',
+          text: '{"workflows": [], "standaloneTasks": []}',
+        }],
+      })
+
+      await aiService.extractWorkflowsFromBrainstorm('test', availableTypes)
+
+      const call = mockAnthropicClient.messages.create.mock.calls[0][0]
+      const prompt: string = call.messages[0].content
+      expect(prompt).toContain('type-deep')
+      expect(prompt).toContain('Deep Work')
+      expect(prompt).toContain('type-ops')
+      expect(prompt).not.toContain('"focused"')
+      expect(prompt).not.toContain('"admin"')
+    })
+
+    it('rejects when no user-defined task types exist instead of inventing types', async () => {
+      await expect(
+        aiService.extractWorkflowsFromBrainstorm('test', []),
+      ).rejects.toThrow('No user-defined task types')
+
+      expect(mockAnthropicClient.messages.create).not.toHaveBeenCalled()
+    })
+  })
+
+  describe('extractTasksFromBrainstorm', () => {
+    const availableTypes = [
+      { id: 'type-deep', name: 'Deep Work' },
+      { id: 'type-ops', name: 'Operations' },
+    ]
+
+    it('should extract tasks and inject user-defined task types into the prompt', async () => {
+      const expectedResponse = {
+        summary: 'A task',
+        tasks: [{
+          name: 'Write report',
+          description: 'Draft the quarterly report',
+          estimatedDuration: 60,
+          importance: 7,
+          urgency: 5,
+          type: 'type-deep',
+        }],
+      }
+
+      mockAnthropicClient.messages.create.mockResolvedValue({
+        content: [{
+          type: 'text',
+          text: JSON.stringify(expectedResponse),
+        }],
+      })
+
+      const result = await aiService.extractTasksFromBrainstorm('write the report', availableTypes)
+
+      expect(result).toEqual(expectedResponse)
+
+      const call = mockAnthropicClient.messages.create.mock.calls[0][0]
+      const prompt: string = call.messages[0].content
+      expect(prompt).toContain('type-deep')
+      expect(prompt).toContain('type-ops')
+      expect(prompt).not.toContain('"focused"')
+      expect(prompt).not.toContain('"admin"')
+    })
+
+    it('rejects when no user-defined task types exist instead of inventing types', async () => {
+      await expect(
+        aiService.extractTasksFromBrainstorm('test', []),
+      ).rejects.toThrow('No user-defined task types')
+
+      expect(mockAnthropicClient.messages.create).not.toHaveBeenCalled()
     })
   })
 })

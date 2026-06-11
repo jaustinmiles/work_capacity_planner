@@ -32,6 +32,11 @@ import {
   validateSplitPoint,
   MIN_SPLIT_DURATION_MINUTES,
 } from './SessionState'
+import {
+  resolveDragCreateRange,
+  timelineXToMinutes,
+  isDragReleased,
+} from '../../utils/work-logger-drag'
 
 // ============================================================================
 // Types
@@ -192,6 +197,9 @@ export function LinearTimeline({
 
   // Drag state
   const [dragState, setDragState] = useState<DragState | null>(null)
+  // Tracks whether the pointer actually moved during a drag, so a plain click
+  // on a session never commits a (snapped) position change on release
+  const dragDidMoveRef = useRef(false)
   const [creatingSession, setCreatingSession] = useState<CreatingSession | null>(null)
   const [creatingTimeSinkSession, setCreatingTimeSinkSession] = useState<CreatingTimeSinkSession | null>(null)
   const [showSinkSelector, setShowSinkSelector] = useState(false)
@@ -224,8 +232,7 @@ export function LinearTimeline({
   }, [hourWidth])
 
   const xToMinutes = useCallback((x: number): number => {
-    const minutes = (x - TIME_LABEL_WIDTH) / (hourWidth / 60)
-    return Math.max(0, Math.min(1440, minutes))
+    return timelineXToMinutes(x, hourWidth, TIME_LABEL_WIDTH)
   }, [hourWidth])
 
   // ============================================================================
@@ -250,6 +257,7 @@ export function LinearTimeline({
     e.stopPropagation()
     onSessionSelect(session.id)
 
+    dragDidMoveRef.current = false
     setDragState({
       sessionId: session.id,
       edge,
@@ -365,6 +373,7 @@ export function LinearTimeline({
         }
 
         onSessionSelect(clickedSession.id)
+        dragDidMoveRef.current = false
         setDragState({
           sessionId: clickedSession.id,
           edge,
@@ -439,113 +448,147 @@ export function LinearTimeline({
 
   // Document-level drag handling
   useEffect(() => {
-    const handleMouseMove = (e: MouseEvent): void => {
+    // Apply the session move/resize implied by the pointer position in `e`.
+    // Used for every mousemove AND for the final mouseup, so the position the
+    // user releases at is exactly what persists.
+    const applyDragMove = (e: MouseEvent): void => {
+      if (!dragState) return
       const minutes = getMinutesFromMouseEvent(e)
 
-      if (dragState) {
-        const session = sessions.find(s => s.id === dragState.sessionId)
-        if (!session) return
+      const session = sessions.find(s => s.id === dragState.sessionId)
+      if (!session) return
 
-        if (dragState.edge === 'move') {
-          const duration = dragState.initialEndMinutes - dragState.initialStartMinutes
-          // For move: calculate delta from initial mouse position (scroll-independent)
-          const deltaX = e.clientX - dragState.initialMouseX
-          const deltaMinutes = Math.round(deltaX / (hourWidth / 60))
+      if (dragState.edge === 'move') {
+        const duration = dragState.initialEndMinutes - dragState.initialStartMinutes
+        // For move: calculate delta from initial mouse position (scroll-independent)
+        const deltaX = e.clientX - dragState.initialMouseX
+        const deltaMinutes = Math.round(deltaX / (hourWidth / 60))
 
-          let newStart = roundToFiveMinutes(dragState.initialStartMinutes + deltaMinutes)
-          let newEnd = newStart + duration
+        let newStart = roundToFiveMinutes(dragState.initialStartMinutes + deltaMinutes)
+        let newEnd = newStart + duration
 
-          // Clamp to day bounds
-          if (newStart < 0) {
-            newStart = 0
-            newEnd = duration
-          }
-          if (newEnd > 1440) {
-            newEnd = 1440
-            newStart = 1440 - duration
-          }
-
-          const movedSession: WorkSessionData = {
-            ...session,
-            startMinutes: newStart,
-            endMinutes: newEnd,
-          }
-
-          if (!checkOverlap(movedSession, sessions, dragState.sessionId)) {
-            onSessionUpdate(dragState.sessionId, newStart, newEnd)
-          }
-        } else if (dragState.edge === 'start') {
-          const newStart = Math.min(minutes, dragState.initialEndMinutes - SNAP_INTERVAL)
-          const clampedStart = Math.max(0, newStart)
-
-          const resizedSession: WorkSessionData = {
-            ...session,
-            startMinutes: clampedStart,
-            endMinutes: dragState.initialEndMinutes,
-          }
-
-          if (!checkOverlap(resizedSession, sessions, dragState.sessionId)) {
-            onSessionUpdate(dragState.sessionId, clampedStart, dragState.initialEndMinutes)
-          }
-        } else if (dragState.edge === 'end') {
-          const newEnd = Math.max(minutes, dragState.initialStartMinutes + SNAP_INTERVAL)
-          const clampedEnd = Math.min(1440, newEnd)
-
-          const resizedSession: WorkSessionData = {
-            ...session,
-            startMinutes: dragState.initialStartMinutes,
-            endMinutes: clampedEnd,
-          }
-
-          if (!checkOverlap(resizedSession, sessions, dragState.sessionId)) {
-            onSessionUpdate(dragState.sessionId, dragState.initialStartMinutes, clampedEnd)
-          }
+        // Clamp to day bounds
+        if (newStart < 0) {
+          newStart = 0
+          newEnd = duration
         }
-      } else if (creatingSession) {
-        setCreatingSession(prev => prev ? { ...prev, currentMinutes: minutes } : null)
-      } else if (creatingTimeSinkSession) {
-        setCreatingTimeSinkSession(prev => prev ? { ...prev, currentMinutes: minutes } : null)
+        if (newEnd > 1440) {
+          newEnd = 1440
+          newStart = 1440 - duration
+        }
+
+        const movedSession: WorkSessionData = {
+          ...session,
+          startMinutes: newStart,
+          endMinutes: newEnd,
+        }
+
+        if (!checkOverlap(movedSession, sessions, dragState.sessionId)) {
+          onSessionUpdate(dragState.sessionId, newStart, newEnd)
+        }
+      } else if (dragState.edge === 'start') {
+        const newStart = Math.min(minutes, dragState.initialEndMinutes - SNAP_INTERVAL)
+        const clampedStart = Math.max(0, newStart)
+
+        const resizedSession: WorkSessionData = {
+          ...session,
+          startMinutes: clampedStart,
+          endMinutes: dragState.initialEndMinutes,
+        }
+
+        if (!checkOverlap(resizedSession, sessions, dragState.sessionId)) {
+          onSessionUpdate(dragState.sessionId, clampedStart, dragState.initialEndMinutes)
+        }
+      } else if (dragState.edge === 'end') {
+        const newEnd = Math.max(minutes, dragState.initialStartMinutes + SNAP_INTERVAL)
+        const clampedEnd = Math.min(1440, newEnd)
+
+        const resizedSession: WorkSessionData = {
+          ...session,
+          startMinutes: dragState.initialStartMinutes,
+          endMinutes: clampedEnd,
+        }
+
+        if (!checkOverlap(resizedSession, sessions, dragState.sessionId)) {
+          onSessionUpdate(dragState.sessionId, dragState.initialStartMinutes, clampedEnd)
+        }
       }
     }
 
-    const handleMouseUp = (): void => {
-      if (creatingSession) {
-        const start = Math.min(creatingSession.startMinutes, creatingSession.currentMinutes)
-        const end = Math.max(creatingSession.startMinutes, creatingSession.currentMinutes)
+    // Commit the gesture from the release event's position. This is the ONLY
+    // place a drag-create is committed, so the end the user placed (and not
+    // some later unrelated mouseup) is exactly what persists.
+    const finishGesture = (e: MouseEvent): void => {
+      if (dragState) {
+        if (dragDidMoveRef.current) {
+          applyDragMove(e)
+        }
+      } else if (creatingSession) {
+        const range = resolveDragCreateRange(
+          creatingSession.startMinutes,
+          getMinutesFromMouseEvent(e),
+          SNAP_INTERVAL,
+        )
 
-        if (end - start >= SNAP_INTERVAL) {
+        if (range) {
           const newSession: WorkSessionData = {
             id: 'temp-new',
             taskId: '',
             taskName: '',
-            startMinutes: start,
-            endMinutes: end,
+            startMinutes: range.startMinutes,
+            endMinutes: range.endMinutes,
             type: '',
             color: '#ccc',
           }
 
           if (!checkOverlap(newSession, sessions)) {
-            onSessionCreate(start, end)
+            onSessionCreate(range.startMinutes, range.endMinutes)
           }
         }
         setCreatingSession(null)
       } else if (creatingTimeSinkSession && onTimeSinkSessionCreate) {
-        const start = Math.min(creatingTimeSinkSession.startMinutes, creatingTimeSinkSession.currentMinutes)
-        const end = Math.max(creatingTimeSinkSession.startMinutes, creatingTimeSinkSession.currentMinutes)
+        const range = resolveDragCreateRange(
+          creatingTimeSinkSession.startMinutes,
+          getMinutesFromMouseEvent(e),
+          SNAP_INTERVAL,
+        )
 
-        if (end - start >= SNAP_INTERVAL) {
+        if (range) {
           // If only one sink, use it directly; otherwise show selector
           if (timeSinks.length === 1 && timeSinks[0]) {
-            onTimeSinkSessionCreate(timeSinks[0].id, start, end)
+            onTimeSinkSessionCreate(timeSinks[0].id, range.startMinutes, range.endMinutes)
           } else if (timeSinks.length > 1) {
             // Show sink selector modal
-            setPendingTimeSinkRange({ start, end })
+            setPendingTimeSinkRange({ start: range.startMinutes, end: range.endMinutes })
             setShowSinkSelector(true)
           }
         }
         setCreatingTimeSinkSession(null)
       }
       setDragState(null)
+    }
+
+    const handleMouseMove = (e: MouseEvent): void => {
+      if (isDragReleased(e.buttons)) {
+        // The mouseup happened where the document could not observe it
+        // (e.g. outside the window) - terminate at this position instead of
+        // leaving the gesture armed for an arbitrary later mouseup.
+        finishGesture(e)
+        return
+      }
+
+      if (dragState) {
+        dragDidMoveRef.current = true
+        applyDragMove(e)
+      } else if (creatingSession) {
+        setCreatingSession(prev => prev ? { ...prev, currentMinutes: getMinutesFromMouseEvent(e) } : null)
+      } else if (creatingTimeSinkSession) {
+        setCreatingTimeSinkSession(prev => prev ? { ...prev, currentMinutes: getMinutesFromMouseEvent(e) } : null)
+      }
+    }
+
+    const handleMouseUp = (e: MouseEvent): void => {
+      finishGesture(e)
     }
 
     if (dragState || creatingSession || creatingTimeSinkSession) {
@@ -684,6 +727,7 @@ export function LinearTimeline({
         }}>
           {/* Event Overlay - captures ALL mouse events, routes by zone */}
           <div
+            data-testid="timeline-event-overlay"
             style={{
               position: 'absolute',
               top: 0,

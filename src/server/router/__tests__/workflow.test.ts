@@ -6,6 +6,7 @@
 
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { createMockContext, createMockTask, createMockStep, type MockPrisma } from './router-test-helpers'
+import { appRouter } from '../index'
 
 // We need to test the router logic directly by calling handlers
 // Since tRPC procedures are hard to test in isolation, we test the underlying logic
@@ -293,6 +294,186 @@ describe('workflow router', () => {
       expect(updates[1].where.id).toBe('step-1')
       expect(updates[2].data.stepIndex).toBe(2)
       expect(updates[2].where.id).toBe('step-2')
+    })
+  })
+
+  // Trust-boundary regression: any client (including the AI agent) could persist step
+  // types that don't exist because the server never validated them against UserTaskType.
+  // These tests exercise the REAL router procedures via createCaller.
+  describe('task type validation (trust boundary)', () => {
+    describe('addStep', () => {
+      const baseStep = { workflowId: 'workflow-123', name: 'New Step', duration: 30 }
+
+      it('rejects an unknown step type with BAD_REQUEST and writes nothing', async () => {
+        mockPrisma.task.findUnique.mockResolvedValue({ sessionId: 'test-session-id' })
+        mockPrisma.userTaskType.findMany.mockResolvedValue([])
+
+        const caller = appRouter.createCaller(ctx)
+        await expect(
+          caller.workflow.addStep({ ...baseStep, type: 'hallucinated-type' }),
+        ).rejects.toMatchObject({ code: 'BAD_REQUEST' })
+
+        expect(mockPrisma.taskStep.create).not.toHaveBeenCalled()
+      })
+
+      it('scopes the type lookup to the WORKFLOW\'s session, rejecting cross-session types', async () => {
+        mockPrisma.task.findUnique.mockResolvedValue({ sessionId: 'owning-session' })
+        mockPrisma.userTaskType.findMany.mockResolvedValue([])
+
+        const caller = appRouter.createCaller(ctx)
+        await expect(
+          caller.workflow.addStep({ ...baseStep, type: 'other-sessions-type' }),
+        ).rejects.toMatchObject({ code: 'BAD_REQUEST' })
+
+        expect(mockPrisma.userTaskType.findMany).toHaveBeenCalledWith({
+          where: { id: { in: ['other-sessions-type'] }, sessionId: 'owning-session' },
+          select: { id: true },
+        })
+      })
+
+      it('accepts a type that exists in the workflow\'s session', async () => {
+        mockPrisma.task.findUnique.mockResolvedValue({ sessionId: 'test-session-id' })
+        mockPrisma.userTaskType.findMany.mockResolvedValue([{ id: 'type-dev' }])
+        mockPrisma.taskStep.findMany.mockResolvedValue([])
+        mockPrisma.taskStep.create.mockResolvedValue(
+          createMockStep({ type: 'type-dev', dependsOn: '[]' }),
+        )
+        mockPrisma.task.update.mockResolvedValue(createMockTask())
+
+        const caller = appRouter.createCaller(ctx)
+        const step = await caller.workflow.addStep({ ...baseStep, type: 'type-dev' })
+
+        expect(step.type).toBe('type-dev')
+        expect(mockPrisma.taskStep.create).toHaveBeenCalledTimes(1)
+      })
+
+      it('throws NOT_FOUND when the workflow does not exist', async () => {
+        mockPrisma.task.findUnique.mockResolvedValue(null)
+
+        const caller = appRouter.createCaller(ctx)
+        await expect(
+          caller.workflow.addStep({ ...baseStep, type: 'type-dev' }),
+        ).rejects.toMatchObject({ code: 'NOT_FOUND' })
+      })
+    })
+
+    describe('updateStep', () => {
+      it('rejects a step type change to an unknown type with BAD_REQUEST', async () => {
+        mockPrisma.task.findUnique.mockResolvedValue({ sessionId: 'test-session-id' })
+        mockPrisma.userTaskType.findMany.mockResolvedValue([])
+
+        const caller = appRouter.createCaller(ctx)
+        await expect(
+          caller.workflow.updateStep({
+            taskId: 'workflow-123',
+            stepId: 'step-123',
+            type: 'hallucinated-type',
+          }),
+        ).rejects.toMatchObject({ code: 'BAD_REQUEST' })
+
+        expect(mockPrisma.taskStep.update).not.toHaveBeenCalled()
+      })
+
+      it('accepts a step type change to a type in the workflow\'s session', async () => {
+        mockPrisma.task.findUnique.mockResolvedValue({ sessionId: 'test-session-id' })
+        mockPrisma.userTaskType.findMany.mockResolvedValue([{ id: 'type-dev' }])
+        mockPrisma.taskStep.update.mockResolvedValue(
+          createMockStep({ type: 'type-dev', dependsOn: '[]' }),
+        )
+
+        const caller = appRouter.createCaller(ctx)
+        const step = await caller.workflow.updateStep({
+          taskId: 'workflow-123',
+          stepId: 'step-123',
+          type: 'type-dev',
+        })
+
+        expect(step.type).toBe('type-dev')
+      })
+
+      it('skips type validation when the update does not touch type', async () => {
+        mockPrisma.taskStep.update.mockResolvedValue(
+          createMockStep({ name: 'Renamed', dependsOn: '[]' }),
+        )
+
+        const caller = appRouter.createCaller(ctx)
+        await caller.workflow.updateStep({
+          taskId: 'workflow-123',
+          stepId: 'step-123',
+          name: 'Renamed',
+        })
+
+        expect(mockPrisma.userTaskType.findMany).not.toHaveBeenCalled()
+        expect(mockPrisma.taskStep.update).toHaveBeenCalledTimes(1)
+      })
+    })
+
+    describe('updateWithSteps', () => {
+      it('rejects when any step type is unknown, naming the offending field, before any write', async () => {
+        mockPrisma.task.findUnique.mockResolvedValue({ sessionId: 'test-session-id' })
+        mockPrisma.userTaskType.findMany.mockResolvedValue([{ id: 'type-dev' }])
+
+        const caller = appRouter.createCaller(ctx)
+        await expect(
+          caller.workflow.updateWithSteps({
+            id: 'workflow-123',
+            steps: [
+              { id: 'step-1', name: 'Good', duration: 30, type: 'type-dev', stepIndex: 0 },
+              { id: 'step-2', name: 'Bad', duration: 30, type: 'bogus-type', stepIndex: 1 },
+            ],
+          }),
+        ).rejects.toMatchObject({
+          code: 'BAD_REQUEST',
+          message: expect.stringContaining('steps[1].type'),
+        })
+
+        expect(mockPrisma.taskStep.deleteMany).not.toHaveBeenCalled()
+        expect(mockPrisma.$transaction).not.toHaveBeenCalled()
+      })
+
+      it('rejects an unknown WORKFLOW type alongside step validation', async () => {
+        mockPrisma.task.findUnique.mockResolvedValue({ sessionId: 'test-session-id' })
+        mockPrisma.userTaskType.findMany.mockResolvedValue([{ id: 'type-dev' }])
+
+        const caller = appRouter.createCaller(ctx)
+        await expect(
+          caller.workflow.updateWithSteps({
+            id: 'workflow-123',
+            type: 'hallucinated-type',
+            steps: [
+              { id: 'step-1', name: 'Good', duration: 30, type: 'type-dev', stepIndex: 0 },
+            ],
+          }),
+        ).rejects.toMatchObject({
+          code: 'BAD_REQUEST',
+          message: expect.stringContaining("type='hallucinated-type'"),
+        })
+      })
+
+      it('accepts when the workflow and all step types exist in the session', async () => {
+        mockPrisma.task.findUnique.mockResolvedValue({ sessionId: 'test-session-id' })
+        mockPrisma.userTaskType.findMany.mockResolvedValue([{ id: 'type-dev' }])
+        mockPrisma.$transaction.mockImplementation(
+          async (callback: (tx: MockPrisma) => Promise<unknown>) => callback(mockPrisma),
+        )
+        mockPrisma.taskStep.deleteMany.mockResolvedValue({ count: 0 })
+        mockPrisma.taskStep.create.mockResolvedValue(createMockStep({ type: 'type-dev' }))
+        mockPrisma.task.update.mockResolvedValue(
+          createMockTask({ type: 'type-dev', TaskStep: [] }),
+        )
+
+        const caller = appRouter.createCaller(ctx)
+        const workflow = await caller.workflow.updateWithSteps({
+          id: 'workflow-123',
+          type: 'type-dev',
+          steps: [
+            { id: 'step-1', name: 'Good', duration: 30, type: 'type-dev', stepIndex: 0 },
+          ],
+        })
+
+        expect(workflow.type).toBe('type-dev')
+        expect(mockPrisma.taskStep.create).toHaveBeenCalledTimes(1)
+      })
     })
   })
 

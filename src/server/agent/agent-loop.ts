@@ -25,6 +25,8 @@ import { createToolExecutor } from './tool-executors'
 import { buildAgentSystemPrompt, AgentSessionInfo } from './agent-context'
 import { generateActionPreview, PreviewEntityContext, EntityNameMap } from './action-previews'
 import { checkForHallucination } from './hallucination-check'
+import { validateToolReferences } from './reference-validator'
+import { appRouter } from '../router'
 import { prisma } from '../prisma'
 import { generateUniqueId } from '../../shared/step-id-utils'
 import { getCurrentTime } from '../../shared/time-provider'
@@ -82,6 +84,7 @@ export async function runAgentLoop(options: AgentLoopOptions): Promise<AgentLoop
 
   const aiService = getAIService()
   const toolExecutor = createToolExecutor(ctx)
+  const validationCaller = appRouter.createCaller(ctx)
 
   // Load core memories (Layer 1) for injection into system prompt
   const coreMemories = await prisma.agentMemory.findMany({
@@ -204,7 +207,34 @@ export async function runAgentLoop(options: AgentLoopOptions): Promise<AgentLoop
             is_error: !result.success,
           })
         } else {
-          // Write tool — pause for user approval
+          // Write tool — validate references before showing the proposal so
+          // hallucinated IDs (made-up task types, fake task IDs, etc.) get
+          // caught and fed back to Claude without bothering the user.
+          const validation = await validateToolReferences(toolName, toolInput, validationCaller)
+          if (!validation.valid) {
+            logger.system.info('Write tool rejected by reference validator', {
+              toolName,
+              error: validation.error,
+            }, 'agent-validator')
+
+            storedToolCalls.push({
+              toolCallId,
+              toolName,
+              toolInput,
+              category: 'write',
+              approvalStatus: ApprovalDecision.Rejected,
+              error: validation.error,
+            })
+
+            toolResultMessages.push({
+              type: 'tool_result',
+              tool_use_id: toolCallId,
+              content: JSON.stringify({ error: validation.error }),
+              is_error: true,
+            })
+            continue
+          }
+
           const proposalId = generateUniqueId('proposal')
           const entityContext = await buildEntityContext(toolInput)
           const preview = generateActionPreview(toolName, toolInput, entityContext)
@@ -327,10 +357,22 @@ export async function runAgentLoop(options: AgentLoopOptions): Promise<AgentLoop
     })
   }
 
-  // Check for hallucinated tool use when no tools were called
+  // Check for hallucinated action claims when no write tool was actually
+  // applied this turn. Read/memory tools run on nearly every real turn
+  // (the system prompt mandates "read first, then act"), so gating on
+  // zero tool calls of ANY kind made this check unreachable in practice.
+  // Validator-rejected, user-rejected, timed-out, and errored writes all
+  // count as NOT applied — the agent cannot truthfully claim success then.
   let noToolWarning: NoToolWarning | null = null
-  if (storedToolCalls.length === 0 && responseText.length > 0) {
-    noToolWarning = await checkForHallucination(userMessage, responseText)
+  const hasAppliedWrite = storedToolCalls.some(
+    call =>
+      call.category === 'write'
+      && call.approvalStatus === ApprovalDecision.Approved
+      && call.error === undefined,
+  )
+  if (!hasAppliedWrite && responseText.length > 0) {
+    const readToolsRan = storedToolCalls.some(call => call.category === 'read')
+    noToolWarning = await checkForHallucination(userMessage, responseText, { readToolsRan })
     if (noToolWarning) {
       onEvent({
         type: 'no_tool_warning',

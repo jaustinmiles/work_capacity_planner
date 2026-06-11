@@ -252,7 +252,13 @@ export function DeepWorkNodeDetailPanel() {
             min={1}
             max={480}
             suffix="min"
-            onChange={(v) => updateField('duration', v ?? 30)}
+            onChange={(v) => {
+              // Only commit real values — passing `v ?? 30` here forced the
+              // input back to 30 whenever the user cleared it mid-edit.
+              if (typeof v === 'number' && !Number.isNaN(v)) {
+                updateField('duration', v)
+              }
+            }}
             onBlur={handleSave}
             style={{ width: 120 }}
           />

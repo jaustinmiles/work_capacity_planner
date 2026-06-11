@@ -82,3 +82,10 @@ A: Check if the data can be a column on an existing table or a JSON field first.
 
 **Q: How do I handle a feature that spans planning AND execution?**
 A: This is normal. Most features do. Make sure both phases work. A scheduling feature that doesn't reflect in the work logger is incomplete. A logging feature that doesn't feed back into planning analytics is incomplete.
+
+## Hardening decisions (2026-06-11)
+
+- **Feedback lives in the Prisma `Feedback` table** — the ONE central store for every client (desktop, web, CLI/MCP; mobile pending). `context/feedback.json` is a read-only archive (imported via `node scripts/analysis/feedback-utils.js import-json`, idempotent). The MCP feedback tools and the tRPC `feedback` router read/write the same table with id-based operations; never reintroduce file writes or full-array updates.
+- **Task types are validated at the server trust boundary.** Any procedure accepting a `type` must call `assertValidTaskType`/`assertValidTaskTypes` (`src/server/task-type-validation.ts`), scoped to the owning session. Client-side checks (agent reference-validator, amendment resolveTaskType) are conveniences, not the guarantee.
+- **The production server fails closed**: `npm run server:prod` sets `NODE_ENV=production` and the server refuses to start without `TASK_PLANNER_API_KEY` (see `docs/remote-access.md`).
+- **Known open items** (investigated and root-caused in `decisions/2026-06-11-hardening-findings/`; not yet fixed): stale next-task on completion (`complete-task-stale-start`), re-run-scheduler button (`rerun-scheduler-button`), endeavor links not blocking the scheduler (`endeavor-links-scheduler`), per-step logged time not cumulative (`step-logged-cumulative`), iOS/Vision feedback UI. Also: `tsconfig.test.json` is a no-op (its base `exclude` strips every test file — test files are never project-typechecked), and `origin/main` history still contains four published database dumps (owner decision required to rewrite).

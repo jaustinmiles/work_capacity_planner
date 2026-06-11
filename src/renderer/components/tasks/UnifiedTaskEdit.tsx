@@ -29,6 +29,7 @@ import {
   IconClockCircle,
   IconCheckCircle,
   IconScissor,
+  IconSync,
 } from '@arco-design/web-react/icon'
 import { Task } from '@shared/types'
 import { SequencedTask, TaskStep } from '@shared/sequencing-types'
@@ -199,6 +200,72 @@ export function UnifiedTaskEdit({ task, onClose, startInEditMode = false }: Unif
     }
   }
 
+  /**
+   * Persist the given steps (and current workflow metadata) atomically.
+   * Recalculates the workflow's derived durations from the steps, mirroring the
+   * server's expectations. Shared by step editing and the bulk priority reset so
+   * the persistence logic lives in one place.
+   */
+  const persistWorkflowSteps = async (updatedSteps: TaskStep[]): Promise<void> => {
+    if (!sequencedTask) return
+
+    const totalDuration = updatedSteps.reduce((sum, step) => sum + step.duration, 0)
+    const totalWaitTime = updatedSteps.reduce((sum, step) => sum + (step.asyncWaitTime || 0), 0)
+    const criticalPathDuration = totalDuration + totalWaitTime
+    const worstCaseDuration = criticalPathDuration * 1.5
+
+    const cleanedSteps = updatedSteps.map((step, index) => ({
+      ...step,
+      stepIndex: index,
+      dependsOn: step.dependsOn || [],
+    }))
+
+    await updateSequencedTask(task.id, {
+      name: editedTask.name,
+      importance: editedTask.importance,
+      urgency: editedTask.urgency,
+      type: editedTask.type,
+      notes: editedTask.notes,
+      deadline: editedTask.deadline,
+      steps: cleanedSteps,
+      duration: totalDuration,
+      criticalPathDuration,
+      worstCaseDuration,
+    })
+  }
+
+  /**
+   * Blank every step's importance and urgency so they inherit the workflow's
+   * values. A null/undefined step priority makes the scheduler fall back to the
+   * parent workflow (see scheduler-priority.ts), and updateWithSteps persists the
+   * omitted values as NULL.
+   */
+  const handleClearStepPriorities = async (): Promise<void> => {
+    if (!isWorkflow || !sequencedTask || steps.length === 0) return
+
+    const updatedSteps = steps.map(step => ({
+      ...step,
+      importance: undefined,
+      urgency: undefined,
+    }))
+    setSteps(updatedSteps)
+
+    try {
+      await persistWorkflowSteps(updatedSteps)
+      logger.ui.info('Reset all step priorities to inherit from workflow', {
+        workflowId: task.id,
+        stepCount: updatedSteps.length,
+      }, 'steps-inherit-priority')
+      Message.success('All steps now inherit the workflow’s importance and urgency')
+    } catch (error) {
+      logger.db.error('Failed to reset step priorities', {
+        error: error instanceof Error ? error.message : String(error),
+        taskId: task.id,
+      }, 'steps-inherit-error')
+      Message.error('Failed to update steps')
+    }
+  }
+
   const handleStepEdit = (step: TaskStep) => {
     setEditingStep(step)
     form.setFieldsValue({
@@ -263,35 +330,13 @@ export function UnifiedTaskEdit({ task, onClose, startInEditMode = false }: Unif
 
       // CRITICAL FIX: Actually save to database immediately
       if (isWorkflow && sequencedTask) {
-        const totalDuration = updatedSteps.reduce((sum, step) => sum + step.duration, 0)
-        const totalWaitTime = updatedSteps.reduce((sum, step) => sum + (step.asyncWaitTime || 0), 0)
-        const criticalPathDuration = totalDuration + totalWaitTime
-        const worstCaseDuration = criticalPathDuration * 1.5
-
-        const cleanedSteps = updatedSteps.map((step, index) => ({
-          ...step,
-          stepIndex: index,
-          dependsOn: step.dependsOn || [],
-        }))
-
-        await updateSequencedTask(task.id, {
-          name: editedTask.name,
-          importance: editedTask.importance,
-          urgency: editedTask.urgency,
-          type: editedTask.type,
-          notes: editedTask.notes,
-          deadline: editedTask.deadline,
-          steps: cleanedSteps,
-          duration: totalDuration,
-          criticalPathDuration,
-          worstCaseDuration,
-        })
+        await persistWorkflowSteps(updatedSteps)
 
         // Store is updated reactively by updateSequencedTask - no manual refresh needed
         // Schedule will automatically recompute via reactive subscriptions
         logger.db.info('Step saved to database', {
           workflowId: task.id,
-          totalSteps: cleanedSteps.length,
+          totalSteps: updatedSteps.length,
         }, 'step-save-db')
       }
 
@@ -535,7 +580,19 @@ export function UnifiedTaskEdit({ task, onClose, startInEditMode = false }: Unif
     return (
       <>
         <Divider />
-        <Title heading={5}>Workflow Steps</Title>
+        <Space style={{ width: '100%', justifyContent: 'space-between' }} align="center">
+          <Title heading={5} style={{ margin: 0 }}>Workflow Steps</Title>
+          {isEditing && steps.length > 0 && (
+            <Popconfirm
+              title="Clear importance & urgency on every step so they inherit the workflow's values?"
+              onOk={handleClearStepPriorities}
+            >
+              <Button size="small" icon={<IconSync />}>
+                Apply to all steps
+              </Button>
+            </Popconfirm>
+          )}
+        </Space>
 
         <List
           dataSource={steps}

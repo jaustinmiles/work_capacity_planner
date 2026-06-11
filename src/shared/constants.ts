@@ -114,6 +114,9 @@ export const POMODORO_DEFAULTS = {
   LONG_BREAK_MINUTES: 15,
   CYCLES_BEFORE_LONG_BREAK: 4,
   TIMER_TICK_INTERVAL_MS: 1000,
+  // Sample work amount used purely to ILLUSTRATE pacing in the settings preview
+  // (not a schedule constraint — projections always take the real work minutes)
+  PROJECTION_PREVIEW_WORK_MINUTES: 240,
 } as const
 
 /**

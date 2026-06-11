@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, type ReactElement } from 'react'
 import { Modal, Button, Typography, Card, Space, Input, Form, InputNumber, Select, Alert, Spin } from '@arco-design/web-react'
 import { IconQuestionCircle, IconCheckCircle } from '@arco-design/web-react/icon'
 import { TaskStatus } from '@shared/enums'
@@ -33,12 +33,37 @@ interface ContextualQuestion {
   purpose: string
 }
 
+type ContextAnswers = Record<string, string | number>
+
 interface TaskWithContext extends ExtractedTask {
   id: string
   status: 'pending' | 'gathering_context' | 'enhancing' | 'ready' | 'created'
   questions?: ContextualQuestion[]
-  answers?: Record<string, any>
+  answers?: ContextAnswers
   enhancedSuggestions?: any
+}
+
+const ADDITIONAL_CONTEXT_HEADER = 'Additional context:'
+
+function contextAnswerField(index: number): string {
+  return `question_${index}`
+}
+
+/**
+ * Folds the user's contextual answers into the description sent to the AI,
+ * so the enhancement actually benefits from the gathered context.
+ */
+function describeTaskWithAnswers(task: TaskWithContext): string {
+  const answerLines = (task.questions ?? [])
+    .map((question, index) => {
+      const answer = task.answers?.[contextAnswerField(index)]
+      if (answer === undefined || answer === '') return null
+      return `${question.question} ${answer}`
+    })
+    .filter((line): line is string => line !== null)
+
+  if (answerLines.length === 0) return task.description
+  return `${task.description}\n\n${ADDITIONAL_CONTEXT_HEADER}\n${answerLines.join('\n')}`
 }
 
 export function TaskCreationFlow({ visible, onClose, extractedTasks }: TaskCreationFlowProps) {
@@ -103,7 +128,7 @@ export function TaskCreationFlow({ visible, onClose, extractedTasks }: TaskCreat
     setIsProcessing(true)
     try {
       const currentDetails = {
-        description: task.description,
+        description: describeTaskWithAnswers(task),
         duration: task.estimatedDuration,
         importance: task.importance,
         urgency: task.urgency,
@@ -126,7 +151,7 @@ export function TaskCreationFlow({ visible, onClose, extractedTasks }: TaskCreat
     }
   }
 
-  const handleAnswerSubmit = async (answers: Record<string, any>) => {
+  const handleAnswerSubmit = async (answers: ContextAnswers) => {
     if (!selectedTask) return
 
     const updatedTask = { ...selectedTask, answers, status: 'ready' as const }
@@ -362,11 +387,37 @@ export function TaskCreationFlow({ visible, onClose, extractedTasks }: TaskCreat
 }
 
 // Context Form Component
+
+/**
+ * Arco's Form.Item only binds (value/onChange/rules) to a SINGLE element child.
+ * Rendering conditionals like `{type === 'text' && <TextArea/>}` yields an array
+ * containing `false` literals, so the control never binds: required rules never
+ * register and typed answers are discarded. Always return exactly one control.
+ */
+function renderQuestionControl(question: ContextualQuestion): ReactElement {
+  if (question.type === 'number') {
+    return <InputNumber style={{ width: '100%' }} />
+  }
+  if (question.type === 'choice' && question.choices && question.choices.length > 0) {
+    return (
+      <Select>
+        {question.choices.map(choice => (
+          <Select.Option key={choice} value={choice}>
+            {choice}
+          </Select.Option>
+        ))}
+      </Select>
+    )
+  }
+  // Text questions — and malformed choice questions without choices — get free text
+  return <TextArea rows={2} />
+}
+
 function ContextForm({ questions, onSubmit }: {
   questions: ContextualQuestion[]
-  onSubmit: (__answers: Record<string, any>) => void
+  onSubmit: (__answers: ContextAnswers) => void
 }) {
-  const [form] = Form.useForm()
+  const [form] = Form.useForm<ContextAnswers>()
 
   const handleSubmit = async () => {
     try {
@@ -390,24 +441,10 @@ function ContextForm({ questions, onSubmit }: {
               </Text>
             </Space>
           }
-          field={`question_${index}`}
+          field={contextAnswerField(index)}
           rules={[{ required: true, message: 'Please provide an answer' }]}
         >
-          {question.type === 'text' && (
-            <TextArea rows={2} />
-          )}
-          {question.type === 'number' && (
-            <InputNumber style={{ width: '100%' }} />
-          )}
-          {question.type === 'choice' && question.choices && (
-            <Select>
-              {question.choices.map(choice => (
-                <Select.Option key={choice} value={choice}>
-                  {choice}
-                </Select.Option>
-              ))}
-            </Select>
-          )}
+          {renderQuestionControl(question)}
         </Form.Item>
       ))}
 

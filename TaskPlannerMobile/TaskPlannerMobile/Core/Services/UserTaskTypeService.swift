@@ -16,4 +16,19 @@ final class UserTaskTypeService {
     func getAll() async throws -> [UserTaskType] {
         try await client.query("userTaskType.getAll")
     }
+
+    /// Create a new user-defined task type (name, emoji, and a #RRGGBB hex color).
+    @discardableResult
+    func create(name: String, emoji: String, color: String) async throws -> UserTaskType {
+        try await client.mutate(
+            "userTaskType.create",
+            input: CreateUserTaskTypeInput(name: name, emoji: emoji, color: color)
+        )
+    }
+}
+
+private struct CreateUserTaskTypeInput: Codable {
+    let name: String
+    let emoji: String
+    let color: String
 }
