@@ -11,6 +11,7 @@ import {
   createMockStep,
   type MockPrisma,
 } from './router-test-helpers'
+import { appRouter } from '../index'
 
 describe('task router', () => {
   let mockPrisma: MockPrisma
@@ -246,6 +247,35 @@ describe('task router', () => {
         }),
       )
     })
+
+    // Regression: reopening a task (completed → false) must clear completedAt, even when the
+    // caller can't send an explicit null (e.g. the visionOS client whose serializer omits nil
+    // optionals). The router derives the null. See spatial Done-tray reactivation.
+    it('clears completedAt when a task is reopened (completed set to false)', async () => {
+      mockPrisma.task.update.mockResolvedValue(
+        createMockTask({ id: 'task-123', completed: false, completedAt: null }),
+      )
+
+      const caller = appRouter.createCaller(ctx)
+      await caller.task.update({ id: 'task-123', completed: false })
+
+      expect(mockPrisma.task.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { id: 'task-123' },
+          data: expect.objectContaining({ completed: false, completedAt: null }),
+        }),
+      )
+    })
+
+    it('does not force completedAt when completed is not being changed', async () => {
+      mockPrisma.task.update.mockResolvedValue(createMockTask({ id: 'task-123', name: 'Renamed' }))
+
+      const caller = appRouter.createCaller(ctx)
+      await caller.task.update({ id: 'task-123', name: 'Renamed' })
+
+      const dataArg = mockPrisma.task.update.mock.calls[0][0].data
+      expect(dataArg).not.toHaveProperty('completedAt')
+    })
   })
 
   describe('delete', () => {
@@ -418,6 +448,138 @@ describe('task router', () => {
 
       expect(task).toBeNull()
       // In real implementation, this would throw: Task ${input.id} not found
+    })
+  })
+
+  // Trust-boundary regression: any client (including the AI agent) could persist task
+  // types that don't exist because the server never validated them against UserTaskType.
+  describe('task type validation (trust boundary)', () => {
+    const baseInput = {
+      name: 'Typed Task',
+      duration: 30,
+      importance: 5,
+      urgency: 5,
+    }
+
+    beforeEach(() => {
+      // task.create is a sessionProcedure — the middleware verifies the session exists.
+      mockPrisma.session.findUnique.mockResolvedValue({ id: 'test-session-id', name: 'Test' })
+    })
+
+    it('create rejects an unknown task type with BAD_REQUEST and writes nothing', async () => {
+      mockPrisma.userTaskType.findMany.mockResolvedValue([])
+
+      const caller = appRouter.createCaller(ctx)
+      await expect(
+        caller.task.create({ ...baseInput, type: 'hallucinated-type' }),
+      ).rejects.toMatchObject({ code: 'BAD_REQUEST' })
+
+      expect(mockPrisma.task.create).not.toHaveBeenCalled()
+    })
+
+    it('create scopes type lookup to the session, so a cross-session type id is rejected', async () => {
+      // The type exists in ANOTHER session: the session-scoped lookup finds nothing.
+      mockPrisma.userTaskType.findMany.mockResolvedValue([])
+
+      const caller = appRouter.createCaller(ctx)
+      await expect(
+        caller.task.create({ ...baseInput, type: 'other-sessions-type' }),
+      ).rejects.toMatchObject({ code: 'BAD_REQUEST' })
+
+      expect(mockPrisma.userTaskType.findMany).toHaveBeenCalledWith({
+        where: { id: { in: ['other-sessions-type'] }, sessionId: 'test-session-id' },
+        select: { id: true },
+      })
+    })
+
+    it('create accepts a type that exists in the session', async () => {
+      mockPrisma.userTaskType.findMany.mockResolvedValue([{ id: 'type-dev' }])
+      mockPrisma.task.create.mockResolvedValue(createMockTask({ type: 'type-dev' }))
+
+      const caller = appRouter.createCaller(ctx)
+      const task = await caller.task.create({ ...baseInput, type: 'type-dev' })
+
+      expect(task.type).toBe('type-dev')
+      expect(mockPrisma.task.create).toHaveBeenCalledTimes(1)
+    })
+
+    it('create rejects when any STEP type is unknown, naming the offending field', async () => {
+      mockPrisma.userTaskType.findMany.mockResolvedValue([{ id: 'type-dev' }])
+
+      const caller = appRouter.createCaller(ctx)
+      await expect(
+        caller.task.create({
+          ...baseInput,
+          type: 'type-dev',
+          hasSteps: true,
+          steps: [
+            { name: 'Good step', duration: 10, type: 'type-dev' },
+            { name: 'Bad step', duration: 10, type: 'bogus-step-type' },
+          ],
+        }),
+      ).rejects.toMatchObject({
+        code: 'BAD_REQUEST',
+        message: expect.stringContaining('steps[1].type'),
+      })
+
+      expect(mockPrisma.task.create).not.toHaveBeenCalled()
+    })
+
+    it('create rejects an empty-string type at the schema level', async () => {
+      const caller = appRouter.createCaller(ctx)
+      await expect(
+        caller.task.create({ ...baseInput, type: '' }),
+      ).rejects.toMatchObject({ code: 'BAD_REQUEST' })
+
+      expect(mockPrisma.userTaskType.findMany).not.toHaveBeenCalled()
+      expect(mockPrisma.task.create).not.toHaveBeenCalled()
+    })
+
+    it('update rejects a type change to an unknown type, resolving the session from the task row', async () => {
+      mockPrisma.task.findUnique.mockResolvedValue({ sessionId: 'owning-session' })
+      mockPrisma.userTaskType.findMany.mockResolvedValue([])
+
+      const caller = appRouter.createCaller(ctx)
+      await expect(
+        caller.task.update({ id: 'task-123', type: 'hallucinated-type' }),
+      ).rejects.toMatchObject({ code: 'BAD_REQUEST' })
+
+      // Scoped to the TASK's session (update is not session-header-scoped).
+      expect(mockPrisma.userTaskType.findMany).toHaveBeenCalledWith({
+        where: { id: { in: ['hallucinated-type'] }, sessionId: 'owning-session' },
+        select: { id: true },
+      })
+      expect(mockPrisma.task.update).not.toHaveBeenCalled()
+    })
+
+    it('update accepts a type change to a type in the task\'s session', async () => {
+      mockPrisma.task.findUnique.mockResolvedValue({ sessionId: 'owning-session' })
+      mockPrisma.userTaskType.findMany.mockResolvedValue([{ id: 'type-dev' }])
+      mockPrisma.task.update.mockResolvedValue(createMockTask({ type: 'type-dev' }))
+
+      const caller = appRouter.createCaller(ctx)
+      const task = await caller.task.update({ id: 'task-123', type: 'type-dev' })
+
+      expect(task.type).toBe('type-dev')
+    })
+
+    it('update NOT touching type skips validation (legacy orphan-type rows stay editable)', async () => {
+      mockPrisma.task.update.mockResolvedValue(createMockTask({ type: '', name: 'Renamed' }))
+
+      const caller = appRouter.createCaller(ctx)
+      await caller.task.update({ id: 'task-123', name: 'Renamed' })
+
+      expect(mockPrisma.userTaskType.findMany).not.toHaveBeenCalled()
+      expect(mockPrisma.task.update).toHaveBeenCalledTimes(1)
+    })
+
+    it('update with a type change on a missing task throws NOT_FOUND', async () => {
+      mockPrisma.task.findUnique.mockResolvedValue(null)
+
+      const caller = appRouter.createCaller(ctx)
+      await expect(
+        caller.task.update({ id: 'ghost-task', type: 'type-dev' }),
+      ).rejects.toMatchObject({ code: 'NOT_FOUND' })
     })
   })
 

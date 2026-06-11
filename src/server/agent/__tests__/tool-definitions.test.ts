@@ -22,16 +22,16 @@ describe('agent tool definitions', () => {
       expect(READ_TOOLS).toHaveLength(11)
     })
 
-    it('should have 19 write tools', () => {
-      expect(WRITE_TOOLS).toHaveLength(19)
+    it('should have 20 write tools', () => {
+      expect(WRITE_TOOLS).toHaveLength(20)
     })
 
     it('should have 4 memory tools', () => {
       expect(MEMORY_TOOLS).toHaveLength(4)
     })
 
-    it('should have 34 total tools', () => {
-      expect(ALL_TOOLS).toHaveLength(34)
+    it('should have 35 total tools', () => {
+      expect(ALL_TOOLS).toHaveLength(35)
     })
 
     it('should have ALL_TOOLS = READ + WRITE + MEMORY with no overlap', () => {

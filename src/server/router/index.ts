@@ -29,6 +29,7 @@ import { timerRouter } from './timer'
 import { memoryRouter } from './memory'
 import { decisionRouter } from './decision'
 import { comparisonRouter } from './comparison'
+import { spatialSceneRouter } from './spatialScene'
 
 /**
  * Main application router
@@ -50,7 +51,7 @@ import { comparisonRouter } from './comparison'
  * - ai: AI operations (Claude for chat, brainstorm, workflows)
  * - endeavor: Higher-level goal grouping for workflows/tasks
  * - deepWorkBoard: Freeform whiteboard canvas for task creation and execution
- * - feedback: Development feedback (file-based, context/feedback.json)
+ * - feedback: Development feedback (Feedback table — shared with the MCP tools)
  * - agent: AI agent tool approval/rejection (chat endpoint is SSE, see agent-chat-handler)
  */
 export const appRouter = router({
@@ -77,6 +78,7 @@ export const appRouter = router({
   memory: memoryRouter,
   decision: decisionRouter,
   comparison: comparisonRouter,
+  spatialScene: spatialSceneRouter,
 })
 
 /**

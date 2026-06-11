@@ -4,10 +4,11 @@
  * Follows the WorkSettingsModal pattern: Arco Modal + Form in vertical layout.
  */
 
-import { useEffect } from 'react'
+import React, { useEffect } from 'react'
 import { Modal, Form, InputNumber, Checkbox, Space, Typography, Divider } from '@arco-design/web-react'
 import { usePomodoroStore, usePomodoroSettings } from '../../store/usePomodoroStore'
 import { POMODORO_DEFAULTS } from '@shared/constants'
+import { describePomodoroProjection } from '@shared/pomodoro-types'
 
 const { Text } = Typography
 
@@ -16,10 +17,33 @@ interface PomodoroSettingsModalProps {
   onClose: () => void
 }
 
-export function PomodoroSettingsModal({ visible, onClose }: PomodoroSettingsModalProps) {
+/** Draft values held by the settings form (undefined while a field is cleared/uninitialized). */
+interface PomodoroSettingsFormValues {
+  workDurationMinutes?: number
+  shortBreakMinutes?: number
+  longBreakMinutes?: number
+  cyclesBeforeLongBreak?: number
+  autoStartBreak?: boolean
+  autoStartWork?: boolean
+  soundEnabled?: boolean
+}
+
+export function PomodoroSettingsModal({ visible, onClose }: PomodoroSettingsModalProps): React.ReactElement {
   const settings = usePomodoroSettings()
   const { updateSettings } = usePomodoroStore()
-  const [form] = Form.useForm()
+  const [form] = Form.useForm<PomodoroSettingsFormValues>()
+
+  // Live preview reflects the draft values as the user edits; saved settings fill gaps.
+  const draftWorkDuration = Form.useWatch('workDurationMinutes', form)
+  const draftShortBreak = Form.useWatch('shortBreakMinutes', form)
+  const draftLongBreak = Form.useWatch('longBreakMinutes', form)
+  const draftCycles = Form.useWatch('cyclesBeforeLongBreak', form)
+  const projectionPreview = describePomodoroProjection(POMODORO_DEFAULTS.PROJECTION_PREVIEW_WORK_MINUTES, {
+    workDurationMinutes: draftWorkDuration ?? settings.workDurationMinutes,
+    shortBreakMinutes: draftShortBreak ?? settings.shortBreakMinutes,
+    longBreakMinutes: draftLongBreak ?? settings.longBreakMinutes,
+    cyclesBeforeLongBreak: draftCycles ?? settings.cyclesBeforeLongBreak,
+  })
 
   useEffect(() => {
     if (visible) {
@@ -101,6 +125,10 @@ export function PomodoroSettingsModal({ visible, onClose }: PomodoroSettingsModa
             style={{ width: '100%' }}
           />
         </Form.Item>
+
+        <Text type="secondary" style={{ display: 'block' }}>
+          {projectionPreview}
+        </Text>
 
         <Divider />
 

@@ -6,7 +6,9 @@
  */
 
 import { z } from 'zod'
+import { TRPCError } from '@trpc/server'
 import { router, protectedProcedure } from '../trpc'
+import { assertValidTaskType, assertValidTaskTypes, type TaskTypeRef } from '../task-type-validation'
 import { generateUniqueId, resolveDependenciesAgainstExisting, resolveStepDependencies } from '../../shared/step-id-utils'
 import { getCurrentTime } from '../../shared/time-provider'
 import { StepStatus } from '../../shared/enums'
@@ -45,6 +47,10 @@ const updateStepInput = z.object({
   type: z.string().optional(),
   cognitiveComplexity: z.number().int().min(1).max(5).nullable().optional(),
   dependsOn: z.array(z.string()).optional(),
+  // Per-step priority overrides — the scheduler uses these instead of the parent
+  // workflow's importance/urgency when present (null clears the override).
+  importance: z.number().int().min(1).max(10).nullable().optional(),
+  urgency: z.number().int().min(1).max(10).nullable().optional(),
 })
 
 /**
@@ -130,6 +136,16 @@ export const workflowRouter = router({
    * Add a step to a workflow
    */
   addStep: protectedProcedure.input(addStepInput).mutation(async ({ ctx, input }) => {
+    // Trust boundary: the step type must exist in the workflow's session.
+    const workflow = await ctx.prisma.task.findUnique({
+      where: { id: input.workflowId },
+      select: { sessionId: true },
+    })
+    if (!workflow) {
+      throw new TRPCError({ code: 'NOT_FOUND', message: `Workflow ${input.workflowId} not found` })
+    }
+    await assertValidTaskType(ctx.prisma, workflow.sessionId, input.type, 'type')
+
     // Get current steps to determine positioning
     const existingSteps = await ctx.prisma.taskStep.findMany({
       where: { taskId: input.workflowId },
@@ -212,6 +228,18 @@ export const workflowRouter = router({
    */
   updateStep: protectedProcedure.input(updateStepInput).mutation(async ({ ctx, input }) => {
     const { taskId, stepId, dependsOn, ...updates } = input
+
+    // Trust boundary: a step type change must reference a type in the workflow's session.
+    if (updates.type !== undefined) {
+      const workflowTask = await ctx.prisma.task.findUnique({
+        where: { id: taskId },
+        select: { sessionId: true },
+      })
+      if (!workflowTask) {
+        throw new TRPCError({ code: 'NOT_FOUND', message: `Workflow ${taskId} not found` })
+      }
+      await assertValidTaskType(ctx.prisma, workflowTask.sessionId, updates.type, 'type')
+    }
 
     const data: Record<string, unknown> = { ...updates }
     if (dependsOn !== undefined) {
@@ -314,6 +342,60 @@ export const workflowRouter = router({
   }),
 
   /**
+   * Reorder the steps of a workflow.
+   *
+   * Takes the COMPLETE list of the workflow's step IDs in the desired order and
+   * rewrites every stepIndex in one transaction. Requiring the full list (each
+   * step exactly once) means a concurrent add/remove can't silently corrupt the
+   * ordering — the mismatch is rejected instead.
+   */
+  reorderSteps: protectedProcedure
+    .input(z.object({
+      taskId: z.string(),
+      orderedStepIds: z.array(z.string()).min(1),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      const workflowTask = await ctx.prisma.task.findUnique({
+        where: { id: input.taskId },
+        select: { id: true },
+      })
+      if (!workflowTask) {
+        throw new TRPCError({ code: 'NOT_FOUND', message: `Workflow ${input.taskId} not found` })
+      }
+
+      const steps = await ctx.prisma.taskStep.findMany({
+        where: { taskId: input.taskId },
+        select: { id: true },
+      })
+      const providedIds = new Set(input.orderedStepIds)
+      const isCompleteReorder =
+        input.orderedStepIds.length === steps.length &&
+        providedIds.size === input.orderedStepIds.length &&
+        steps.every(step => providedIds.has(step.id))
+      if (!isCompleteReorder) {
+        throw new TRPCError({
+          code: 'BAD_REQUEST',
+          message: `orderedStepIds must contain each of the workflow's ${steps.length} step IDs exactly once`,
+        })
+      }
+
+      await ctx.prisma.$transaction(
+        input.orderedStepIds.map((stepId, index) =>
+          ctx.prisma.taskStep.update({ where: { id: stepId }, data: { stepIndex: index } }),
+        ),
+      )
+
+      const reordered = await ctx.prisma.taskStep.findMany({
+        where: { taskId: input.taskId },
+        orderBy: { stepIndex: 'asc' },
+      })
+      return reordered.map(step => ({
+        ...step,
+        dependsOn: JSON.parse(step.dependsOn),
+      }))
+    }),
+
+  /**
    * Delete a step from a workflow
    */
   deleteStep: protectedProcedure
@@ -381,29 +463,6 @@ export const workflowRouter = router({
     }),
 
   /**
-   * Reorder steps in a workflow
-   */
-  reorderSteps: protectedProcedure
-    .input(
-      z.object({
-        taskId: z.string(),
-        orderedIds: z.array(z.string()),
-      }),
-    )
-    .mutation(async ({ ctx, input }) => {
-      await ctx.prisma.$transaction(
-        input.orderedIds.map((id, index) =>
-          ctx.prisma.taskStep.update({
-            where: { id },
-            data: { stepIndex: index },
-          }),
-        ),
-      )
-
-      return { success: true }
-    }),
-
-  /**
    * Update a workflow with all its steps atomically
    * This handles the complete workflow update in a single transaction
    */
@@ -411,6 +470,26 @@ export const workflowRouter = router({
     .input(updateWithStepsInput)
     .mutation(async ({ ctx, input }) => {
       const now = getCurrentTime()
+
+      // Trust boundary: the workflow type (when changed) and every step type must
+      // exist in the workflow's session.
+      const typeRefs: TaskTypeRef[] = input.steps.map((step, index) => ({
+        typeId: step.type,
+        fieldPath: `steps[${index}].type`,
+      }))
+      if (input.type !== undefined) {
+        typeRefs.unshift({ typeId: input.type, fieldPath: 'type' })
+      }
+      if (typeRefs.length > 0) {
+        const workflowTask = await ctx.prisma.task.findUnique({
+          where: { id: input.id },
+          select: { sessionId: true },
+        })
+        if (!workflowTask) {
+          throw new TRPCError({ code: 'NOT_FOUND', message: `Workflow ${input.id} not found` })
+        }
+        await assertValidTaskTypes(ctx.prisma, workflowTask.sessionId, typeRefs)
+      }
 
       // Resolve all step dependencies BEFORE the transaction
       const stepsWithResolvedIds = input.steps.map(step => ({

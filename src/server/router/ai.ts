@@ -10,7 +10,7 @@
  */
 
 import { z } from 'zod'
-import { router, protectedProcedure } from '../trpc'
+import { router, protectedProcedure, sessionProcedure } from '../trpc'
 import { getAIService } from '../../shared/ai-service'
 import { ChatMessageRole } from '../../shared/enums'
 
@@ -66,30 +66,43 @@ export const aiRouter = router({
 
   /**
    * Extract tasks from brainstorming text
-   * Parses natural language into structured task objects
+   * Parses natural language into structured task objects.
+   * Session-scoped: the prompt classifies against the session's user-defined task types.
    */
-  extractTasksFromBrainstorm: protectedProcedure
+  extractTasksFromBrainstorm: sessionProcedure
     .input(z.object({
       brainstormText: z.string(),
     }))
-    .mutation(async ({ input }) => {
+    .mutation(async ({ ctx, input }) => {
       const aiService = getAIService()
-      return aiService.extractTasksFromBrainstorm(input.brainstormText)
+      const availableTypes = await ctx.prisma.userTaskType.findMany({
+        where: { sessionId: ctx.sessionId },
+        orderBy: { sortOrder: 'asc' },
+        select: { id: true, name: true },
+      })
+      return aiService.extractTasksFromBrainstorm(input.brainstormText, availableTypes)
     }),
 
   /**
    * Extract workflows from brainstorming text
-   * Identifies async patterns, dependencies, and wait times
+   * Identifies async patterns, dependencies, and wait times.
+   * Session-scoped: the prompt classifies against the session's user-defined task types.
    */
-  extractWorkflowsFromBrainstorm: protectedProcedure
+  extractWorkflowsFromBrainstorm: sessionProcedure
     .input(z.object({
       brainstormText: z.string(),
       jobContext: z.string().optional(),
     }))
-    .mutation(async ({ input }) => {
+    .mutation(async ({ ctx, input }) => {
       const aiService = getAIService()
+      const availableTypes = await ctx.prisma.userTaskType.findMany({
+        where: { sessionId: ctx.sessionId },
+        orderBy: { sortOrder: 'asc' },
+        select: { id: true, name: true },
+      })
       return aiService.extractWorkflowsFromBrainstorm(
         input.brainstormText,
+        availableTypes,
         input.jobContext,
       )
     }),

@@ -61,6 +61,7 @@ export function DeepWorkCanvas({ onConnect, onDisconnect }: DeepWorkCanvasProps)
   const moveNode = useDeepWorkBoardStore((s) => s.moveNode)
   const moveNodes = useDeepWorkBoardStore((s) => s.moveNodes)
   const addNode = useDeepWorkBoardStore((s) => s.addNode)
+  const connectNodes = useDeepWorkBoardStore((s) => s.connectNodes)
   const saveViewport = useDeepWorkBoardStore((s) => s.saveViewport)
   const refreshNodes = useDeepWorkBoardStore((s) => s.refreshNodes)
 
@@ -69,6 +70,17 @@ export function DeepWorkCanvas({ onConnect, onDisconnect }: DeepWorkCanvasProps)
 
   const [quickCreatePos, setQuickCreatePos] = useState<{ x: number; y: number } | null>(null)
   const [typePickerState, setTypePickerState] = useState<TypePickerState | null>(null)
+  // Set when an edge drag ends on the empty pane. Captures which node and
+  // which side initiated the drag so we can auto-wire after the user names
+  // the new node via NodeQuickCreate.
+  const [pendingConnection, setPendingConnection] = useState<{
+    sourceNodeId: string
+    handleType: 'source' | 'target'
+  } | null>(null)
+  // Refs because onConnectEnd needs synchronous access; React state updates
+  // wouldn't be committed in time within the same drag gesture.
+  const connectingNodeIdRef = useRef<string | null>(null)
+  const connectingHandleTypeRef = useRef<'source' | 'target' | null>(null)
   const reactFlowInstanceRef = useRef<ReactFlowInstance | null>(null)
   const containerRef = useRef<HTMLDivElement>(null)
 
@@ -174,15 +186,40 @@ export function DeepWorkCanvas({ onConnect, onDisconnect }: DeepWorkCanvasProps)
     setQuickCreatePos(position)
   }, [])
 
-  // Handle quick-create confirm → create node, then show type picker
+  // Handle quick-create confirm → create node, optionally auto-wire a pending
+  // edge from the originating port, then show type picker.
   const handleQuickCreateConfirm = useCallback(async (name: string) => {
     if (!quickCreatePos) return
-    const pos = quickCreatePos // Capture before clearing
+    const pos = quickCreatePos
+    const pending = pendingConnection
     setQuickCreatePos(null)
-    setTypePickerState(null) // Dismiss any existing picker
+    setPendingConnection(null)
+    setTypePickerState(null)
     try {
       const node = await addNode(pos, name)
-      // Show type picker only when there are multiple types to choose from
+
+      // Auto-wire the edge if this node came from an edge-drop on the pane.
+      // handleType=source: drag started from a source handle (Right/Bottom),
+      //   so the originating node is the source → new node is the target.
+      // handleType=target: drag started from a target handle (Left/Top),
+      //   so the new node is the predecessor → originating is the target.
+      if (pending) {
+        try {
+          if (pending.handleType === 'source') {
+            await connectNodes(pending.sourceNodeId, node.id)
+          } else {
+            await connectNodes(node.id, pending.sourceNodeId)
+          }
+        } catch (err) {
+          logger.ui.error('Failed to auto-wire edge after node create', {
+            error: err instanceof Error ? err.message : String(err),
+            sourceNodeId: pending.sourceNodeId,
+            handleType: pending.handleType,
+            newNodeId: node.id,
+          }, 'dwb-edge-drop-connect-error')
+        }
+      }
+
       if (node.task && userTypes.length > 1) {
         setTypePickerState({
           nodeId: node.id,
@@ -195,11 +232,49 @@ export function DeepWorkCanvas({ onConnect, onDisconnect }: DeepWorkCanvasProps)
         error: error instanceof Error ? error.message : String(error),
       }, 'dwb-quick-create-error')
     }
-  }, [quickCreatePos, addNode, userTypes.length])
+  }, [quickCreatePos, pendingConnection, addNode, connectNodes, userTypes.length])
 
-  // Handle quick-create cancel
+  // Handle quick-create cancel — also discard any pending edge connection.
   const handleQuickCreateCancel = useCallback(() => {
     setQuickCreatePos(null)
+    setPendingConnection(null)
+  }, [])
+
+  // Edge-drop-to-create — capture which node and side the drag started from.
+  const handleConnectStart = useCallback((
+    _event: React.MouseEvent | React.TouchEvent,
+    params: { nodeId: string | null; handleId: string | null; handleType: 'source' | 'target' | null },
+  ) => {
+    connectingNodeIdRef.current = params.nodeId
+    connectingHandleTypeRef.current = params.handleType
+  }, [])
+
+  // Edge-drop-to-create — if the drag ends on the empty pane (rather than on
+  // another handle), open NodeQuickCreate at the drop position and remember
+  // the pending edge to wire up after the new node is named.
+  const handleConnectEnd = useCallback((event: MouseEvent | TouchEvent) => {
+    const nodeId = connectingNodeIdRef.current
+    const handleType = connectingHandleTypeRef.current
+    connectingNodeIdRef.current = null
+    connectingHandleTypeRef.current = null
+    if (!nodeId || !handleType) return
+
+    const target = event.target as HTMLElement | null
+    if (!target) return
+    const isPane = target.classList.contains('react-flow__pane') ||
+      target.classList.contains('react-flow__background')
+    if (!isPane) return
+
+    const clientX = 'clientX' in event ? event.clientX : event.changedTouches[0]?.clientX
+    const clientY = 'clientY' in event ? event.clientY : event.changedTouches[0]?.clientY
+    if (clientX === undefined || clientY === undefined) return
+
+    const rfInstance = reactFlowInstanceRef.current
+    if (!rfInstance) return
+
+    const position = rfInstance.screenToFlowPosition({ x: clientX, y: clientY })
+    setQuickCreatePos(position)
+    setPendingConnection({ sourceNodeId: nodeId, handleType })
   }, [])
 
   // Handle type picker selection → update task type, refresh nodes
@@ -268,6 +343,8 @@ export function DeepWorkCanvas({ onConnect, onDisconnect }: DeepWorkCanvasProps)
         onEdgesChange={onEdgesChange}
         onNodeDragStop={handleNodeDragStop}
         onConnect={handleConnect}
+        onConnectStart={handleConnectStart}
+        onConnectEnd={handleConnectEnd}
         onEdgesDelete={handleEdgesDelete}
         onMoveEnd={handleMoveEnd}
         onPaneClick={() => { setQuickCreatePos(null); setTypePickerState(null) }}

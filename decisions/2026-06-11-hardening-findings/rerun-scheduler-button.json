@@ -1,0 +1,58 @@
+{
+  "key": "rerun-scheduler-button",
+  "verdict": "feature-missing",
+  "summary": "The reactive scheduling pipeline already exists and works: tasks/workflows/settings flow from useTaskStore through storeConnector into useSchedulerStore.setInputs, which runs the ONE UnifiedScheduler engine and publishes scheduleResult/scheduledItems/nextScheduledItem that GanttChart, StartNextTaskWidget, WeeklyCalendar, and the chat context all read reactively. A recomputeSchedule() store action even exists already \u2014 but no UI element anywhere exposes it (it is only called programmatically when sprint mode is toggled). The schedule therefore goes stale in two ways that only a full page refresh currently fixes: (1) time-anchoring \u2014 the engine schedules everything from the getCurrentTime() captured at the last input change, and nothing ever recomputes as wall-clock time advances; and (2) external data \u2014 task changes made outside the renderer (AI agent server-side, Vision Pro client, other sessions) never reach useTaskStore because the only full refetch is initializeData() on app mount/session switch. The requested button is a thin feature: wire a refresh action (refetch + unconditional recomputeSchedule) to a button in the Gantt toolbar / work status widget; every consumer already updates reactively via Zustand selectors, so no other changes are needed.",
+  "rootCause": "Two confirmed staleness mechanisms, plus the missing UI affordance. (A) No time-driven recompute: useSchedulerStore.computeSchedule captures getCurrentTime() once per recompute (src/renderer/store/useSchedulerStore.ts:164) and passes it as context.currentTime/config.startDate (:178-194); the engine anchors all task starts to MAX(blockStart, currentTime) (src/shared/unified-scheduler.ts:427-429, :696-698). Recomputes are triggered ONLY by content changes: storeConnector.ts:73-169 (tasks/workflows/settings, gated by comparison keys), :172-194 (workPatterns), SchedulingSettings.tsx:83-89 (prefs), and useTaskStore.ts:588-592 (sprint toggle \u2192 the sole recomputeSchedule() caller). GanttChart's per-minute timer (GanttChart.tsx:160-165) only moves the now-line display, and useWorkPatternStore's per-minute refreshDerivedState (useWorkPatternStore.ts:238-241) doesn't mutate the workPatterns array, so neither triggers recompute. As time passes with no edits, scheduleResult stays anchored to a stale \"now\". (B) No refetch path: the renderer's task data is only loaded by initializeData() at app mount (App.tsx:~264) and session change (App.tsx:~986); writes from the AI agent / other clients never reach useTaskStore, so the connector never fires. A page refresh re-runs both (refetch + fresh-time recompute), which is exactly what the user is manually substituting for. (C) The store action recomputeSchedule() (useSchedulerStore.ts:457-480) already re-runs the engine with fresh getCurrentTime() over the last-pushed inputs, but no button/menu item anywhere calls it \u2014 confirmed by repo-wide grep (only useTaskStore.ts:590 and tests).",
+  "files": [
+    {
+      "path": "/Users/austinmiles/Documents/code/claude_code/task_planner/src/renderer/store/useSchedulerStore.ts",
+      "detail": "The reactive scheduler store. computeSchedule (:151-234) captures getCurrentTime() at :164; setInputs (:344-432) recomputes only when tasks/sequencedTasks/workPatterns/workSettings/schedulingPreferences change; recomputeSchedule (:457-480) already exists, re-runs engine + re-derives scheduledItems/nextScheduledItem, but has no UI caller; clearSchedule (:482-495) used on session switch."
+    },
+    {
+      "path": "/Users/austinmiles/Documents/code/claude_code/task_planner/src/renderer/store/storeConnector.ts",
+      "detail": "The only automatic trigger wiring: useTaskStore subscription (:73-169, debounced, comparison-key gated, sprint/completed filtering at :101-125) and workPattern subscription (:172-194) push into setInputs. No time-based trigger exists."
+    },
+    {
+      "path": "/Users/austinmiles/Documents/code/claude_code/task_planner/src/renderer/store/useTaskStore.ts",
+      "detail": "Sole recomputeSchedule() caller at :590 (setSprintModeEnabled). initializeData (:274-340) is the full refetch (tasks+workflows via getDatabase()), run only at app mount/session change. startNextTask reads useSchedulerStore.getState().nextScheduledItem at :1697 (fresh at call time)."
+    },
+    {
+      "path": "/Users/austinmiles/Documents/code/claude_code/task_planner/src/renderer/components/timeline/GanttChart.tsx",
+      "detail": "Primary consumer: scheduledItems (:141) and scheduleResult (:142) via reactive selectors; debugInfo/metrics derived in an effect (:513-520) and passed to ScheduleMetricsPanel/SchedulingDebugInfo; per-minute timer (:160-165) only updates the now-line. Freeze/Unfreeze snapshot toolbar (:190-222) is the natural home for the new Re-run button. No refresh button exists today."
+    },
+    {
+      "path": "/Users/austinmiles/Documents/code/claude_code/task_planner/src/renderer/components/status/StartNextTaskWidget.tsx",
+      "detail": "Start-next-task widget: reads scheduleResult (:46) + nextTaskSkipIndex (:47) and computes the next task locally in a useMemo (:92-171) that re-runs instantly on store change \u2014 fully reactive, needs zero changes. Rendered inside WorkStatusWidget.tsx:154."
+    },
+    {
+      "path": "/Users/austinmiles/Documents/code/claude_code/task_planner/src/renderer/components/calendar/WeeklyCalendar.tsx",
+      "detail": "Consumer: scheduledItems via useSchedulerStore() (:21), grouped per day (:27-39). Fully reactive."
+    },
+    {
+      "path": "/Users/austinmiles/Documents/code/claude_code/task_planner/src/renderer/services/chat-context-provider.ts",
+      "detail": "Consumer: one-shot useSchedulerStore.getState() reads (:90, :120, :129) \u2014 always fresh at next chat message, no change needed."
+    },
+    {
+      "path": "/Users/austinmiles/Documents/code/claude_code/task_planner/src/shared/unified-scheduler.ts",
+      "detail": "The ONE engine. scheduleForDisplay (:382) consumes context.currentTime; task starts clamp to MAX(blockStart, currentTime) (:427-429) and day-0 scheduling respects config.currentTime (:696-698) \u2014 so re-running with a fresh now produces a re-anchored schedule."
+    },
+    {
+      "path": "/Users/austinmiles/Documents/code/claude_code/task_planner/src/shared/utils/store-comparison.ts",
+      "detail": "Change gates for the connector: createTaskComparisonKey (:15-35) and createSequencedTaskComparisonKey (:40-67). Note: task key omits Task.dependencies (declared at src/shared/types.ts:29)."
+    },
+    {
+      "path": "/Users/austinmiles/Documents/code/claude_code/task_planner/src/renderer/store/useWorkPatternStore.ts",
+      "detail": "Per-minute refreshDerivedState interval (:238-241) updates currentBlock/nextBlock only; does not mutate workPatterns, so it never triggers a scheduler recompute."
+    }
+  ],
+  "proposedFix": "1) Add a refreshSchedule() async action to useTaskStore (beside setSprintModeEnabled, src/renderer/store/useTaskStore.ts ~:585) that (a) refetches tasks + sequencedTasks via getDatabase().getTasks()/getSequencedTasks() and sets them with new array references (same pattern as initializeData :330, but WITHOUT clearing stores or resetting nextTaskSkipIndex, so the UI never flashes empty), (b) calls useWorkPatternStore's existing load action to refetch patterns, and (c) after the connector's debounce window \u2014 or simply unconditionally \u2014 calls useSchedulerStore.getState().recomputeSchedule() so the schedule re-anchors to the current getCurrentTime() even when no content changed (the connector won't fire if comparison keys are identical, which is exactly the time-staleness case). This is safe because recomputeSchedule already exists, is idempotent, and only rewrites scheduleResult/scheduledItems/nextScheduledItem in the scheduler store. 2) Add the button: an IconRefresh/IconSync Button in GanttChart's Card toolbar next to the Freeze/Unfreeze snapshot controls (GanttChart.tsx ~:850, 'Scheduled Tasks (Priority Order)' card) and a mini variant in the StartNextTaskWidget header row (StartNextTaskWidget.tsx :263-270, beside the skip button), both invoking useTaskStore(s => s.refreshSchedule) with a loading state. No business logic in components \u2014 the button only dispatches the store action (CLAUDE.md rule). 3) No consumer changes needed: GanttChart (scheduledItems/scheduleResult selectors :141-142 + debugInfo effect :513-520 feeding ScheduleMetricsPanel/SchedulingDebugInfo), StartNextTaskWidget (useMemo over scheduleResult :92-171), WeeklyCalendar (:21), chat-context-provider and useTaskStore.startNextTask (:1697, getState at call time) all read the scheduler store reactively or at call time, so one recompute repopulates everything without a page refresh.",
+  "testPlan": "Vitest (existing framework; mcp__diagnostic__run_tests). (1) Store-level regression in src/renderer/store/__tests__/useSchedulerStore.refresh.test.ts: seed useSchedulerStore via setInputs with a task set and work patterns using the mock time-provider; advance the mocked time (setCurrentTime) past the first scheduled item's start; assert scheduleResult is unchanged (proves the staleness bug); call recomputeSchedule() and assert scheduled item startTimes re-anchor to the new now and nextScheduledItem updates. (2) Action-level test in src/renderer/store/useTaskStore.scheduling.test.ts (file already exists, mirrors this pattern): mock getDatabase() to return changed tasks, call refreshSchedule(), assert tasks are refetched, nextTaskSkipIndex is preserved, and useSchedulerStore.recomputeSchedule was invoked (spy). (3) Component smoke test alongside GanttChart.test.tsx: render the Gantt toolbar, click the new refresh button, assert the store action fires once and a loading state toggles.",
+  "complexity": "small",
+  "adjacentFindings": [
+    "createTaskComparisonKey (src/shared/utils/store-comparison.ts:15-35) omits Task.dependencies (src/shared/types.ts:29), so editing ONLY a standalone task's dependencies never triggers the storeConnector to recompute the schedule \u2014 the Gantt keeps the old ordering until some other field changes or the app reloads.",
+    "No time-driven recompute exists anywhere: even without the button, the schedule silently drifts as wall-clock time passes (work blocks end, items' startTimes fall into the past). A low-frequency timer (e.g. the existing per-minute useWorkPatternStore interval at useWorkPatternStore.ts:238-241) could also call recomputeSchedule() when the current block boundary changes \u2014 worth considering as a follow-up beyond the manual button.",
+    "recomputeSchedule() (useSchedulerStore.ts:457-480) reuses the connector's last-pushed inputs but, unlike setInputs (:386-387), does not re-filter corrupted entries (tasks without ids); harmless today since inputs were pre-filtered when pushed, but the two paths could drift.",
+    "Stale-data double-checking is duplicated: StartNextTaskWidget re-implements the work-item filtering/skip logic locally (:92-171) in parallel with the store's extractNextScheduledItem (useSchedulerStore.ts:236-328), explicitly to defend against stale scheduleResult (comment at :121-122). Once a reliable refresh exists, this duplicate logic is a candidate for consolidation per the 'no duplicate logic' rule.",
+    "App.tsx WorkScheduleModal onSave (:963-966) is a no-op ('Refresh any data if needed' comment) \u2014 work-schedule edits rely solely on the work-pattern store's own state updates to propagate; if the modal writes via a path that bypasses useWorkPatternStore.workPatterns, the scheduler would not recompute."
+  ]
+}

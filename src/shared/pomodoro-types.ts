@@ -16,6 +16,7 @@
 import { PomodoroPhase } from './enums'
 import { POMODORO_DEFAULTS } from './constants'
 import { generateUniqueId } from './step-id-utils'
+import { formatMinutes } from './time-utils'
 
 // ============================================================================
 // Core Interfaces
@@ -210,6 +211,121 @@ export function formatPomodoroTime(totalSeconds: number): string {
   const minutes = Math.floor(totalSeconds / 60)
   const seconds = totalSeconds % 60
   return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`
+}
+
+/**
+ * The settings subset needed to project pomodoro-paced wall-clock durations.
+ * All four values are user-configurable (session-scoped PomodoroSettings).
+ */
+export type PomodoroProjectionSettings = Pick<
+  PomodoroSettings,
+  'workDurationMinutes' | 'shortBreakMinutes' | 'longBreakMinutes' | 'cyclesBeforeLongBreak'
+>
+
+/**
+ * Breakdown of a pomodoro-paced projection of a block of work.
+ * All minute fields may be fractional — round only at display time.
+ */
+export interface PomodoroProjection {
+  /** The raw focused-work minutes being projected (T). */
+  workMinutes: number
+  /** Pomodoro cycles needed: workMinutes / workDurationMinutes (fractional allowed). */
+  cycleCount: number
+  /** Fully completed cycles: floor(cycleCount). */
+  completedCycles: number
+  /** Long breaks earned: floor(cycleCount / cyclesBeforeLongBreak). */
+  longBreakCount: number
+  /** Total short-rest minutes: cycleCount * shortBreakMinutes (partial cycle earns proportional rest). */
+  shortBreakTotalMinutes: number
+  /** Total long-break minutes: longBreakCount * longBreakMinutes. */
+  longBreakTotalMinutes: number
+  /** All rest minutes: shortBreakTotalMinutes + longBreakTotalMinutes. */
+  breakMinutes: number
+  /** Wall-clock minutes: workMinutes + breakMinutes. */
+  totalMinutes: number
+}
+
+/**
+ * Project how long `workMinutes` of focused work takes on the wall clock when
+ * paced by the user's pomodoro settings.
+ *
+ * Chosen semantics (several conventions exist — this one matches the product's
+ * reference example, so it is pinned here and by regression tests):
+ * - Cycles are fractional: cycleCount = workMinutes / workDurationMinutes.
+ * - TRAILING REST IS INCLUDED: every cycle — including a partial final cycle,
+ *   proportionally — carries its short rest, so
+ *   shortBreakTotalMinutes = cycleCount * shortBreakMinutes.
+ * - A long break is ADDED on top of the per-cycle short rest after every
+ *   cyclesBeforeLongBreak COMPLETED cycles:
+ *   longBreakCount = floor(cycleCount / cyclesBeforeLongBreak).
+ * - totalMinutes = cycleCount * (workDuration + shortBreak)
+ *                + longBreakMinutes * floor(cycleCount / cyclesBeforeLongBreak).
+ *
+ * Reference: 240m of work at 25m work / 5m short / 30m long, long break every
+ * 4 cycles → cycleCount 9.6, 2 long breaks → 348 total minutes (5h 48m).
+ *
+ * This is a planning estimate, not a replay of the live timer (which swaps the
+ * short rest for the long one on every Nth cycle instead of adding it).
+ *
+ * Guards: workMinutes <= 0 → all-zero projection. workDurationMinutes <= 0 →
+ * no cycles can be derived, so no rest is added (totalMinutes = workMinutes).
+ * cyclesBeforeLongBreak <= 0 → no long breaks (mirrors getBreakType's guard).
+ * Negative break durations are treated as 0.
+ */
+export function projectPomodoroDuration(
+  workMinutes: number,
+  settings: PomodoroProjectionSettings,
+): PomodoroProjection {
+  const zeroProjection: PomodoroProjection = {
+    workMinutes: 0,
+    cycleCount: 0,
+    completedCycles: 0,
+    longBreakCount: 0,
+    shortBreakTotalMinutes: 0,
+    longBreakTotalMinutes: 0,
+    breakMinutes: 0,
+    totalMinutes: 0,
+  }
+  if (workMinutes <= 0) {
+    return zeroProjection
+  }
+  if (settings.workDurationMinutes <= 0) {
+    return { ...zeroProjection, workMinutes, totalMinutes: workMinutes }
+  }
+
+  const cycleCount = workMinutes / settings.workDurationMinutes
+  const completedCycles = Math.floor(cycleCount)
+  const longBreakCount =
+    settings.cyclesBeforeLongBreak > 0 ? Math.floor(cycleCount / settings.cyclesBeforeLongBreak) : 0
+  const shortBreakTotalMinutes = cycleCount * Math.max(0, settings.shortBreakMinutes)
+  const longBreakTotalMinutes = longBreakCount * Math.max(0, settings.longBreakMinutes)
+  const breakMinutes = shortBreakTotalMinutes + longBreakTotalMinutes
+
+  return {
+    workMinutes,
+    cycleCount,
+    completedCycles,
+    longBreakCount,
+    shortBreakTotalMinutes,
+    longBreakTotalMinutes,
+    breakMinutes,
+    totalMinutes: workMinutes + breakMinutes,
+  }
+}
+
+/**
+ * Human-readable summary of a pomodoro-paced projection, e.g.
+ * "4h of work ≈ 5h 48m with your pomodoro settings".
+ * Minutes are rounded to whole minutes for display only.
+ */
+export function describePomodoroProjection(
+  workMinutes: number,
+  settings: PomodoroProjectionSettings,
+): string {
+  const projection = projectPomodoroDuration(workMinutes, settings)
+  const work = formatMinutes(Math.round(projection.workMinutes))
+  const total = formatMinutes(Math.round(projection.totalMinutes))
+  return `${work} of work ≈ ${total} with your pomodoro settings`
 }
 
 // ============================================================================

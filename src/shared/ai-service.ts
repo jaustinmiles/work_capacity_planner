@@ -6,6 +6,16 @@ import { AICallOptions } from './types'
 import { logger } from '../logger'
 
 /**
+ * A user-defined task type the AI may classify tasks/steps against.
+ * Task types are session-scoped and user-configurable — prompts must never
+ * hardcode type names; they inject this list instead.
+ */
+export interface TaskTypeOption {
+  id: string
+  name: string
+}
+
+/**
  * Service for AI-powered task creation and workflow generation
  */
 export class AIService {
@@ -30,9 +40,29 @@ export class AIService {
   }
 
   /**
-   * Extract tasks from brainstorming text
+   * Render the user's task types as a prompt fragment the model must pick from.
+   * Throws when no types exist — without valid type ids, extracted tasks could
+   * never pass server-side type validation, so failing visibly beats emitting
+   * orphan type strings.
    */
-  async extractTasksFromBrainstorm(brainstormText: string): Promise<{
+  private formatTaskTypeOptions(availableTypes: TaskTypeOption[]): string {
+    if (availableTypes.length === 0) {
+      throw new Error(
+        'No user-defined task types available — create a task type before extracting tasks',
+      )
+    }
+    return availableTypes.map((t) => `   - id "${t.id}": ${t.name}`).join('\n')
+  }
+
+  /**
+   * Extract tasks from brainstorming text.
+   * `availableTypes` are the session's user-defined task types; the model must
+   * classify each task as one of these ids (types are never hardcoded).
+   */
+  async extractTasksFromBrainstorm(
+    brainstormText: string,
+    availableTypes: TaskTypeOption[],
+  ): Promise<{
     tasks: Array<{
       name: string
       description: string
@@ -47,6 +77,9 @@ export class AIService {
     }>
     summary: string
   }> {
+    const typeOptions = this.formatTaskTypeOptions(availableTypes)
+    const exampleTypeId = availableTypes[0]?.id ?? ''
+
     const prompt = `
 You are a productivity expert helping someone organize their work. Analyze the following brainstorm text and extract discrete, actionable tasks.
 
@@ -59,7 +92,8 @@ For each task you identify:
 3. Estimate duration in minutes (be realistic)
 4. Rate importance (1-10): How critical is this to goals?
 5. Rate urgency (1-10): How time-sensitive is this?
-6. Classify type: "focused" (deep work, coding, writing) or "admin" (meetings, emails, simple tasks)
+6. Classify type: set "type" to the id of the best-matching user-defined task type from this list (use the id EXACTLY as written — never invent a new type):
+${typeOptions}
 7. Extract deadlines if mentioned (e.g., "by Friday", "end of month", "tomorrow")
 8. Determine if deadline is "hard" (must meet) or "soft" (target)
 9. Rate cognitive complexity (1-5): 1=trivial, 2=simple, 3=moderate, 4=complex, 5=very complex
@@ -81,7 +115,7 @@ Return your response as a JSON object with this structure:
       "estimatedDuration": 60,
       "importance": 7,
       "urgency": 5,
-      "type": "focused",
+      "type": "${exampleTypeId}",
       "deadline": "2024-01-20T17:00:00Z",
       "deadlineType": "hard",
       "cognitiveComplexity": 3,
@@ -123,9 +157,15 @@ Be thorough but realistic. Break down complex items into manageable tasks. If so
   }
 
   /**
-   * Extract async workflows from brainstorming text with natural language dependency understanding
+   * Extract async workflows from brainstorming text with natural language dependency understanding.
+   * `availableTypes` are the session's user-defined task types; every workflow, step,
+   * and standalone task must use one of these ids (types are never hardcoded).
    */
-  async extractWorkflowsFromBrainstorm(brainstormText: string, jobContext?: string): Promise<{
+  async extractWorkflowsFromBrainstorm(
+    brainstormText: string,
+    availableTypes: TaskTypeOption[],
+    jobContext?: string,
+  ): Promise<{
     workflows: Array<{
       name: string
       description: string
@@ -150,6 +190,9 @@ Be thorough but realistic. Break down complex items into manageable tasks. If so
     summary: string
   }> {
     const contextInfo = jobContext ? `\n\nJob Context: ${jobContext}` : ''
+    const typeOptions = this.formatTaskTypeOptions(availableTypes)
+    const primaryTypeId = availableTypes[0]?.id ?? ''
+    const secondaryTypeId = availableTypes[1]?.id ?? primaryTypeId
 
     const prompt = `
 You are an expert at understanding async workflows and dependencies. Analyze the following brainstorm text and extract workflows with natural language dependency interpretation.
@@ -177,6 +220,8 @@ For each workflow you identify:
 5. Consider conditional branches and retry scenarios
 6. Estimate importance (1-10) and urgency (1-10) for prioritization
 7. Flag any assumptions made and what clarification would help
+8. Set every "type" field (workflow, step, and standalone task) to the id of the best-matching user-defined task type from this list (use the id EXACTLY as written — never invent a new type):
+${typeOptions}
 
 For simple standalone tasks that don't have complex dependencies, extract them separately.
 
@@ -199,12 +244,12 @@ Return your response as a JSON object:
       "description": "What this workflow accomplishes",
       "importance": 8,
       "urgency": 6,
-      "type": "focused",
+      "type": "${primaryTypeId}",
       "steps": [
         {
           "name": "Prepare API request",
           "duration": 30,
-          "type": "focused",
+          "type": "${primaryTypeId}",
           "dependsOn": [],
           "asyncWaitTime": 0,
           "conditionalBranches": null
@@ -212,7 +257,7 @@ Return your response as a JSON object:
         {
           "name": "Submit API request",
           "duration": 15,
-          "type": "focused",
+          "type": "${primaryTypeId}",
           "dependsOn": [0],
           "asyncWaitTime": 240,
           "conditionalBranches": null
@@ -220,7 +265,7 @@ Return your response as a JSON object:
         {
           "name": "Process API response",
           "duration": 45,
-          "type": "focused",
+          "type": "${primaryTypeId}",
           "dependsOn": [1],
           "asyncWaitTime": 0,
           "conditionalBranches": null
@@ -240,7 +285,7 @@ Return your response as a JSON object:
       "estimatedDuration": 45,
       "importance": 6,
       "urgency": 4,
-      "type": "admin",
+      "type": "${secondaryTypeId}",
       "needsMoreInfo": false
     }
   ]

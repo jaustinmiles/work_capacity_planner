@@ -65,3 +65,6 @@ coverage.json
 TaskPlannerMobile/*.xcodeproj
 TaskPlannerMobile/TaskPlannerMobile.xcodeproj/
 xcuserdata/
+
+# Database backup dumps (created by MCP backup tool)
+backups/

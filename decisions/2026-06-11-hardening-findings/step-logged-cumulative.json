@@ -1,0 +1,56 @@
+{
+  "key": "step-logged-cumulative",
+  "verdict": "confirmed",
+  "summary": "Confirmed. The workflows page \"Progress Tracking\" tab (SequencedTaskView -> WorkflowProgressTracker) displays per-step logged time from the single denormalized field TaskStep.actualDuration, not from a sum of WorkSession rows. That field drifts from the true cumulative total in three ways: (1) completeStep OVERWRITES it with only the final session's minutes, discarding prior sessions; (2) the WorkTrackingService start/pause/stop flow (work status widget, pomodoro) writes only WorkSession rows and never touches the field; (3) the work logger's session create/edit/delete/split mutations on the server also never touch it. Since pause/resume normally produces multiple WorkSession rows per step, the page systematically under-reports per-step time. Other surfaces (TaskItem logged time, plan-vs-logged widget, radar chart) correctly sum WorkSession rows server-side via workSession.getTotalTimeForTask / getAccumulatedByDate \u2014 the workflows page is the surface that diverges from that one aggregation path.",
+  "rootCause": "The page reads a drifting denormalized field instead of aggregating WorkSessions. Display path: SequencedTaskView.tsx:565-575 renders WorkflowProgressTracker; the per-step \"Actual\"/\"Time spent\" comes from getStepStats in src/renderer/hooks/useWorkflowProgress.ts:155-175, specifically line 167: `const actualMinutes = step.actualDuration || progress.elapsedMinutes` \u2014 a single TaskStep field, never a session sum. The summary \"Time Spent\" (getWorkflowStats, useWorkflowProgress.ts:111-127) likewise sums step.actualDuration for completed steps only. The field drifts because: (1) OVERWRITE on complete \u2014 src/renderer/store/useTaskStore.ts:1107-1114 computes totalMinutes from only the explicit argument or the CURRENT active session, then line 1162 writes `actualDuration: totalMinutes`, clobbering accumulated time; pause/resume creates multiple WorkSession rows per step (pauseWorkOnStep useTaskStore.ts:826-871 -> pauseWorkSession workTrackingService.ts:186-189 closes the session; resume = startWorkOnStep useTaskStore.ts:683-724 creates a NEW session), so a step worked in N sessions shows only the last one after completion. (2) Widget/pomodoro tracking never updates the step \u2014 workTrackingService.ts stopWorkSession:248-250 and pauseWorkSession:186-189 update only the WorkSession row. (3) Work-logger CRUD (WorkLoggerCalendar.tsx:190-233, WorkLoggerDual.tsx:396/680/691/1466) hits server workSession.create/update/delete/split (src/server/router/workSession.ts:51-332) which never sync TaskStep.actualDuration. Only the manual logTime path accumulates correctly (useTaskStore.ts:1511-1523). The canonical aggregation other surfaces use is a server-side WorkSession sum: workSession.getTotalTimeForTask (workSession.ts:337-351, used by TaskItem.tsx:41-51) and workSession.getAccumulatedByDate (workSession.ts:356-410, feeds PlannedVsLoggedWidget/RadarChart accumulatedByType). A per-step session query even exists (workflow.getStepWorkSessions, workflow.ts:374-381) but the page only loads it into unused history for the first incomplete step (useWorkflowProgress.ts:48-56).",
+  "files": [
+    {
+      "path": "/Users/austinmiles/Documents/code/claude_code/task_planner/src/renderer/components/progress/WorkflowProgressTracker.tsx",
+      "detail": "The Progress Tracking UI; renders per-step 'Actual'/'Time spent' from getStepStats (lines 131-132, 207-229) and summary 'Time Spent' from getWorkflowStats (line 291)."
+    },
+    {
+      "path": "/Users/austinmiles/Documents/code/claude_code/task_planner/src/renderer/hooks/useWorkflowProgress.ts",
+      "detail": "Line 167: per-step actualMinutes = step.actualDuration || live elapsed \u2014 the divergence from the WorkSession aggregation path. getWorkflowStats lines 111-127 has the same flaw; lines 48-56 load step session history but never use it for sums; line 84 uses Date.now() directly."
+    },
+    {
+      "path": "/Users/austinmiles/Documents/code/claude_code/task_planner/src/renderer/store/useTaskStore.ts",
+      "detail": "completeStep lines 1107-1114 + 1162: OVERWRITES step.actualDuration with only the final session's minutes (the main data-loss write bug). logWorkSession lines 1511-1523 accumulates correctly (+=), proving the intended semantics. startWorkOnStep:683-724 / pauseWorkOnStep:826-871 show pause/resume creates multiple WorkSession rows per step."
+    },
+    {
+      "path": "/Users/austinmiles/Documents/code/claude_code/task_planner/src/renderer/services/workTrackingService.ts",
+      "detail": "pauseWorkSession:186-189 and stopWorkSession:248-250 close WorkSession rows but never update step.actualDuration \u2014 widget/pomodoro-tracked time never reaches the workflows page field."
+    },
+    {
+      "path": "/Users/austinmiles/Documents/code/claude_code/task_planner/src/server/router/workSession.ts",
+      "detail": "The canonical aggregation path: getTotalTimeForTask:337-351 (sums sessions per task), getAccumulatedByDate:356-410 (per-type sums for plan-vs-logged/radar), recalculateTaskDuration:415-437 (task-level repair, never called, no step equivalent). create/update/delete/split:51-332 never sync TaskStep.actualDuration."
+    },
+    {
+      "path": "/Users/austinmiles/Documents/code/claude_code/task_planner/src/server/router/workflow.ts",
+      "detail": "getStepWorkSessions:374-381 \u2014 existing per-step session query that could power a correct sum; currently only feeds unused history."
+    },
+    {
+      "path": "/Users/austinmiles/Documents/code/claude_code/task_planner/src/renderer/components/tasks/SequencedTaskView.tsx",
+      "detail": "Lines 565-575: the 'Progress Tracking' tab on the workflows page mounting WorkflowProgressTracker."
+    },
+    {
+      "path": "/Users/austinmiles/Documents/code/claude_code/task_planner/src/renderer/components/tasks/TaskItem.tsx",
+      "detail": "Lines 41-51: the contrast surface \u2014 task logged time correctly fetched via getTaskTotalLoggedTime (WorkSession sum)."
+    },
+    {
+      "path": "/Users/austinmiles/Documents/code/claude_code/task_planner/src/server/router/task.ts",
+      "detail": "Lines 599 and 613: getNextScheduledItem feeds the work status widget loggedMinutes from the same drifting actualDuration fields \u2014 inherits the drift."
+    }
+  ],
+  "proposedFix": "Align the workflows page with the one aggregation path (sum of WorkSession rows), plus a targeted write fix. (1) Server: add a per-step sum query to src/server/router/workSession.ts mirroring getTotalTimeForTask (workSession.ts:337-351), e.g. getTotalTimeByStep(taskId) using prisma.workSession.groupBy({ by: ['stepId'], where: { taskId, stepId: { not: null } }, _sum: { actualMinutes: true } }) returning Record<stepId, minutes>; expose it through database-trpc.ts like getTaskTotalLoggedTime (database-trpc.ts:861-863). (2) Renderer: in useWorkflowProgress, fetch the workflow's per-step sums on mount and after logTime/completeStep/pauseWork; in getStepStats (useWorkflowProgress.ts:167) replace `step.actualDuration || progress.elapsedMinutes` with `sessionSum + (active session's live elapsedMinutes)`, and use the same sums in getWorkflowStats.totalActualMinutes (lines 115-124). This is safe because the WorkSession table is already the canonical record consumed by TaskItem and the radar/plan-vs-logged surfaces \u2014 the page becomes a read-only projection of it. (3) Write-path fix for other readers of the field (task.ts:599 status widget): in completeStep change useTaskStore.ts:1162 to accumulate \u2014 `actualDuration: (step?.actualDuration || 0) + totalMinutes` \u2014 matching the existing accumulate semantics at useTaskStore.ts:1511; note completeStep also creates/stops a WorkSession for totalMinutes (lines 1118-1143), so accumulation keeps the field equal to the session sum rather than resetting it. Optionally (cleanup, not required): a step-level analog of recalculateTaskDuration for repairing already-drifted rows.",
+  "testPlan": "Vitest (run via mcp__diagnostic__run_test_file). (a) Server aggregation: extend src/server/router/__tests__/workSession.test.ts \u2014 create a workflow task with one step and two WorkSession rows (e.g. 30 and 10 actualMinutes, plus one null-actualMinutes row), call the new getTotalTimeByStep and assert the step maps to 40; assert a step with no sessions maps to 0/absent. (b) Overwrite regression: extend src/renderer/store/__tests__/useTaskStore.test.ts \u2014 seed a sequenced task whose step has actualDuration: 30, call completeStep(stepId, 10), assert the mocked getDatabase().updateTaskStepProgress was called with actualDuration: 40 (currently 10 \u2014 the regression this bug report describes). (c) Hook-level: a test for useWorkflowProgress.getStepStats asserting actualMinutes equals the session sum even when step.actualDuration is stale (mock the new query).",
+  "complexity": "medium",
+  "adjacentFindings": [
+    "task.ts:599/613 (getNextScheduledItem) feeds the work status widget's loggedMinutes from the same drifting actualDuration fields, so the StartNextTaskWidget under-reports identically; fixing the write path (completeStep accumulate) helps, but the widget would ideally use the session-sum query too.",
+    "workSession.recalculateTaskDuration (src/server/router/workSession.ts:415-437) is dead code \u2014 defined but never called from any client; and no step-level equivalent exists.",
+    "useWorkflowProgress.ts:84 uses Date.now() directly, violating the CLAUDE.md time-provider rule (getCurrentTime()); WorkflowProgressTracker.tsx:48,53,58 type event handlers as `e: any`, violating the no-any rule.",
+    "loadWorkSessionHistory is invoked only for the FIRST incomplete step (useWorkflowProgress.ts:48-56) and the fetched workSessionHistory is never rendered by the tracker \u2014 a dead data path.",
+    "logWorkSession (useTaskStore.ts:1511) does a client-side read-modify-write of step.actualDuration from possibly-stale local state \u2014 race-prone if sessions are logged from another surface concurrently; a server-side recalculation would be safer.",
+    "workTrackingService.ts:188 pauseWorkSession forces actualMinutes to Math.max(elapsed, 1), so a few-second pause records 1 minute, slightly inflating session sums.",
+    "getWorkflowStats (useWorkflowProgress.ts:115-124) counts time only for completed steps and the currently-active session \u2014 an in_progress step with prior closed sessions contributes 0 to the summary 'Time Spent', the workflow-level form of the same bug."
+  ]
+}

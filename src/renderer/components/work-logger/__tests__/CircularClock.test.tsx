@@ -206,8 +206,16 @@ describe('CircularClock', () => {
     expect(handles.length).toBe(2) // Start and end handles
   })
 
-  it('allows creating new session by clicking on clock face', () => {
-    const { container } = renderWithProvider(
+  describe('drag-to-create gesture (press → drag → release)', () => {
+    // In jsdom the svg rect is at (0,0) and the clock renders at 360px,
+    // so the center is (180,180). Cardinal points of the 24h dial:
+    //   (280,180) = 6:00  → 360 min     (180,280) = 12:00 → 720 min
+    //   (80,180)  = 18:00 → 1080 min    (180,80)  = 0:00  → 0 min
+    const SIX_AM = { clientX: 280, clientY: 180 }
+    const NOON = { clientX: 180, clientY: 280 }
+    const SIX_PM = { clientX: 80, clientY: 180 }
+
+    const renderEmptyClock = () => renderWithProvider(
       <CircularClock
         sessions={[]}
         onSessionUpdate={mockOnSessionUpdate}
@@ -217,19 +225,138 @@ describe('CircularClock', () => {
       />,
     )
 
-    // Click on the clock face background
-    const clockFace = container.querySelector('.clock-face')
-    if (clockFace) {
-      fireEvent.click(clockFace)
+    it('commits the session from the pointer-RELEASE position, not the last mousemove', () => {
+      const { container } = renderEmptyClock()
+      const clockFace = container.querySelector('.clock-face')
+      expect(clockFace).not.toBeNull()
 
-      // Move mouse to create a session
-      fireEvent.mouseMove(document, { clientX: 150, clientY: 150 })
-      fireEvent.mouseUp(document)
+      fireEvent.mouseDown(clockFace!, SIX_AM)
+      // Rubber band passes through noon...
+      fireEvent.mouseMove(document, { ...NOON, buttons: 1 })
+      // ...but the user releases at 6 PM — that is what must persist
+      fireEvent.mouseUp(document, SIX_PM)
 
-      // Session creation should be attempted
-      // Note: Due to the complexity of mouse position calculations,
-      // the exact behavior might vary
-    }
+      expect(mockOnSessionCreate).toHaveBeenCalledTimes(1)
+      expect(mockOnSessionCreate).toHaveBeenCalledWith(360, 1080)
+    })
+
+    it('does NOT commit again on a later unrelated mouseup (old armed-rubber-band bug)', () => {
+      const { container } = renderEmptyClock()
+      const clockFace = container.querySelector('.clock-face')
+
+      fireEvent.mouseDown(clockFace!, SIX_AM)
+      fireEvent.mouseMove(document, { ...NOON, buttons: 1 })
+      fireEvent.mouseUp(document, NOON)
+      expect(mockOnSessionCreate).toHaveBeenCalledTimes(1)
+
+      // A later click anywhere must not create another session
+      fireEvent.mouseMove(document, { clientX: 10, clientY: 10 })
+      fireEvent.mouseUp(document, { clientX: 10, clientY: 10 })
+      expect(mockOnSessionCreate).toHaveBeenCalledTimes(1)
+    })
+
+    it('a bare click on the clock face does not arm a rubber band', () => {
+      const { container } = renderEmptyClock()
+      const clockFace = container.querySelector('.clock-face')
+
+      // The old implementation wired creation to onClick — which fires at
+      // release — leaving the gesture armed for the NEXT mouseup anywhere.
+      fireEvent.click(clockFace!, SIX_AM)
+      fireEvent.mouseMove(document, NOON)
+      fireEvent.mouseUp(document, SIX_PM)
+
+      expect(mockOnSessionCreate).not.toHaveBeenCalled()
+    })
+
+    it('a press-release in place (no drag) creates nothing', () => {
+      const { container } = renderEmptyClock()
+      const clockFace = container.querySelector('.clock-face')
+
+      fireEvent.mouseDown(clockFace!, SIX_AM)
+      fireEvent.mouseUp(document, SIX_AM)
+
+      expect(mockOnSessionCreate).not.toHaveBeenCalled()
+    })
+
+    it('self-terminates at the current position when the release was missed (buttons === 0)', () => {
+      const { container } = renderEmptyClock()
+      const clockFace = container.querySelector('.clock-face')
+
+      fireEvent.mouseDown(clockFace!, SIX_AM)
+      // A mousemove reporting no held buttons means the mouseup happened
+      // where the document could not observe it (outside the window)
+      fireEvent.mouseMove(document, { ...NOON, buttons: 0 })
+
+      expect(mockOnSessionCreate).toHaveBeenCalledTimes(1)
+      expect(mockOnSessionCreate).toHaveBeenCalledWith(360, 720)
+
+      // The gesture is fully terminated — no later commit
+      fireEvent.mouseUp(document, SIX_PM)
+      expect(mockOnSessionCreate).toHaveBeenCalledTimes(1)
+    })
+
+    it('drag-resize persists the end the user released at', () => {
+      const session: WorkSessionData = {
+        id: 'session-1',
+        taskId: 'task-1',
+        taskName: 'Morning Task',
+        startMinutes: 540,
+        endMinutes: 600,
+        type: 'focused',
+        color: '#165DFF',
+      }
+      const { container } = renderWithProvider(
+        <CircularClock
+          sessions={[session]}
+          selectedSessionId="session-1"
+          onSessionUpdate={mockOnSessionUpdate}
+          onSessionCreate={mockOnSessionCreate}
+          onSessionDelete={mockOnSessionDelete}
+          onSessionSelect={mockOnSessionSelect}
+        />,
+      )
+
+      const handles = container.querySelectorAll('circle[style*="cursor: ew-resize"]')
+      expect(handles.length).toBe(2)
+      const endHandle = handles[1]
+
+      fireEvent.mouseDown(endHandle, SIX_AM)
+      fireEvent.mouseMove(document, { ...NOON, buttons: 1 })
+      // Release at 6 PM — the persisted end must be the release position
+      fireEvent.mouseUp(document, SIX_PM)
+
+      expect(mockOnSessionUpdate).toHaveBeenLastCalledWith('session-1', 540, 1080)
+    })
+
+    it('a plain click on a resize handle commits no position change', () => {
+      const session: WorkSessionData = {
+        id: 'session-1',
+        taskId: 'task-1',
+        taskName: 'Morning Task',
+        startMinutes: 540,
+        endMinutes: 600,
+        type: 'focused',
+        color: '#165DFF',
+      }
+      const { container } = renderWithProvider(
+        <CircularClock
+          sessions={[session]}
+          selectedSessionId="session-1"
+          onSessionUpdate={mockOnSessionUpdate}
+          onSessionCreate={mockOnSessionCreate}
+          onSessionDelete={mockOnSessionDelete}
+          onSessionSelect={mockOnSessionSelect}
+        />,
+      )
+
+      const handles = container.querySelectorAll('circle[style*="cursor: ew-resize"]')
+      const endHandle = handles[1]
+
+      fireEvent.mouseDown(endHandle, SIX_AM)
+      fireEvent.mouseUp(document, SIX_AM)
+
+      expect(mockOnSessionUpdate).not.toHaveBeenCalled()
+    })
   })
 
   it('displays tooltips with session information', () => {

@@ -214,6 +214,23 @@ describe('scheduler-converters', () => {
       expect(activeItems[1]!.dependencies).toEqual(['step-1'])
     })
 
+    it('prefers per-step importance/urgency overrides, falling back to the parent workflow', () => {
+      const boosted = makeStep('step-boosted', 'wf-1', { importance: 10, urgency: 9 })
+      const inherits = makeStep('step-inherits', 'wf-1', { importance: undefined, urgency: undefined })
+      const wf = makeWorkflow('wf-1', [boosted, inherits], { importance: 4, urgency: 3 })
+
+      const { activeItems } = convertToUnifiedItems([wf])
+
+      const boostedItem = activeItems.find(item => item.id === 'step-boosted')
+      const inheritingItem = activeItems.find(item => item.id === 'step-inherits')
+      // The override is the AI's lever for surfacing one step ahead of siblings
+      expect(boostedItem?.importance).toBe(10)
+      expect(boostedItem?.urgency).toBe(9)
+      // Steps without an override inherit the parent workflow's priority
+      expect(inheritingItem?.importance).toBe(4)
+      expect(inheritingItem?.urgency).toBe(3)
+    })
+
     it('adds deadline and deadlineType from parent workflow to steps', () => {
       const deadline = new Date('2025-06-01')
       const step1 = makeStep('step-1', 'wf-1')

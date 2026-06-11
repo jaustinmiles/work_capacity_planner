@@ -38,7 +38,9 @@ Edit `.env.server` and set:
 npm run server:prod
 ```
 
-This builds the web client and starts the Express server on port 3001.
+This builds the web client and starts the Express server on port 3001 with `NODE_ENV=production`.
+
+**The production server fails closed**: if `TASK_PLANNER_API_KEY` is missing or empty, `npm run server:prod` refuses to start instead of serving every request unauthenticated. Set the key in `.env.server` before starting.
 
 ### 5. Create the tunnel
 
@@ -102,6 +104,7 @@ The API key is saved to localStorage on first visit — you only need to include
 ## Security
 
 - **API key auth**: All tRPC requests require a valid `x-api-key` header. The web client handles this automatically after the first `?apiKey=` URL visit.
+- **Fail-closed in production**: With `NODE_ENV=production` (set by `npm run server:prod`), the server refuses to boot without `TASK_PLANNER_API_KEY`, and the auth middleware rejects all requests if the key is unset. Running without a key (open access) is a development-only convenience and logs a prominent warning.
 - **HTTPS**: Cloudflare terminates TLS. All traffic between your device and Cloudflare is encrypted.
 - **CORS**: Only origins matching your configured `TASK_PLANNER_CORS_ORIGINS` are allowed.
 - **No open ports**: The tunnel is outbound-only. Your router firewall stays closed.

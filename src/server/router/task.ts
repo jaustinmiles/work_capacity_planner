@@ -9,7 +9,9 @@
  */
 
 import { z } from 'zod'
+import { TRPCError } from '@trpc/server'
 import { router, protectedProcedure, sessionProcedure } from '../trpc'
+import { assertValidTaskType, assertValidTaskTypes } from '../task-type-validation'
 import { generateUniqueId, resolveStepDependencies } from '../../shared/step-id-utils'
 import { getCurrentTime, getLocalDateString } from '../../shared/time-provider'
 import { UnifiedScheduler, OptimizationMode } from '../../shared/unified-scheduler'
@@ -29,7 +31,7 @@ const createTaskInput = z.object({
   duration: z.number().int().positive(),
   importance: z.number().int().min(1).max(10),
   urgency: z.number().int().min(1).max(10),
-  type: z.string(),
+  type: z.string().min(1),
   category: z.string().default('work'),
   asyncWaitTime: z.number().int().default(0),
   dependencies: z.array(z.string()).default([]),
@@ -187,6 +189,15 @@ export const taskRouter = router({
    * Create a new task
    */
   create: sessionProcedure.input(createTaskInput).mutation(async ({ ctx, input }) => {
+    // Trust boundary: the task type and every step type must exist in this session.
+    await assertValidTaskTypes(ctx.prisma, ctx.sessionId, [
+      { typeId: input.type, fieldPath: 'type' },
+      ...(input.steps ?? []).map((step, index) => ({
+        typeId: step.type,
+        fieldPath: `steps[${index}].type`,
+      })),
+    ])
+
     const id = generateUniqueId('task')
     const now = getCurrentTime()
 
@@ -284,10 +295,30 @@ export const taskRouter = router({
   update: protectedProcedure.input(updateTaskInput).mutation(async ({ ctx, input }) => {
     const { id, dependencies, ...updates } = input
 
+    // Trust boundary: a type change must reference a type in the task's own session.
+    // Only validate when `type` is present so type-less updates to legacy rows still work.
+    if (updates.type !== undefined) {
+      const existing = await ctx.prisma.task.findUnique({
+        where: { id },
+        select: { sessionId: true },
+      })
+      if (!existing) {
+        throw new TRPCError({ code: 'NOT_FOUND', message: `Task ${id} not found` })
+      }
+      await assertValidTaskType(ctx.prisma, existing.sessionId, updates.type, 'type')
+    }
+
+    // Reopening a task (completed → false) must clear its completion timestamp, mirroring the
+    // workflow step roll-up. Callers can't always send an explicit null (e.g. clients whose
+    // serializer omits nil optionals), so derive it here whenever completion is turned off.
+    const completedAtOnReopen =
+      updates.completed === false && updates.completedAt === undefined ? { completedAt: null } : {}
+
     const task = await ctx.prisma.task.update({
       where: { id },
       data: {
         ...updates,
+        ...completedAtOnReopen,
         dependencies: dependencies ? JSON.stringify(dependencies) : undefined,
         updatedAt: getCurrentTime(),
       },

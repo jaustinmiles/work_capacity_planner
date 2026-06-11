@@ -16,9 +16,11 @@ import {
   createPomodoroCycle,
   fromDatabasePomodoroCycle,
   fromDatabasePomodoroSettings,
+  projectPomodoroDuration,
+  describePomodoroProjection,
   DEFAULT_POMODORO_SETTINGS,
 } from '../pomodoro-types'
-import type { PomodoroCycle } from '../pomodoro-types'
+import type { PomodoroCycle, PomodoroProjectionSettings } from '../pomodoro-types'
 
 describe('pomodoro-types', () => {
   // =========================================================================
@@ -451,6 +453,175 @@ describe('pomodoro-types', () => {
       expect(DEFAULT_POMODORO_SETTINGS.autoStartWork).toBe(false)
       expect(DEFAULT_POMODORO_SETTINGS.idleReminderMinutes).toBeNull()
       expect(DEFAULT_POMODORO_SETTINGS.soundEnabled).toBe(true)
+    })
+  })
+
+  // =========================================================================
+  // projectPomodoroDuration
+  // =========================================================================
+
+  describe('projectPomodoroDuration', () => {
+    const referenceSettings: PomodoroProjectionSettings = {
+      workDurationMinutes: 25,
+      shortBreakMinutes: 5,
+      longBreakMinutes: 30,
+      cyclesBeforeLongBreak: 4,
+    }
+
+    it('matches the reference example: 240m at 25/5/30 every 4 cycles → 9.6 cycles, 348m total', () => {
+      const projection = projectPomodoroDuration(240, referenceSettings)
+      expect(projection.workMinutes).toBe(240)
+      expect(projection.cycleCount).toBe(9.6)
+      expect(projection.completedCycles).toBe(9)
+      expect(projection.longBreakCount).toBe(2) // floor(9.6 / 4)
+      expect(projection.shortBreakTotalMinutes).toBe(48) // 9.6 * 5
+      expect(projection.longBreakTotalMinutes).toBe(60) // 2 * 30
+      expect(projection.breakMinutes).toBe(108)
+      expect(projection.totalMinutes).toBe(348)
+    })
+
+    it('satisfies the closed-form formula N*(X+Y) + Z*floor(N/C) for assorted inputs', () => {
+      const cases: Array<{ workMinutes: number; settings: PomodoroProjectionSettings }> = [
+        { workMinutes: 240, settings: referenceSettings },
+        { workMinutes: 90, settings: { workDurationMinutes: 50, shortBreakMinutes: 10, longBreakMinutes: 20, cyclesBeforeLongBreak: 2 } },
+        { workMinutes: 130, settings: { workDurationMinutes: 25, shortBreakMinutes: 5, longBreakMinutes: 15, cyclesBeforeLongBreak: 4 } },
+      ]
+      for (const { workMinutes, settings } of cases) {
+        const projection = projectPomodoroDuration(workMinutes, settings)
+        const n = workMinutes / settings.workDurationMinutes
+        const expected =
+          n * (settings.workDurationMinutes + settings.shortBreakMinutes) +
+          settings.longBreakMinutes * Math.floor(n / settings.cyclesBeforeLongBreak)
+        expect(projection.totalMinutes).toBeCloseTo(expected, 10)
+        expect(projection.workMinutes).toBe(workMinutes)
+      }
+    })
+
+    it('includes the trailing rest when cycles divide exactly into the long-break boundary', () => {
+      // 100m / 25m = exactly 4 cycles → the 4th cycle's short rest AND the earned long break both count
+      const projection = projectPomodoroDuration(100, referenceSettings)
+      expect(projection.cycleCount).toBe(4)
+      expect(projection.completedCycles).toBe(4)
+      expect(projection.longBreakCount).toBe(1)
+      expect(projection.shortBreakTotalMinutes).toBe(20)
+      expect(projection.longBreakTotalMinutes).toBe(30)
+      expect(projection.totalMinutes).toBe(150) // 4 * (25 + 5) + 30
+    })
+
+    it('includes trailing short rest on an exact multiple below the long-break boundary', () => {
+      const projection = projectPomodoroDuration(75, referenceSettings)
+      expect(projection.cycleCount).toBe(3)
+      expect(projection.longBreakCount).toBe(0)
+      expect(projection.totalMinutes).toBe(90) // 3 * (25 + 5)
+    })
+
+    it('handles a fractional sub-cycle with proportional rest', () => {
+      const projection = projectPomodoroDuration(10, referenceSettings)
+      expect(projection.cycleCount).toBe(0.4)
+      expect(projection.completedCycles).toBe(0)
+      expect(projection.longBreakCount).toBe(0)
+      expect(projection.shortBreakTotalMinutes).toBe(2) // 0.4 * 5
+      expect(projection.totalMinutes).toBe(12)
+    })
+
+    it('respects fully custom settings (never assumes 25/5/30/4)', () => {
+      const custom: PomodoroProjectionSettings = {
+        workDurationMinutes: 50,
+        shortBreakMinutes: 10,
+        longBreakMinutes: 20,
+        cyclesBeforeLongBreak: 2,
+      }
+      const projection = projectPomodoroDuration(200, custom)
+      expect(projection.cycleCount).toBe(4)
+      expect(projection.longBreakCount).toBe(2)
+      expect(projection.shortBreakTotalMinutes).toBe(40)
+      expect(projection.longBreakTotalMinutes).toBe(40)
+      expect(projection.totalMinutes).toBe(280)
+    })
+
+    it('returns an all-zero projection for zero work', () => {
+      const projection = projectPomodoroDuration(0, referenceSettings)
+      expect(projection).toEqual({
+        workMinutes: 0,
+        cycleCount: 0,
+        completedCycles: 0,
+        longBreakCount: 0,
+        shortBreakTotalMinutes: 0,
+        longBreakTotalMinutes: 0,
+        breakMinutes: 0,
+        totalMinutes: 0,
+      })
+    })
+
+    it('returns an all-zero projection for negative work', () => {
+      const projection = projectPomodoroDuration(-30, referenceSettings)
+      expect(projection.totalMinutes).toBe(0)
+      expect(projection.workMinutes).toBe(0)
+    })
+
+    it('adds no rest when workDurationMinutes is invalid (<= 0)', () => {
+      const projection = projectPomodoroDuration(120, { ...referenceSettings, workDurationMinutes: 0 })
+      expect(projection.workMinutes).toBe(120)
+      expect(projection.cycleCount).toBe(0)
+      expect(projection.breakMinutes).toBe(0)
+      expect(projection.totalMinutes).toBe(120)
+    })
+
+    it('never adds long breaks when cyclesBeforeLongBreak <= 0 (mirrors getBreakType guard)', () => {
+      const projection = projectPomodoroDuration(200, { ...referenceSettings, cyclesBeforeLongBreak: 0 })
+      expect(projection.cycleCount).toBe(8)
+      expect(projection.longBreakCount).toBe(0)
+      expect(projection.totalMinutes).toBe(240) // 200 + 8 * 5
+    })
+
+    it('treats negative break durations as zero rest', () => {
+      const projection = projectPomodoroDuration(100, {
+        ...referenceSettings,
+        shortBreakMinutes: -5,
+        longBreakMinutes: -10,
+      })
+      expect(projection.shortBreakTotalMinutes).toBe(0)
+      expect(projection.longBreakTotalMinutes).toBe(0)
+      expect(projection.totalMinutes).toBe(100)
+    })
+
+    it('works with the user-configurable defaults (no values hardcoded in the utility)', () => {
+      const projection = projectPomodoroDuration(240, DEFAULT_POMODORO_SETTINGS)
+      // 25/5/15/4 defaults: 9.6 cycles, 2 long breaks of 15
+      expect(projection.cycleCount).toBe(9.6)
+      expect(projection.totalMinutes).toBe(318) // 240 + 48 + 30
+    })
+  })
+
+  // =========================================================================
+  // describePomodoroProjection
+  // =========================================================================
+
+  describe('describePomodoroProjection', () => {
+    const referenceSettings: PomodoroProjectionSettings = {
+      workDurationMinutes: 25,
+      shortBreakMinutes: 5,
+      longBreakMinutes: 30,
+      cyclesBeforeLongBreak: 4,
+    }
+
+    it('describes the reference example as 4h ≈ 5h 48m', () => {
+      expect(describePomodoroProjection(240, referenceSettings)).toBe(
+        '4h of work ≈ 5h 48m with your pomodoro settings',
+      )
+    })
+
+    it('rounds fractional totals to whole minutes for display', () => {
+      // 20m / 25m = 0.8 cycles → 0.8 * 7 = 5.6m rest → 25.6m total → rounds to 26m
+      expect(
+        describePomodoroProjection(20, { ...referenceSettings, shortBreakMinutes: 7 }),
+      ).toBe('20m of work ≈ 26m with your pomodoro settings')
+    })
+
+    it('degrades gracefully for zero work', () => {
+      expect(describePomodoroProjection(0, referenceSettings)).toBe(
+        '0m of work ≈ 0m with your pomodoro settings',
+      )
     })
   })
 })

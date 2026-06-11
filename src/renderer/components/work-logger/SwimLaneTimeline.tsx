@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { Typography, Tooltip, Button, Switch, Input, Select, Space } from '@arco-design/web-react'
 import { IconDown, IconRight, IconZoomIn, IconZoomOut, IconPlus, IconCheck, IconClose } from '@arco-design/web-react/icon'
 import { Task } from '@shared/types'
@@ -12,6 +12,11 @@ import {
 import { useSortedUserTaskTypes } from '../../store/useUserTaskTypeStore'
 import { useContainerQuery } from '../../hooks/useContainerQuery'
 import { useResponsive } from '../../providers/ResponsiveProvider'
+import {
+  resolveDragCreateRange,
+  swimLanePixelsToMinutes,
+  isDragReleased,
+} from '../../utils/work-logger-drag'
 import { getCurrentTime } from '@shared/time-provider'
 import { MeetingType } from '@shared/enums'
 import { MOBILE_LAYOUT } from '@shared/constants'
@@ -92,6 +97,9 @@ export function SwimLaneTimeline({
   const TOTAL_DAYS = dayCount
   const TOTAL_HOURS = HOURS_PER_DAY * TOTAL_DAYS
   const [dragState, setDragState] = useState<DragState | null>(null)
+  // Tracks whether the pointer actually moved during a drag, so a plain click
+  // on a session never commits a position change on release
+  const dragDidMoveRef = useRef(false)
   const [creatingSession, setCreatingSession] = useState<{
     taskId: string
     stepId?: string
@@ -177,9 +185,14 @@ export function SwimLaneTimeline({
 
   // Convert pixels to minutes (accounting for day offset in 3-day view)
   const pixelsToMinutes = (pixels: number): number => {
-    // Subtract the day offset to get back to today's minutes
-    const hours = (pixels - responsiveTimeLabelWidth) / hourWidth - HOURS_PER_DAY + START_HOUR
-    return Math.max(START_HOUR * 60, Math.min(END_HOUR * 60, hours * 60))
+    return swimLanePixelsToMinutes(
+      pixels,
+      hourWidth,
+      responsiveTimeLabelWidth,
+      HOURS_PER_DAY,
+      START_HOUR,
+      END_HOUR,
+    )
   }
 
   // Calculate circadian rhythm energy level (0-1) for a given hour with smooth interpolation
@@ -403,6 +416,7 @@ export function SwimLaneTimeline({
     const session = sessions.find(s => s.id === sessionId)
     if (!session) return
 
+    dragDidMoveRef.current = false
     setDragState({
       sessionId,
       edge,
@@ -450,7 +464,10 @@ export function SwimLaneTimeline({
 
   // Handle drag move
   useEffect(() => {
-    const handleMouseMove = (e: MouseEvent) => {
+    // Apply the session move/resize implied by the pointer position in `e`.
+    // Used for every mousemove AND for the final mouseup, so the position the
+    // user releases at is exactly what persists.
+    const applyDragMove = (e: MouseEvent): void => {
       if (dragState) {
         const deltaX = e.clientX - dragState.initialX
         const deltaMinutes = (deltaX / hourWidth) * 60
@@ -522,31 +539,37 @@ export function SwimLaneTimeline({
             }
           }
         }
-      } else if (creatingSession) {
-        const container = timelineRef.current
-        if (!container) return
-
-        // Find the specific swim lane being dragged on
-        const lanes = Array.from(container.querySelectorAll('.swim-lane'))
-
-        for (const lane of lanes) {
-          const htmlLane = lane as HTMLElement
-          const rect = htmlLane.getBoundingClientRect()
-          if (e.clientY >= rect.top && e.clientY <= rect.bottom) {
-            const x = e.clientX - rect.left + responsiveTimeLabelWidth
-            setCreatingSession({ ...creatingSession, currentX: x })
-            break
-          }
-        }
       }
     }
 
-    const handleMouseUp = () => {
-      if (creatingSession) {
-        const startMinutes = pixelsToMinutes(Math.min(creatingSession.startX, creatingSession.currentX))
-        const endMinutes = pixelsToMinutes(Math.max(creatingSession.startX, creatingSession.currentX))
+    // Map a document-level mouse event to the swim-lane x coordinate system.
+    // All lanes share the same horizontal origin, so any lane's rect works —
+    // and the gesture keeps following x even when the cursor drifts
+    // vertically out of the lane it started in.
+    const laneXFromEvent = (e: MouseEvent): number | null => {
+      const lane = timelineRef.current?.querySelector('.swim-lane')
+      if (!lane) return null
+      const rect = lane.getBoundingClientRect()
+      return e.clientX - rect.left + responsiveTimeLabelWidth
+    }
 
-        if (endMinutes - startMinutes >= 15) {
+    // Commit the gesture from the release event's position. This is the ONLY
+    // place a drag-create is committed, so the end the user placed (and not
+    // some later unrelated mouseup) is exactly what persists.
+    const finishGesture = (e: MouseEvent): void => {
+      if (dragState) {
+        if (dragDidMoveRef.current) {
+          applyDragMove(e)
+        }
+      } else if (creatingSession) {
+        const releaseX = laneXFromEvent(e) ?? creatingSession.currentX
+        const range = resolveDragCreateRange(
+          pixelsToMinutes(creatingSession.startX),
+          pixelsToMinutes(releaseX),
+          15,
+        )
+
+        if (range) {
           // Get the correct task type
           const taskType = getTaskType(creatingSession.taskId, creatingSession.stepId)
           const taskColor = getTypeColor(userTaskTypes, taskType)
@@ -557,8 +580,8 @@ export function SwimLaneTimeline({
             taskId: creatingSession.taskId,
             taskName: '',
             ...(creatingSession.stepId !== undefined && { stepId: creatingSession.stepId }),
-            startMinutes,
-            endMinutes,
+            startMinutes: range.startMinutes,
+            endMinutes: range.endMinutes,
             type: taskType,
             color: taskColor,
           }
@@ -572,8 +595,8 @@ export function SwimLaneTimeline({
           if (!checkOverlap(newSession, laneSessions)) {
             onSessionCreate(
               creatingSession.taskId,
-              startMinutes,
-              endMinutes,
+              range.startMinutes,
+              range.endMinutes,
               creatingSession.stepId,
             )
           }
@@ -581,6 +604,30 @@ export function SwimLaneTimeline({
         setCreatingSession(null)
       }
       setDragState(null)
+    }
+
+    const handleMouseMove = (e: MouseEvent): void => {
+      if (isDragReleased(e.buttons)) {
+        // The mouseup happened where the document could not observe it
+        // (e.g. outside the window) - terminate at this position instead of
+        // leaving the gesture armed for an arbitrary later mouseup.
+        finishGesture(e)
+        return
+      }
+
+      if (dragState) {
+        dragDidMoveRef.current = true
+        applyDragMove(e)
+      } else if (creatingSession) {
+        const x = laneXFromEvent(e)
+        if (x !== null) {
+          setCreatingSession({ ...creatingSession, currentX: x })
+        }
+      }
+    }
+
+    const handleMouseUp = (e: MouseEvent): void => {
+      finishGesture(e)
     }
 
     if (dragState || creatingSession) {

@@ -272,6 +272,7 @@ export enum ViewType {
   Timers = 'timers',
   Memory = 'memory',
   Decision = 'decision',
+  Ranking = 'ranking',
 }
 
 // Decision tree node types
@@ -414,6 +415,17 @@ export enum PomodoroPromptType {
   BreakActivity = 'break_activity',
   NextTask = 'next_task',
   TaskComplete = 'task_complete',
+}
+
+// Spatial (visionOS) scene entity kinds — what a placed, movable entity represents.
+// A SpatialEntity is a pure placement/visibility projection; canonical data lives
+// in Task / TaskStep / UserTaskType. Edges are derived, never stored as entities.
+export enum SpatialEntityKind {
+  TaskNode = 'taskNode',
+  StepNode = 'stepNode',
+  TypePanel = 'typePanel',
+  WorkflowVolume = 'workflowVolume',
+  Note = 'note',
 }
 
 // Re-export enum utility functions from enum-utils.ts for backwards compatibility

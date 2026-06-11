@@ -59,6 +59,45 @@ const VOICE_HOTKEY_CONFIG = {
 } as const
 
 // =============================================================================
+// Audio drag-and-drop configuration
+// =============================================================================
+
+/**
+ * Audio file extensions accepted via drag-and-drop. Mirrors the formats Whisper
+ * supports server-side (see AUDIO_MIME_TYPES in shared/speech-service.ts) — kept
+ * as a local list to avoid pulling that Node-only module into the renderer bundle.
+ */
+const DROPPABLE_AUDIO_EXTENSIONS = [
+  'm4a',
+  'mp3',
+  'mp4',
+  'wav',
+  'webm',
+  'mpeg',
+  'mpga',
+  'flac',
+  'ogg',
+  'oga',
+] as const
+
+/**
+ * Returns the first transcribable audio file from a drop, or null if none.
+ * Matches by extension or by an `audio/*` MIME type.
+ */
+function getAudioFileFromDrop(dataTransfer: React.DragEvent['dataTransfer']): File | null {
+  const files = Array.from(dataTransfer.files)
+  return (
+    files.find((file) => {
+      const ext = file.name.split('.').pop()?.toLowerCase() ?? ''
+      return (
+        (DROPPABLE_AUDIO_EXTENSIONS as readonly string[]).includes(ext) ||
+        file.type.startsWith('audio/')
+      )
+    }) ?? null
+  )
+}
+
+// =============================================================================
 // Component
 // =============================================================================
 
@@ -95,9 +134,13 @@ export function ChatView({ onNavigateToView }: ChatViewProps): React.ReactElemen
 
   const [inputValue, setInputValue] = useState('')
   const [streamingNoToolWarning, setStreamingNoToolWarning] = useState<NoToolWarning | null>(null)
+  const [isDraggingAudio, setIsDraggingAudio] = useState(false)
   const messagesContainerRef = useRef<HTMLDivElement>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const wasAtBottomRef = useRef(true)
+  // Tracks nested dragenter/dragleave events so the overlay doesn't flicker when
+  // the cursor crosses child elements during a drag.
+  const dragDepthRef = useRef(0)
 
   const isSending = status === ConversationStatus.Sending
 
@@ -109,6 +152,7 @@ export function ChatView({ onNavigateToView }: ChatViewProps): React.ReactElemen
     error: voiceError,
     startRecording,
     stopRecording,
+    processAudioFile,
   } = useVoiceRecording({
     transcriptionPrompt: 'Task planning brainstorm conversation',
     onTranscriptionComplete: (text: string): void => {
@@ -136,6 +180,60 @@ export function ChatView({ onNavigateToView }: ChatViewProps): React.ReactElemen
   }), [toggleVoiceRecording])
 
   useGlobalHotkeys([voiceHotkey])
+
+  // ---------------------------------------------------------------------------
+  // Audio file drag-and-drop
+  // Dropping an .m4a (or other supported audio file) onto the chat transcribes
+  // it via the same Whisper pipeline as the mic button; the text lands in the
+  // input box through `onTranscriptionComplete`.
+  // ---------------------------------------------------------------------------
+
+  // Only react to drags that carry files (ignore text/selection drags).
+  const dragHasFiles = (e: React.DragEvent): boolean =>
+    Array.from(e.dataTransfer.types).includes('Files')
+
+  const handleDragEnter = useCallback((e: React.DragEvent): void => {
+    if (!dragHasFiles(e)) return
+    e.preventDefault()
+    dragDepthRef.current += 1
+    setIsDraggingAudio(true)
+  }, [])
+
+  const handleDragOver = useCallback((e: React.DragEvent): void => {
+    // preventDefault on dragover is required for the drop event to fire.
+    if (dragHasFiles(e)) e.preventDefault()
+  }, [])
+
+  const handleDragLeave = useCallback((e: React.DragEvent): void => {
+    if (!dragHasFiles(e)) return
+    dragDepthRef.current = Math.max(0, dragDepthRef.current - 1)
+    if (dragDepthRef.current === 0) setIsDraggingAudio(false)
+  }, [])
+
+  const handleDrop = useCallback((e: React.DragEvent): void => {
+    e.preventDefault()
+    dragDepthRef.current = 0
+    setIsDraggingAudio(false)
+
+    if (isSending || isTranscribing) return
+
+    const audioFile = getAudioFileFromDrop(e.dataTransfer)
+    if (!audioFile) {
+      logger.ui.warn(
+        'Dropped file is not a supported audio format',
+        { accepted: DROPPABLE_AUDIO_EXTENSIONS },
+        'audio-drop',
+      )
+      return
+    }
+
+    logger.ui.info(
+      'Audio file dropped into chat',
+      { name: audioFile.name, size: audioFile.size },
+      'audio-drop',
+    )
+    void processAudioFile(audioFile)
+  }, [isSending, isTranscribing, processAudioFile])
 
   // Track scroll position before new messages arrive
   useEffect(() => {
@@ -336,12 +434,47 @@ export function ChatView({ onNavigateToView }: ChatViewProps): React.ReactElemen
   return (
     <div
       style={{
+        position: 'relative',
         display: 'flex',
         flexDirection: 'column',
         height: '100%',
         overflow: 'hidden',
       }}
+      onDragEnter={handleDragEnter}
+      onDragOver={handleDragOver}
+      onDragLeave={handleDragLeave}
+      onDrop={handleDrop}
     >
+      {/* Audio drag-and-drop overlay */}
+      {isDraggingAudio && (
+        <div
+          style={{
+            position: 'absolute',
+            inset: 0,
+            zIndex: 10,
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: 8,
+            background: 'var(--color-bg-2)',
+            opacity: 0.96,
+            border: '2px dashed var(--color-primary-6)',
+            borderRadius: 8,
+            color: 'var(--color-text-1)',
+            pointerEvents: 'none',
+            textAlign: 'center',
+            padding: 24,
+          }}
+        >
+          <IconVoice style={{ fontSize: 28, color: 'var(--color-primary-6)' }} />
+          <Text style={{ fontSize: 15, fontWeight: 600 }}>Drop audio to transcribe</Text>
+          <Text style={{ fontSize: 12, color: 'var(--color-text-3)' }}>
+            .m4a, .mp3, .wav, .webm and other audio files are supported
+          </Text>
+        </div>
+      )}
+
       {/* Agent mode toggle */}
       <div
         style={{

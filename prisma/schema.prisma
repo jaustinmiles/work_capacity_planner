@@ -139,6 +139,7 @@ model Session {
   ConversationSummary   ConversationSummary[]
   DecisionSession       DecisionSession[]
   TaskComparison        TaskComparison[]
+  SpatialScene          SpatialScene[]
 }
 
 // Schedule Snapshot - Captures schedule state at a point in time
@@ -595,6 +596,47 @@ model DeepWorkNode {
   @@index([boardId])
 }
 
+// Spatial scene (visionOS) — the persistent volumetric workspace for a session.
+// Independent of DeepWorkBoard; the workflow-morph engine is reused, not duplicated.
+model SpatialScene {
+  id        String          @id
+  sessionId String
+  name      String          @default("Spatial Scene")
+  createdAt DateTime        @default(now())
+  updatedAt DateTime        @default(now())
+  Session   Session         @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  entities  SpatialEntity[]
+
+  @@index([sessionId])
+}
+
+// A placed, movable entity in a spatial scene. Pure placement/visibility projection:
+// canonical task/step/type data lives in Task / TaskStep / UserTaskType. Orientation is
+// stored as a quaternion (RealityKit-native) to avoid euler/gimbal ambiguity on drag.
+model SpatialEntity {
+  id         String       @id
+  sceneId    String
+  kind       String       // SpatialEntityKind: taskNode | stepNode | typePanel | workflowVolume | note
+  refId      String?      // taskNode->Task.id; stepNode->TaskStep.id; typePanel->UserTaskType.id; workflowVolume->workflow Task.id; note->null
+  noteText   String?      // populated for kind = note
+  parentId   String?      // child step nodes inside a workflowVolume reference the volume entity id
+  positionX  Float
+  positionY  Float
+  positionZ  Float        @default(0)
+  rotationX  Float        @default(0)
+  rotationY  Float        @default(0)
+  rotationZ  Float        @default(0)
+  rotationW  Float        @default(1)
+  scale      Float        @default(1) // persisted manual scale; view-scaling is separate, not stored
+  isRendered Boolean      @default(true)
+  createdAt  DateTime     @default(now())
+  updatedAt  DateTime     @default(now())
+  scene      SpatialScene @relation(fields: [sceneId], references: [id], onDelete: Cascade)
+
+  @@index([sceneId])
+  @@index([sceneId, kind])
+}
+
 // Pomodoro settings - user-configurable cycle durations and behavior
 // Session-scoped: each session has its own pomodoro preferences
 model PomodoroSettings {
@@ -725,6 +767,30 @@ model DecisionSession {
 
   @@index([sessionId])
   @@index([isActive])
+}
+
+// Development feedback collected from every client (desktop, web, CLI/MCP, mobile).
+// Replaces the legacy context/feedback.json file store (kept as a read-only archive).
+// sessionId is a free-form client/session label (NOT a Session FK) — feedback is
+// intentionally session-independent so it survives session deletion.
+model Feedback {
+  id           String    @id @default(cuid())
+  type         String // bug | feature | improvement | technical_debt | enhancement | refactoring | other
+  priority     String // critical | high | medium | low
+  title        String
+  description  String
+  components   String? // JSON array of component identifiers
+  steps        String?
+  expected     String?
+  actual       String?
+  sessionId    String
+  createdAt    DateTime  @default(now())
+  resolved     Boolean   @default(false)
+  resolvedDate DateTime?
+  resolvedIn   String?
+
+  @@index([resolved, priority])
+  @@index([sessionId, createdAt])
 }
 
 // Persisted pairwise comparison between two tasks or workflows for tournament-style ranking.

@@ -26,7 +26,7 @@ import {
 } from '@arco-design/web-react/icon'
 import {
   loadFeedback as loadFeedbackFromService,
-  updateFeedback as updateFeedbackViaService,
+  updateFeedbackItem as updateFeedbackViaService,
   type FeedbackItem,
 } from '../../services/feedback-service'
 
@@ -63,17 +63,19 @@ export function FeedbackViewer({ onClose: _onClose }: FeedbackViewerProps) {
     }
   }
 
+  const setResolvedState = async (itemIds: string[], resolved: boolean): Promise<FeedbackItem[]> => {
+    const targets = feedback.filter(item => itemIds.includes(`${item.timestamp}-${item.sessionId}`))
+    const updatedById = new Map<string, FeedbackItem>()
+    for (const target of targets) {
+      const updated = await updateFeedbackViaService(target.id, { resolved })
+      updatedById.set(updated.id, updated)
+    }
+    return feedback.map(item => updatedById.get(item.id) ?? item)
+  }
+
   const markAsResolved = async (itemIds: string[]): Promise<void> => {
     try {
-      const updatedFeedback = feedback.map(item => {
-        if (itemIds.some(id => `${item.timestamp}-${item.sessionId}` === id)) {
-          return { ...item, resolved: true }
-        }
-        return item
-      })
-
-      await updateFeedbackViaService(updatedFeedback)
-      setFeedback(updatedFeedback)
+      setFeedback(await setResolvedState(itemIds, true))
       setSelectedIds(new Set())
       Notification.success(`${itemIds.length} item(s) marked as resolved`)
     } catch (error) {
@@ -83,15 +85,7 @@ export function FeedbackViewer({ onClose: _onClose }: FeedbackViewerProps) {
 
   const markAsUnresolved = async (itemIds: string[]): Promise<void> => {
     try {
-      const updatedFeedback = feedback.map(item => {
-        if (itemIds.some(id => `${item.timestamp}-${item.sessionId}` === id)) {
-          return { ...item, resolved: false }
-        }
-        return item
-      })
-
-      await updateFeedbackViaService(updatedFeedback)
-      setFeedback(updatedFeedback)
+      setFeedback(await setResolvedState(itemIds, false))
       setSelectedIds(new Set())
       Notification.success(`${itemIds.length} item(s) marked as pending`)
     } catch (error) {
@@ -159,20 +153,21 @@ export function FeedbackViewer({ onClose: _onClose }: FeedbackViewerProps) {
   }
 
   const handleSaveEdit = async (): Promise<void> => {
-    if (!editingItem || !editForm) return
+    if (!editingItem) return
 
     try {
-      const updatedFeedback = feedback.map(item => {
-        const itemId = `${item.timestamp}-${item.sessionId}`
-        const editingId = `${editingItem.timestamp}-${editingItem.sessionId}`
-        if (itemId === editingId) {
-          return { ...item, ...editForm }
-        }
-        return item
-      }) as FeedbackItem[]
+      const updated = await updateFeedbackViaService(editingItem.id, {
+        type: editForm.type,
+        priority: editForm.priority,
+        title: editForm.title,
+        description: editForm.description,
+        components: editForm.components ?? undefined,
+        steps: editForm.steps ?? undefined,
+        expected: editForm.expected ?? undefined,
+        actual: editForm.actual ?? undefined,
+      })
 
-      await updateFeedbackViaService(updatedFeedback)
-      setFeedback(updatedFeedback)
+      setFeedback(feedback.map(item => (item.id === updated.id ? updated : item)))
       setEditingItem(null)
       setEditForm({})
       Notification.success('Feedback item updated successfully')

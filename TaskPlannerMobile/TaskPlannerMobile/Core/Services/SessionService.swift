@@ -23,8 +23,19 @@ final class SessionService {
         try await client.mutate("session.setActive", input: IDInput(id: id))
     }
 
+    /// Create a new session.
+    @discardableResult
+    func create(name: String, description: String? = nil) async throws -> Session {
+        try await client.mutate("session.create", input: CreateSessionInput(name: name, description: description))
+    }
+
     /// Check server health
     func healthCheck() async throws -> Bool {
         try await client.healthCheck()
     }
+}
+
+private struct CreateSessionInput: Codable {
+    let name: String
+    var description: String?
 }

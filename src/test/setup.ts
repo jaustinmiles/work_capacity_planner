@@ -31,6 +31,10 @@ Object.defineProperty(window, 'getComputedStyle', {
   value: vi.fn().mockReturnValue({
     getPropertyValue: vi.fn().mockReturnValue(''),
     padding: '0',
+    paddingTop: '0px',
+    paddingBottom: '0px',
+    paddingLeft: '0px',
+    paddingRight: '0px',
     borderTopWidth: '0',
     borderBottomWidth: '0',
     fontSize: '14px',

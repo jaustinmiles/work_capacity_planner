@@ -372,7 +372,7 @@ const addWorkflowStepTool: Anthropic.Tool = {
 const updateWorkflowStepTool: Anthropic.Tool = {
   name: 'update_workflow_step',
   description:
-    'Update an existing workflow step. Can change name, duration, type, status, dependencies, and other fields. Use get_task_detail first to get step IDs.',
+    'Update an existing workflow step. Can change name, duration, type, status, dependencies, per-step priority (importance/urgency), and other fields. Use get_task_detail first to get step IDs.',
   input_schema: {
     type: 'object' as const,
     properties: {
@@ -399,8 +399,41 @@ const updateWorkflowStepTool: Anthropic.Tool = {
       },
       cognitiveComplexity: { type: 'number', minimum: 1, maximum: 5, description: 'Cognitive complexity (1-5).' },
       notes: { type: 'string', description: 'Step notes.' },
+      importance: {
+        type: 'number',
+        minimum: 1,
+        maximum: 10,
+        description: 'Per-step importance override (1-10). The scheduler prioritizes this step with this value instead of the parent workflow\'s importance — use it to surface specific steps ahead of their siblings.',
+      },
+      urgency: {
+        type: 'number',
+        minimum: 1,
+        maximum: 10,
+        description: 'Per-step urgency override (1-10). The scheduler prioritizes this step with this value instead of the parent workflow\'s urgency — use it to surface specific steps ahead of their siblings.',
+      },
     },
     required: ['taskId', 'stepId'],
+  },
+}
+
+const reorderWorkflowStepsTool: Anthropic.Tool = {
+  name: 'reorder_workflow_steps',
+  description:
+    'Reorder the steps of an existing workflow. Provide the COMPLETE list of the workflow\'s step IDs in the desired new order — every step exactly once. Steps earlier in the list are scheduled first when priorities tie, so this is the way to move specific steps to the front of the queue. Use get_task_detail first to get the current step IDs and order.',
+  input_schema: {
+    type: 'object' as const,
+    properties: {
+      taskId: {
+        type: 'string',
+        description: 'The workflow (task) ID whose steps to reorder.',
+      },
+      orderedStepIds: {
+        type: 'array',
+        items: { type: 'string' },
+        description: 'ALL of the workflow\'s step IDs in the desired order (each exactly once).',
+      },
+    },
+    required: ['taskId', 'orderedStepIds'],
   },
 }
 
@@ -847,6 +880,7 @@ export const WRITE_TOOLS: Anthropic.Tool[] = [
   createWorkflowTool,
   addWorkflowStepTool,
   updateWorkflowStepTool,
+  reorderWorkflowStepsTool,
   removeWorkflowStepTool,
   logWorkSessionTool,
   createScheduleTool,
@@ -891,6 +925,7 @@ export const TOOL_REGISTRY: Record<string, ToolRegistration> = {
   create_workflow: { name: 'create_workflow', category: 'write', statusLabel: 'Creating workflow...' },
   add_workflow_step: { name: 'add_workflow_step', category: 'write', statusLabel: 'Adding workflow step...' },
   update_workflow_step: { name: 'update_workflow_step', category: 'write', statusLabel: 'Updating workflow step...' },
+  reorder_workflow_steps: { name: 'reorder_workflow_steps', category: 'write', statusLabel: 'Reordering workflow steps...' },
   remove_workflow_step: { name: 'remove_workflow_step', category: 'write', statusLabel: 'Removing workflow step...' },
   log_work_session: { name: 'log_work_session', category: 'write', statusLabel: 'Logging work session...' },
   create_schedule: { name: 'create_schedule', category: 'write', statusLabel: 'Creating schedule...' },
