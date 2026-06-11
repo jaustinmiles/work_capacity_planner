@@ -117,6 +117,133 @@ nonisolated enum SpatialLayoutEngine {
         return placements
     }
 
+    // MARK: - Workflow step graph (pop-out layout)
+
+    /// One step node of a popped-out workflow, as the engine sees it.
+    struct StepNodeInput: Sendable, Equatable {
+        let entityId: String
+        /// Canonical `TaskStep.id` — `dependsOn` references these, not entity ids.
+        let stepId: String
+        let dependsOn: [String]
+        /// `stepIndex` — the deterministic tie-break within a topological level.
+        let order: Int
+        /// Persisted position from a previous expand (nil = never placed / origin sentinel).
+        let stored: SIMD3<Float>?
+
+        init(entityId: String, stepId: String, dependsOn: [String], order: Int, stored: SIMD3<Float>? = nil) {
+            self.entityId = entityId
+            self.stepId = stepId
+            self.dependsOn = dependsOn
+            self.order = order
+            self.stored = stored
+        }
+    }
+
+    /// Preferred spacing between topological columns — clears a node card (≈0.154 m wide).
+    static let stepColumnGap: Float = 0.28
+    /// Preferred spacing between sibling rows within a column.
+    static let stepRowGap: Float = 0.16
+    /// Steps sit slightly in front of their workflow volume so they keep gaze priority over edges.
+    static let stepFrontOffset: Float = 0.08
+    /// The grid center sits a bit below the volume card so the card stays readable above the graph.
+    static let stepDropY: Float = 0.10
+
+    /// Place a workflow's popped-out steps.
+    ///
+    /// Nodes with a `stored` position keep it (the user's arrangement survives collapse → expand);
+    /// if `collapseAnchor` (the volume's position when it was collapsed) is known, the whole stored
+    /// shape is translated by however far the volume has moved since. Nodes WITHOUT a stored
+    /// position — first materialize, or a step newly merged into the workflow — get a slot in a
+    /// topologically layered grid: dependencies left, dependents right (matching output→input edge
+    /// flow), siblings of a level stacked vertically. Spacing packs to fit the volume.
+    static func stepGraph(
+        nodes: [StepNodeInput],
+        volume: SIMD3<Float>,
+        collapseAnchor: SIMD3<Float>? = nil,
+        metrics: VolumeMetrics = .standard
+    ) -> [Placement] {
+        guard !nodes.isEmpty else { return [] }
+        let m = metrics
+        let h = m.usableHalf
+        let delta = collapseAnchor.map { volume - $0 } ?? SIMD3<Float>(0, 0, 0)
+
+        // Layered grid slots for every node (used only by nodes without a stored position).
+        let levels = stepLevels(nodes)
+        var columns: [[StepNodeInput]] = Array(repeating: [], count: (levels.values.max() ?? 0) + 1)
+        for node in nodes.sorted(by: { ($0.order, $0.entityId) < ($1.order, $1.entityId) }) {
+            columns[levels[node.entityId] ?? 0].append(node)
+        }
+
+        let levelCount = columns.count
+        let maxRows = columns.map(\.count).max() ?? 1
+        // Pack spacing down when the graph is wider/taller than the volume.
+        let colStep = levelCount > 1 ? min(stepColumnGap, (2 * h.x) / Float(levelCount - 1)) : 0
+        let rowStep = maxRows > 1 ? min(stepRowGap, (2 * h.y) / Float(maxRows - 1)) : 0
+        // Center the grid on the volume, shifted so the full span stays inside the bounds.
+        let halfSpanX = colStep * Float(levelCount - 1) / 2
+        let centerX = min(max(volume.x, -h.x + halfSpanX), h.x - halfSpanX)
+        let z = volume.z + stepFrontOffset
+
+        var gridSlot: [String: SIMD3<Float>] = [:]
+        for (level, column) in columns.enumerated() {
+            let halfSpanY = rowStep * Float(column.count - 1) / 2
+            let centerY = min(max(volume.y - stepDropY, -h.y + halfSpanY), h.y - halfSpanY)
+            for (row, node) in column.enumerated() {
+                gridSlot[node.entityId] = SIMD3(
+                    centerX - halfSpanX + Float(level) * colStep,
+                    centerY + halfSpanY - Float(row) * rowStep,
+                    z
+                )
+            }
+        }
+
+        return nodes.map { node in
+            if let stored = node.stored {
+                return Placement(entityId: node.entityId, position: m.clamp(stored + delta))
+            }
+            return Placement(entityId: node.entityId, position: m.clamp(gridSlot[node.entityId] ?? volume))
+        }
+    }
+
+    /// Longest-path topological level per entity: 0 for steps with no in-set dependency, else
+    /// 1 + the deepest dependency's level. Dependencies outside the node set are ignored. If a
+    /// cycle prevents progress (defensive — the server shouldn't produce one), the unresolved
+    /// remainder is appended as one extra level per node in `(order, entityId)` order, so the
+    /// function always terminates and assigns every node deterministically.
+    static func stepLevels(_ nodes: [StepNodeInput]) -> [String: Int] {
+        let inSet = Set(nodes.map(\.stepId))
+        var levelByStep: [String: Int] = [:]
+        var levels: [String: Int] = [:]
+        var remaining = nodes.sorted { ($0.order, $0.entityId) < ($1.order, $1.entityId) }
+
+        while !remaining.isEmpty {
+            var unresolved: [StepNodeInput] = []
+            for node in remaining {
+                let deps = node.dependsOn.filter { inSet.contains($0) && $0 != node.stepId }
+                let depLevels = deps.compactMap { levelByStep[$0] }
+                if depLevels.count == deps.count {
+                    let level = (depLevels.max().map { $0 + 1 }) ?? 0
+                    levelByStep[node.stepId] = level
+                    levels[node.entityId] = level
+                } else {
+                    unresolved.append(node)
+                }
+            }
+            if unresolved.count == remaining.count {
+                // Cycle: break it by appending the remainder as successive levels.
+                var next = (levelByStep.values.max() ?? -1) + 1
+                for node in unresolved {
+                    levelByStep[node.stepId] = next
+                    levels[node.entityId] = next
+                    next += 1
+                }
+                return levels
+            }
+            remaining = unresolved
+        }
+        return levels
+    }
+
     /// Even column center for `index` of `count` across the usable width.
     static func laneCenterX(index: Int, count: Int, halfX: Float) -> Float {
         guard count > 1 else { return 0 }
