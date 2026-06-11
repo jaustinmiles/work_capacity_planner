@@ -258,5 +258,22 @@ transform, wiping the user's dragged arrangement. Fix (the previously deferred "
   **eyeball on Simulator/device**. Same-session pbxproj fix: Info.plist membership exception (see
   guidelines §5 — the synchronized group was double-producing Info.plist).
 
+**Create-flow + link-visibility fixes (2026-06-11, same PR as quick chat).**
+- **Create → edit form, name focused** (feedback "Vision Pro Task creation"): both create paths now
+  land in `SpatialNodeFormView` with the Name field focused (`focusName` param → `@FocusState`,
+  `defaultFocus` + onAppear). Toolbar "Task" creates a `defaultTaskName` placeholder immediately and
+  opens the form (the separate name prompt is task-free now; `CreatePromptView` is note-only,
+  `CreateKind`/`PendingCreate` deleted). Double-pinch spawn keeps the type wheel, then opens the form
+  on the wheel sheet's `onDismiss` (sheets can't overlap) — and **awaits the in-flight `assignType`
+  Task first**, else the form seeds from the stale type and Save would silently undo the wheel pick.
+- **Endeavor links between collapsed workflows**: `getLinks` endpoints are STEP entities, hidden when
+  a workflow collapses — `EdgeSystem` disables edges with missing endpoints, so links vanished. Fix:
+  edges now separate IDENTITY (the link's original entity pair — kept in the edge key and the
+  `unedge::`/`editlink::` control names so remove/reassign still resolve) from ANCHORS (where they
+  draw): `SceneReducer.visibleLinkAnchor` (pure, SpatialKit-tested) resolves each endpoint to itself
+  when rendered, else its rendered parent volume, else hides the edge. `syncEdges` retargets the
+  `EdgeComponent` of surviving edges in place on collapse/expand and dedupes coincident volume↔volume
+  edges. Needs a Simulator/device eyeball for the visuals.
+
 Full plans: `~/.claude/plans/fluttering-hatching-dijkstra.md` (M1–3),
 `~/.claude/plans/fizzy-dancing-shell.md` (M4 setup-workflow + UX fixes; M5 endeavors built on top).
