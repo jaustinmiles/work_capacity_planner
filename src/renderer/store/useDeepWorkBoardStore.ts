@@ -185,6 +185,10 @@ export function deriveEdgesFromNodes(nodes: Map<string, DeepWorkNodeWithData>): 
 
 /**
  * Compute which nodes are "actionable" — all dependencies satisfied, not completed.
+ *
+ * A WAITING step (active work done, async timer running) is neither actionable itself
+ * NOR does it satisfy its dependents' dependencies: the dependent needs the async
+ * RESULT, which hasn't arrived yet. Only completed/skipped dependencies satisfy.
  */
 export function computeActionableNodeIds(
   nodes: Map<string, DeepWorkNodeWithData>,
@@ -192,23 +196,23 @@ export function computeActionableNodeIds(
 ): Set<string> {
   const actionable = new Set<string>()
 
-  // Build set of completed node IDs
-  const completedNodeIds = new Set<string>()
+  // Nodes whose work is finished — these satisfy their dependents' dependencies.
+  const satisfiedNodeIds = new Set<string>()
+  // Nodes that can't be started themselves (finished OR parked on an async wait).
+  const unstartableNodeIds = new Set<string>()
   for (const [nodeId, node] of nodes) {
     if (node.task && node.task.completed) {
-      completedNodeIds.add(nodeId)
+      satisfiedNodeIds.add(nodeId)
+      unstartableNodeIds.add(nodeId)
     }
-    if (node.step && (node.step.status === StepStatus.Completed || node.step.status === StepStatus.Skipped || node.step.status === StepStatus.Waiting)) {
-      completedNodeIds.add(nodeId)
-    }
-  }
-
-  // Steps in waiting status have finished active work but are waiting on an async timer.
-  // They should NOT appear as actionable (can't start work on them).
-  const waitingNodeIds = new Set<string>()
-  for (const [nodeId, node] of nodes) {
-    if (node.step && node.step.status === StepStatus.Waiting) {
-      waitingNodeIds.add(nodeId)
+    if (node.step) {
+      if (node.step.status === StepStatus.Completed || node.step.status === StepStatus.Skipped) {
+        satisfiedNodeIds.add(nodeId)
+        unstartableNodeIds.add(nodeId)
+      } else if (node.step.status === StepStatus.Waiting) {
+        // Async wait in progress: not startable, and NOT a satisfied dependency.
+        unstartableNodeIds.add(nodeId)
+      }
     }
   }
 
@@ -221,21 +225,17 @@ export function computeActionableNodeIds(
     nodeDependencies.get(edge.targetNodeId)!.add(edge.sourceNodeId)
   }
 
-  // A node is actionable if:
-  // 1. Not completed or waiting itself
-  // 2. All dependencies (source nodes) are completed/waiting/skipped
+  // A node is actionable if it is startable and every dependency is satisfied.
   for (const [nodeId] of nodes) {
-    if (completedNodeIds.has(nodeId)) continue
-    if (waitingNodeIds.has(nodeId)) continue
+    if (unstartableNodeIds.has(nodeId)) continue
 
     const deps = nodeDependencies.get(nodeId)
     if (!deps || deps.size === 0) {
       // No dependencies — actionable
       actionable.add(nodeId)
     } else {
-      // All dependencies must be completed
-      const allDepsComplete = Array.from(deps).every((depId) => completedNodeIds.has(depId))
-      if (allDepsComplete) {
+      const allDepsSatisfied = Array.from(deps).every((depId) => satisfiedNodeIds.has(depId))
+      if (allDepsSatisfied) {
         actionable.add(nodeId)
       }
     }

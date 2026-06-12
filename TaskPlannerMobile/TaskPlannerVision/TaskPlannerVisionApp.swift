@@ -4,6 +4,7 @@ import SwiftUI
 enum SpatialWindowID {
     static let volume = "spatial-volume"
     static let chat = "spatial-chat"
+    static let backlog = "spatial-backlog"
 }
 
 @main
@@ -40,5 +41,13 @@ struct TaskPlannerVisionApp: App {
                 .environment(root)
         }
         .defaultSize(width: 480, height: 620)
+
+        // Backlog + New Task Type — a user-MOVABLE window (it was a fixed ornament; the user
+        // couldn't reposition it and its sheet spawned far overhead). Opened from the toolbar.
+        WindowGroup(id: SpatialWindowID.backlog) {
+            BacklogWindowView()
+                .environment(root)
+        }
+        .defaultSize(width: 340, height: 540)
     }
 }

@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect, useCallback, useRef } from 'react'
 import { Card, Typography, Space, Tag, Empty, Tooltip, Button, Alert, Dropdown, Menu, Spin } from '@arco-design/web-react'
-import { IconZoomIn, IconZoomOut, IconMoon, IconExpand, IconClockCircle, IconCamera } from '@arco-design/web-react/icon'
+import { IconZoomIn, IconZoomOut, IconMoon, IconExpand, IconClockCircle, IconCamera, IconSync } from '@arco-design/web-react/icon'
 import { Task } from '@shared/types'
 import { SequencedTask } from '@shared/sequencing-types'
 import { GanttItemType } from '@shared/enums'
@@ -112,7 +112,7 @@ function getBlockTypeDisplay(
 }
 
 export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
-  const { updateTask, updateSequencedTask, workSettings } = useTaskStore()
+  const { updateTask, updateSequencedTask, workSettings, refreshSchedule } = useTaskStore()
   const { workPatterns = [], isLoading: workPatternsLoading } = useWorkPatternStore()
   const userTypes = useSortedUserTaskTypes()
   const { isMobile, isCompact, isUltraWide, isSuperUltraWide } = useResponsive()
@@ -146,6 +146,7 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
   const todaySnapshot = useScheduleSnapshotStore(state => state.todaySnapshot)
   const hasSnapshotToday = useHasSnapshotToday()
   const [isCreatingSnapshot, setIsCreatingSnapshot] = useState(false)
+  const [isRefreshingSchedule, setIsRefreshingSchedule] = useState(false)
   const [pixelsPerHour, setPixelsPerHour] = useState(120) // pixels per hour for scaling
   const [hoveredItem, setHoveredItem] = useState<string | null>(null)
   const [isPinching, setIsPinching] = useState(false)
@@ -186,6 +187,23 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
   const handleZoomReset = useCallback(() => {
     setPixelsPerHour(defaultZoom)
   }, [defaultZoom])
+
+  // Manual scheduler re-run: refetch + recompute; everything reading the scheduler
+  // store (this chart, the start-next-task widget, the calendar) updates reactively.
+  const handleRefreshSchedule = useCallback(async () => {
+    if (isRefreshingSchedule) return
+    setIsRefreshingSchedule(true)
+    try {
+      await refreshSchedule()
+      logger.ui.info('Schedule manually re-run from Gantt toolbar', {}, 'gantt-rerun')
+    } catch (error) {
+      logger.ui.error('Failed to re-run schedule', {
+        error: error instanceof Error ? error.message : String(error),
+      }, 'gantt-rerun-error')
+    } finally {
+      setIsRefreshingSchedule(false)
+    }
+  }, [refreshSchedule, isRefreshingSchedule])
 
   // Handle freeze schedule snapshot
   const handleFreezeSchedule = useCallback(async () => {
@@ -948,6 +966,17 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
                 </Dropdown>
               )}
               {!isMobile && <div style={{ width: 1, height: 24, backgroundColor: '#e5e6e8' }} />}
+              <Tooltip content="Re-run the scheduling engine (refetches data, re-anchors to now)">
+                <Button
+                  size="small"
+                  icon={<IconSync />}
+                  onClick={handleRefreshSchedule}
+                  loading={isRefreshingSchedule}
+                  disabled={isRefreshingSchedule}
+                >
+                  {!isMobile && 'Re-run'}
+                </Button>
+              </Tooltip>
               <Tooltip content={hasSnapshotToday ? 'Click to unfreeze and allow re-freezing' : 'Freeze current schedule for comparison'}>
                 <Button
                   size="small"

@@ -29,6 +29,11 @@ export function createTaskComparisonKey(task: Task): string {
     task.isLocked ? '1' : '0',
     task.lockedStartTime?.toString() ?? 'null',
     task.inActiveSprint ? '1' : '0',
+    // Status-only transitions matter: completing an async-wait task sets
+    // {completed: false, overallStatus: Waiting} — invisible without these,
+    // so the scheduler never recomputed and kept recommending the old task.
+    task.overallStatus ?? 'null',
+    task.completedAt?.toString() ?? 'null',
   ]
 
   return props.join(':')

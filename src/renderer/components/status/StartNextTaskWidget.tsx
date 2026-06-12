@@ -10,13 +10,14 @@
 
 import { useState, useMemo, ReactElement, useCallback } from 'react'
 import { Typography, Button, Tag, Alert, Popover, InputNumber } from '@arco-design/web-react'
-import { IconPlayArrow, IconPause, IconCheck, IconSkipNext, IconClockCircle } from '@arco-design/web-react/icon'
+import { IconPlayArrow, IconPause, IconCheck, IconSkipNext, IconClockCircle, IconSync } from '@arco-design/web-react/icon'
 import { useResponsive } from '../../providers/ResponsiveProvider'
 import { useTaskStore } from '../../store/useTaskStore'
 import { useSchedulerStore } from '../../store/useSchedulerStore'
 import { useWorkPatternStore } from '../../store/useWorkPatternStore'
 import { formatMinutes } from '@shared/time-utils'
-import { TaskStatus, StepStatus, NotificationType, UnifiedScheduleItemType } from '@shared/enums'
+import { TaskStatus, NextScheduledItemType, NotificationType, UnifiedScheduleItemType } from '@shared/enums'
+import { isItemStartable } from '@shared/next-task-validation'
 import { processCompletion } from '@shared/task-completion-processor'
 import { logger } from '@/logger'
 
@@ -33,6 +34,7 @@ export function StartNextTaskWidget(): ReactElement {
 
   // Actions
   const startNextTask = useTaskStore(s => s.startNextTask)
+  const refreshSchedule = useTaskStore(s => s.refreshSchedule)
   const pauseWorkOnTask = useTaskStore(s => s.pauseWorkOnTask)
   const pauseWorkOnStep = useTaskStore(s => s.pauseWorkOnStep)
   const startWaitOnStep = useTaskStore(s => s.startWaitOnStep)
@@ -118,21 +120,16 @@ export function StartNextTaskWidget(): ReactElement {
         // Exclude items with waiting dependencies
         if (item.dependencies?.some(depId => waitingIds.has(depId))) return false
 
-        // CRITICAL: Double-check against live task/step data
-        // This catches the case where scheduleResult is stale but task arrays are current
+        // CRITICAL: Double-check against live task/step data (shared with startNextTask's
+        // fallback validation). This catches the case where scheduleResult is stale but
+        // task arrays are current.
         const itemId = item.originalTaskId || item.id
-        if (item.type === UnifiedScheduleItemType.WorkflowStep) {
-          const workflow = sequencedTasks.find(w => w.steps.some(s => s.id === itemId))
-          const step = workflow?.steps.find(s => s.id === itemId)
-          if (!step) return false
-          if (step.status === StepStatus.Completed || step.status === StepStatus.Waiting || step.status === StepStatus.Skipped) return false
-        } else {
-          const task = tasks.find(t => t.id === itemId)
-          if (!task) return false
-          if (task.completed || task.overallStatus === TaskStatus.Completed || task.overallStatus === TaskStatus.Waiting) return false
-        }
-
-        return true
+        return isItemStartable({
+          id: itemId,
+          type: item.type === UnifiedScheduleItemType.WorkflowStep
+            ? NextScheduledItemType.Step
+            : NextScheduledItemType.Task,
+        }, tasks, sequencedTasks)
       })
       .sort((a, b) => (a.startTime?.getTime() ?? 0) - (b.startTime?.getTime() ?? 0))
 
@@ -151,6 +148,7 @@ export function StartNextTaskWidget(): ReactElement {
         return {
           id: step.id,
           title: step.name,
+          workflowId: workflow.id,
           workflowName: workflow.name,
           estimatedDuration: step.duration,
           loggedMinutes: step.actualDuration ?? 0,
@@ -163,6 +161,7 @@ export function StartNextTaskWidget(): ReactElement {
     return {
       id: itemId,
       title: task?.name ?? item.name,
+      workflowId: undefined,
       workflowName: undefined,
       estimatedDuration: item.duration,
       loggedMinutes: task?.actualDuration ?? 0,
@@ -177,14 +176,33 @@ export function StartNextTaskWidget(): ReactElement {
   const handleStart = useCallback(async () => {
     try {
       setIsProcessing(true)
-      await startNextTask()
-      showNotification(nextTask ? `Started: ${nextTask.title}` : 'Started work', NotificationType.Success)
+      // Pass the DISPLAYED task so the action can never start a different (stale-cached) one.
+      const started = await startNextTask(nextTask
+        ? { id: nextTask.id, type: nextTask.type, workflowId: nextTask.workflowId }
+        : undefined)
+      if (started) {
+        showNotification(nextTask ? `Started: ${nextTask.title}` : 'Started work', NotificationType.Success)
+      } else {
+        showNotification('No task ready to start', NotificationType.Warning)
+      }
     } catch (error) {
       showNotification(error instanceof Error ? error.message : 'Failed to start', NotificationType.Error)
     } finally {
       setIsProcessing(false)
     }
   }, [startNextTask, nextTask, showNotification])
+
+  const handleRefreshSchedule = useCallback(async () => {
+    try {
+      setIsProcessing(true)
+      await refreshSchedule()
+      showNotification('Schedule refreshed', NotificationType.Success)
+    } catch (_error) {
+      showNotification('Failed to refresh schedule', NotificationType.Error)
+    } finally {
+      setIsProcessing(false)
+    }
+  }, [refreshSchedule, showNotification])
 
   const handlePause = useCallback(async () => {
     if (!activeSession) return
@@ -265,7 +283,17 @@ export function StartNextTaskWidget(): ReactElement {
             {activeSession ? (activeSession.isPaused ? '⏸ Paused' : '▶ Working') : '🚀 Next Task'}
           </Text>
           {!activeSession && (
-            <Button type="text" icon={<IconSkipNext />} size="mini" onClick={() => incrementNextTaskSkipIndex()} disabled={isProcessing} />
+            <div style={{ display: 'flex', gap: 2 }}>
+              <Button
+                type="text"
+                icon={<IconSync />}
+                size="mini"
+                onClick={handleRefreshSchedule}
+                disabled={isProcessing}
+                title="Re-run the scheduler"
+              />
+              <Button type="text" icon={<IconSkipNext />} size="mini" onClick={() => incrementNextTaskSkipIndex()} disabled={isProcessing} />
+            </div>
           )}
         </div>
 

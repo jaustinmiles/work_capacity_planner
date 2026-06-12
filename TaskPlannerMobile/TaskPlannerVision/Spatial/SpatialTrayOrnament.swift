@@ -1,31 +1,56 @@
 import SwiftUI
 
-/// Dismissable tray ornament for the spatial workspace: the BACKLOG (tasks not in the active
-/// sprint — tap one to pull it into its type tray) plus a "New Task Type" action. The voice AI
-/// chat lives in its own window (the split chosen for the port), opened elsewhere.
-struct BacklogTrayView: View {
-    let viewModel: SpatialSceneViewModel
+/// Standalone, user-movable Backlog window. This was a fixed trailing ORNAMENT — feedback:
+/// the panel couldn't be moved, and the New Task Type sheet it presented spawned far overhead.
+/// A real window can be grabbed and placed anywhere, and its sheets center over it.
+///
+/// Fetches its OWN task list (each surface fetches what it needs — the data-loading doctrine)
+/// and syncs with the volume through `SpatialRoot.sceneReloadToken` in both directions: it
+/// reloads when the volume changes data, and bumps the token after its own mutations so the
+/// volume materializes new sprint tasks / type panels.
+struct BacklogWindowView: View {
+    @Environment(SpatialRoot.self) private var root
+    @State private var tasks: [TaskItem] = []
     @State private var showCreateType = false
+    @State private var isLoading = false
+
+    private var backlogTasks: [TaskItem] {
+        tasks
+            .filter {
+                SpatialTaskClassifier.bucket(
+                    completed: $0.completed,
+                    archived: $0.archived,
+                    inActiveSprint: $0.inActiveSprint,
+                    hasSteps: $0.hasSteps
+                ) == .backlog
+            }
+            .sorted { $0.name < $1.name }
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("Backlog")
-                .font(.headline)
+            HStack {
+                Text("Backlog")
+                    .font(.headline)
+                Spacer()
+                if isLoading { ProgressView().controlSize(.small) }
+            }
 
-            if viewModel.backlogTasks.isEmpty {
+            if backlogTasks.isEmpty {
                 Text("Nothing in the backlog — everything is in the sprint.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
+                Spacer()
             } else {
                 ScrollView {
                     VStack(alignment: .leading, spacing: 6) {
-                        ForEach(viewModel.backlogTasks) { task in
+                        ForEach(backlogTasks) { task in
                             Button {
-                                Task { await viewModel.addToSprint(taskId: task.id) }
+                                Task { await addToSprint(task) }
                             } label: {
                                 HStack(spacing: 8) {
-                                    Text(viewModel.type(id: task.type)?.emoji ?? "📌")
+                                    Text(root.taskType(for: task.type)?.emoji ?? "📌")
                                     Text(task.name).lineLimit(1)
                                     Spacer()
                                     Image(systemName: "plus.circle.fill").foregroundStyle(.tint)
@@ -37,7 +62,6 @@ struct BacklogTrayView: View {
                         }
                     }
                 }
-                .frame(maxHeight: 260)
             }
 
             Divider()
@@ -49,13 +73,35 @@ struct BacklogTrayView: View {
             }
         }
         .padding(20)
-        .frame(width: 300)
-        .glassBackgroundEffect()
+        .frame(minWidth: 300, minHeight: 360)
         .sheet(isPresented: $showCreateType) {
             CreateTypeView { name, emoji, hex in
-                Task { await viewModel.createTaskType(name: name, emoji: emoji, color: hex) }
+                Task {
+                    await root.createTaskType(name: name, emoji: emoji, color: hex)
+                    root.requestSceneReload()   // the volume re-flows so the new type's panel + tray appear
+                }
             }
         }
+        .task { await load() }
+        // Reload when the volume (or the AI agent) changes data — same cross-window channel the chat uses.
+        .onChange(of: root.sceneReloadToken) { _, _ in
+            Task { await load() }
+        }
+    }
+
+    private func load() async {
+        isLoading = true
+        defer { isLoading = false }
+        tasks = (try? await root.taskService.getAll()) ?? []
+        await root.refreshTaskTypes()
+    }
+
+    /// Pull a backlog task into the active sprint; the volume materializes it in its type tray
+    /// on the reload the token bump triggers.
+    private func addToSprint(_ task: TaskItem) async {
+        _ = try? await root.taskService.setSprintMembership(id: task.id, inSprint: true)
+        await load()
+        root.requestSceneReload()
     }
 }
 
@@ -89,4 +135,3 @@ struct CreateTypeView: View {
         .frame(minWidth: 380, minHeight: 320)
     }
 }
-

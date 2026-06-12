@@ -26,8 +26,6 @@ struct SpatialSceneView: View {
     /// The in-flight type assignment from the wheel — awaited before opening the edit form, so
     /// the form never seeds from a stale type (saving would silently undo the wheel pick).
     @State private var typeAssignment: Task<Void, Never>?
-    /// Whether the dismissable backlog tray ornament is shown.
-    @State private var showTray = false
     /// Whether the dismissable endeavors panel ornament is shown.
     @State private var showEndeavors = false
     /// Whether the dismissable Done tray ornament (completed tasks/workflows) is shown.
@@ -76,9 +74,6 @@ struct SpatialSceneView: View {
         }
         .volumeBaseplateVisibility(.hidden)
         .gesture(spawnGesture)
-        .ornament(visibility: showTray ? .visible : .hidden, attachmentAnchor: .scene(.trailing)) {
-            BacklogTrayView(viewModel: viewModel)
-        }
         .ornament(visibility: showEndeavors ? .visible : .hidden, attachmentAnchor: .scene(.leading)) {
             EndeavorPanelView(viewModel: viewModel)
         }
@@ -142,7 +137,9 @@ struct SpatialSceneView: View {
                 }
                 Divider()
                 Button("Backlog", systemImage: "tray.full.fill") {
-                    showTray.toggle()
+                    // Its own window so the user can grab and place it anywhere (it was a
+                    // fixed ornament — the "panels immovable" feedback).
+                    openWindow(id: SpatialWindowID.backlog)
                 }
                 Button("Done", systemImage: "checkmark.circle.fill") {
                     showDone.toggle()
