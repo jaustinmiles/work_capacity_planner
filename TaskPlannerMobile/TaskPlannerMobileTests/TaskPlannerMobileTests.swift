@@ -5,7 +5,7 @@ final class TaskPlannerMobileTests: XCTestCase {
     func testAuthManagerDefaultState() {
         let auth = AuthManager()
         XCTAssertNil(auth.apiKey)
-        XCTAssertNil(auth.sessionId)
+        XCTAssertNil(auth.activeSessionId)
         XCTAssertFalse(auth.isConfigured)
     }
 }

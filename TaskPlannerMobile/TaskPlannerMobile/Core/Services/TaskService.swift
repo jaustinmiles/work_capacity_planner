@@ -34,11 +34,15 @@ final class TaskService {
         return allTasks.filter { $0.inActiveSprint && !$0.completed }
     }
 
-    /// Get the next scheduled item from the server-side scheduler
-    func getNextScheduled(skipIndex: Int = 0) async throws -> NextScheduledItem? {
+    /// Get the next scheduled item from the server-side scheduler.
+    ///
+    /// Pass `endeavorId` to scope the result to a single endeavor ("work on the next task in
+    /// endeavor X"): the server still schedules the whole day, then returns the first eligible
+    /// work item whose owning task is linked to that endeavor.
+    func getNextScheduled(skipIndex: Int = 0, endeavorId: String? = nil) async throws -> NextScheduledItem? {
         try await client.query(
             "task.getNextScheduled",
-            input: GetNextScheduledInput(skipIndex: skipIndex)
+            input: GetNextScheduledInput(skipIndex: skipIndex, endeavorId: endeavorId)
         )
     }
 
@@ -137,6 +141,7 @@ private struct GetAllTasksInput: Codable {
 
 private struct GetNextScheduledInput: Codable {
     let skipIndex: Int
+    var endeavorId: String?
 }
 
 private struct CompleteStepInput: Codable {

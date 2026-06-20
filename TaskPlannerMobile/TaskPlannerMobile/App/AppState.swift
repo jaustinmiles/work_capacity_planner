@@ -18,6 +18,7 @@ final class AppState {
     let userTaskTypeService: UserTaskTypeService
     let conversationService: ConversationService
     let deepWorkBoardService: DeepWorkBoardService
+    let endeavorService: EndeavorService
 
     // MARK: - App-Level State
     var sessions: [Session] = []
@@ -39,6 +40,7 @@ final class AppState {
         self.userTaskTypeService = UserTaskTypeService(client: client)
         self.conversationService = ConversationService(client: client)
         self.deepWorkBoardService = DeepWorkBoardService(client: client)
+        self.endeavorService = EndeavorService(client: client)
     }
 
     // MARK: - Initial Data Loading
