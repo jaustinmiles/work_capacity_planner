@@ -6,7 +6,7 @@
  */
 
 import { describe, it, expect } from 'vitest'
-import { isItemStartable } from '../next-task-validation'
+import { isItemStartable, itemBelongsToEndeavor } from '../next-task-validation'
 import { TaskStatus, StepStatus, NextScheduledItemType } from '../enums'
 import type { Task } from '../types'
 import type { SequencedTask, TaskStep } from '../sequencing-types'
@@ -89,5 +89,32 @@ describe('isItemStartable', () => {
 
   it('a missing step is NOT startable', () => {
     expect(isItemStartable({ id: 'ghost', type: NextScheduledItemType.Step }, [], [])).toBe(false)
+  })
+})
+
+describe('itemBelongsToEndeavor', () => {
+  it('a simple task belongs when its id is linked to the endeavor', () => {
+    expect(itemBelongsToEndeavor('t1', false, [], new Set(['t1']))).toBe(true)
+  })
+
+  it('a simple task not linked to the endeavor is excluded', () => {
+    expect(itemBelongsToEndeavor('t1', false, [], new Set(['other']))).toBe(false)
+  })
+
+  it('a step belongs via its containing workflow, not the step id', () => {
+    const workflows = [makeWorkflow('w1', [makeStep('s1', 'w1', StepStatus.Pending)])]
+    // membership is resolved on the workflow container...
+    expect(itemBelongsToEndeavor('s1', true, workflows, new Set(['w1']))).toBe(true)
+    // ...so linking the step id directly does NOT count
+    expect(itemBelongsToEndeavor('s1', true, workflows, new Set(['s1']))).toBe(false)
+  })
+
+  it('a step whose workflow is not linked is excluded', () => {
+    const workflows = [makeWorkflow('w1', [makeStep('s1', 'w1', StepStatus.Pending)])]
+    expect(itemBelongsToEndeavor('s1', true, workflows, new Set(['w2']))).toBe(false)
+  })
+
+  it('a step with no matching workflow is excluded', () => {
+    expect(itemBelongsToEndeavor('ghost', true, [], new Set(['w1']))).toBe(false)
   })
 })

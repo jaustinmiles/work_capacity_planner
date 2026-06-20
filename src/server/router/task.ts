@@ -19,6 +19,7 @@ import { DEFAULT_WORK_SETTINGS } from '../../shared/work-settings-types'
 import { filterSchedulableItems, filterSchedulableWorkflows } from '../../shared/utils/store-comparison'
 import { NextScheduledItemType, UnifiedScheduleItemType, MeetingType, TaskStatus } from '../../shared/enums'
 import { processCompletion } from '../../shared/task-completion-processor'
+import { itemBelongsToEndeavor } from '../../shared/next-task-validation'
 import type { Task } from '../../shared/types'
 import type { SequencedTask } from '../../shared/sequencing-types'
 import type { DailyWorkPattern } from '../../shared/work-blocks-types'
@@ -483,9 +484,13 @@ export const taskRouter = router({
    * Runs the UnifiedScheduler server-side to determine what the user
    * should work on next. Used by the iOS companion app where the
    * scheduler can't run client-side.
+   *
+   * When `endeavorId` is given, the result is scoped to that endeavor: the
+   * scheduler still runs over the whole day (so timing stays realistic), but
+   * only work items whose owning task is linked to the endeavor are eligible.
    */
   getNextScheduled: sessionProcedure
-    .input(z.object({ skipIndex: z.number().int().default(0) }))
+    .input(z.object({ skipIndex: z.number().int().default(0), endeavorId: z.string().optional() }))
     .query(async ({ ctx, input }) => {
       // Fetch all tasks for this session
       const rawTasks = await ctx.prisma.task.findMany({
@@ -596,11 +601,39 @@ export const taskRouter = router({
           return aTime - bTime
         })
 
-      if (workItems.length === 0 || input.skipIndex >= workItems.length) {
+      // When scoped to an endeavor, keep only work items whose owning task
+      // (the workflow container for steps, the task itself otherwise) is linked
+      // to that endeavor. Validate the endeavor belongs to this session first —
+      // the server is the trust boundary; the client picker is not a guarantee.
+      let candidateItems = workItems
+      if (input.endeavorId) {
+        const endeavor = await ctx.prisma.endeavor.findFirst({
+          where: { id: input.endeavorId, sessionId: ctx.sessionId },
+          select: { id: true },
+        })
+        if (!endeavor) return null
+
+        const endeavorItems = await ctx.prisma.endeavorItem.findMany({
+          where: { endeavorId: input.endeavorId },
+          select: { taskId: true },
+        })
+        const endeavorTaskIds = new Set(endeavorItems.map((i) => i.taskId))
+
+        candidateItems = workItems.filter((item) =>
+          itemBelongsToEndeavor(
+            item.originalTaskId || item.id,
+            item.type === UnifiedScheduleItemType.WorkflowStep,
+            workflows,
+            endeavorTaskIds,
+          ),
+        )
+      }
+
+      if (candidateItems.length === 0 || input.skipIndex >= candidateItems.length) {
         return null
       }
 
-      const targetItem = workItems[input.skipIndex]
+      const targetItem = candidateItems[input.skipIndex]
       if (!targetItem?.startTime) return null
 
       const taskId = targetItem.originalTaskId || targetItem.id

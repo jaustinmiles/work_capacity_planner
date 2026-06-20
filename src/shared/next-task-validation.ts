@@ -42,3 +42,28 @@ export function isItemStartable(
     && task.overallStatus !== TaskStatus.Completed
     && task.overallStatus !== TaskStatus.Waiting
 }
+
+/**
+ * True when a scheduled work item belongs to the given endeavor.
+ *
+ * Membership is resolved on the OWNING task, not the work item itself: a
+ * workflow step belongs via its containing workflow's id, a simple task via
+ * its own id. `endeavorTaskIds` is the set of `taskId`s linked to the endeavor
+ * (i.e. `EndeavorItem.taskId`). Pure so the per-endeavor next-task filter stays
+ * out of the router and unit-testable.
+ *
+ * @param workItemTaskId the scheduled item's owning task id (`originalTaskId || id`)
+ * @param isStep whether the scheduled item is a workflow step
+ */
+export function itemBelongsToEndeavor(
+  workItemTaskId: string,
+  isStep: boolean,
+  workflows: SequencedTask[],
+  endeavorTaskIds: ReadonlySet<string>,
+): boolean {
+  if (isStep) {
+    const workflow = workflows.find(w => w.steps.some(s => s.id === workItemTaskId))
+    return workflow ? endeavorTaskIds.has(workflow.id) : false
+  }
+  return endeavorTaskIds.has(workItemTaskId)
+}
