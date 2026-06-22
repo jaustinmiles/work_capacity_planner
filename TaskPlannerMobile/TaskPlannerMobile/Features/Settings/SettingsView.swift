@@ -27,6 +27,12 @@ struct SettingsView: View {
                         }
                     }
 
+                    NavigationLink {
+                        ServerConfigView()
+                    } label: {
+                        Label("Edit Server & API Key", systemImage: "key.horizontal")
+                    }
+
                     Button {
                         Task { await checkConnection() }
                     } label: {
@@ -106,44 +112,67 @@ private enum ConnectionStatus {
     case connected, failed
 }
 
+/// Edit the server URL + API key. Both are read dynamically by TRPCClient (baseURL + auth headers),
+/// so saving takes effect on the next request — no relaunch needed.
 struct ServerConfigView: View {
     @Environment(AppState.self) private var appState
     @Environment(\.dismiss) private var dismiss
     @State private var serverURL: String = ""
     @State private var apiKey: String = ""
+    @State private var showInvalidURL = false
+
+    private var trimmedURL: String { serverURL.trimmingCharacters(in: .whitespacesAndNewlines) }
 
     var body: some View {
         Form {
-            Section("Server") {
-                TextField("Server URL", text: $serverURL)
+            Section {
+                TextField("https://tasks.example.com", text: $serverURL)
                     .textContentType(.URL)
                     .keyboardType(.URL)
                     .autocorrectionDisabled()
                     .textInputAutocapitalization(.never)
+                    .onChange(of: serverURL) { showInvalidURL = false }
+            } header: {
+                Text("Server URL")
+            } footer: {
+                if showInvalidURL {
+                    Label("Enter a full URL including the scheme, e.g. https://tasks.left-brain.co",
+                          systemImage: "exclamationmark.triangle.fill")
+                        .foregroundStyle(.orange)
+                }
             }
 
             Section("Authentication") {
                 SecureField("API Key", text: $apiKey)
                     .textContentType(.password)
+                    .autocorrectionDisabled()
+                    .textInputAutocapitalization(.never)
             }
 
             Section {
-                Button("Save") {
-                    if let url = URL(string: serverURL) {
-                        appState.authManager.setServerURL(url)
-                    }
-                    if !apiKey.isEmpty {
-                        appState.authManager.setAPIKey(apiKey)
-                    }
-                    dismiss()
-                }
-                .disabled(serverURL.isEmpty)
+                Button("Save", action: save)
+                    .disabled(trimmedURL.isEmpty)
             }
         }
-        .navigationTitle("Server Config")
+        .navigationTitle("Server & API Key")
+        .navigationBarTitleDisplayMode(.inline)
         .onAppear {
             serverURL = appState.authManager.serverURL.absoluteString
             apiKey = appState.authManager.apiKey ?? ""
         }
+    }
+
+    private func save() {
+        // Require a real, schemed URL — TRPCClient appends paths to it, so a bare host would break requests.
+        guard let url = URL(string: trimmedURL), url.scheme != nil, url.host != nil else {
+            showInvalidURL = true
+            return
+        }
+        appState.authManager.setServerURL(url)
+        let key = apiKey.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !key.isEmpty {
+            appState.authManager.setAPIKey(key)
+        }
+        dismiss()
     }
 }
