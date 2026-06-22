@@ -58,8 +58,14 @@ final class SuperJSONDecoder {
         // Navigate: result.data.json
         let jsonPayload = try extractJSONPayload(from: envelope)
 
-        // Re-serialize the extracted payload and decode with our configured decoder
-        let payloadData = try JSONSerialization.data(withJSONObject: jsonPayload)
+        // A null payload — e.g. `workSession.getActive` with no active session, or `getNextScheduled`
+        // with nothing to do — decodes to nil for an Optional<T>. NSJSONSerialization REJECTS a null /
+        // scalar top-level (it throws an UNCATCHABLE NSException, crashing the app), so serialize null
+        // explicitly and allow fragments for any other scalar top-level.
+        if jsonPayload is NSNull {
+            return try jsonDecoder.decode(type, from: Data("null".utf8))
+        }
+        let payloadData = try JSONSerialization.data(withJSONObject: jsonPayload, options: [.fragmentsAllowed])
         return try jsonDecoder.decode(type, from: payloadData)
     }
 
