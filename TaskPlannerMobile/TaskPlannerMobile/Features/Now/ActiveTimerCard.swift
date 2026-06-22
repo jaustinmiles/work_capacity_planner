@@ -1,141 +1,121 @@
 import SwiftUI
 
-/// Shows the currently active work session with a live timer.
+/// The currently-active work session with a live, numeric-roll timer.
 ///
-/// The timer is computed from the server's `startTime`, not a local counter.
-/// This ensures accuracy even after app backgrounding or relaunch.
+/// The elapsed time is computed from the server's `startTime` (accurate across backgrounding /
+/// relaunch); `timerTick` changes each second to re-render. Type-tinted via the design system.
 struct ActiveTimerCard: View {
     let session: WorkSession
     let taskType: UserTaskType?
-    let timerTick: Int  // Forces refresh every second
+    let timerTick: Int   // changes each second → re-renders this card
     let isPausing: Bool
     let isCompleting: Bool
     let onPause: () -> Void
     let onComplete: () -> Void
 
+    private var accent: Color { taskType?.swiftUIColor ?? .accentColor }
+
     var body: some View {
-        VStack(spacing: 16) {
-            // Header
-            HStack {
-                Image(systemName: "timer")
-                    .foregroundStyle(.blue)
-                Text("Working")
-                    .font(.subheadline)
-                    .fontWeight(.semibold)
-                    .foregroundStyle(.blue)
-                Spacer()
-                if let taskType {
-                    TypeBadge(taskType: taskType)
-                }
-            }
+        let elapsed = session.elapsedSeconds
+        let planned = Double(session.plannedMinutes) * 60
+        let isOvertime = planned > 0 && elapsed > planned
 
-            // Task name
-            VStack(spacing: 4) {
-                Text(taskName)
-                    .font(.title3)
-                    .fontWeight(.bold)
-                    .multilineTextAlignment(.center)
+        VStack(spacing: DS.Space.lg) {
+            header
 
-                if let stepName = session.stepId != nil ? (session.Task?.name ?? "") : nil,
-                   !stepName.isEmpty {
-                    Text(stepName)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-            }
+            Text(session.Task?.name ?? "Working…")
+                .font(.title3.weight(.bold))
+                .multilineTextAlignment(.center)
 
-            // Timer display
-            let elapsed = session.elapsedSeconds
-            let planned = Double(session.plannedMinutes) * 60
-            let isOvertime = planned > 0 && elapsed > planned
-
+            // Odometer timer — digits roll as the second changes (no .id() teardown).
             Text(formatTimer(seconds: elapsed))
-                .font(.system(size: 48, weight: .light, design: .rounded))
+                .font(.system(size: 52, weight: .light, design: .rounded))
                 .monospacedDigit()
+                .contentTransition(.numericText())
                 .foregroundStyle(isOvertime ? .red : .primary)
-                // Read timerTick to force refresh
-                .id(timerTick)
+                .animation(.snappy, value: Int(elapsed))
+                .accessibilityLabel("Elapsed \(Int(elapsed) / 60) minutes")
 
-            // Progress info
             if session.plannedMinutes > 0 {
-                HStack {
-                    if isOvertime {
-                        let overtime = Int((elapsed - planned) / 60)
-                        Text("\(overtime)m overtime")
-                            .font(.caption)
-                            .foregroundStyle(.red)
-                    } else {
-                        let remaining = Int((planned - elapsed) / 60)
-                        Text("\(remaining)m remaining")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
-
-                    Spacer()
-
-                    Text("\(DurationLabel.format(minutes: session.plannedMinutes)) planned")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-
-                // Progress bar
-                GeometryReader { geo in
-                    ZStack(alignment: .leading) {
-                        RoundedRectangle(cornerRadius: 4)
-                            .fill(.gray.opacity(0.2))
-                        RoundedRectangle(cornerRadius: 4)
-                            .fill(isOvertime ? .red : .blue)
-                            .frame(width: geo.size.width * min(1.0, elapsed / max(planned, 1)))
-                    }
-                }
-                .frame(height: 6)
+                progress(elapsed: elapsed, planned: planned, isOvertime: isOvertime)
             }
 
-            // Action buttons
-            HStack(spacing: 12) {
-                Button {
-                    onPause()
-                } label: {
-                    Label(isPausing ? "Pausing..." : "Pause", systemImage: "pause.fill")
-                        .frame(maxWidth: .infinity)
-                }
-                .buttonStyle(.bordered)
-                .tint(.orange)
-                .disabled(isPausing || isCompleting)
-
-                Button {
-                    onComplete()
-                } label: {
-                    Label(isCompleting ? "Completing..." : "Complete", systemImage: "checkmark")
-                        .frame(maxWidth: .infinity)
-                }
-                .buttonStyle(.borderedProminent)
-                .tint(.green)
-                .disabled(isPausing || isCompleting)
-            }
+            actions
         }
-        .padding()
-        .background(.blue.opacity(0.05))
-        .clipShape(RoundedRectangle(cornerRadius: 16))
+        .padding(DS.Space.lg)
+        .background(accent.opacity(0.08), in: RoundedRectangle(cornerRadius: DS.Radius.card))
         .overlay(
-            RoundedRectangle(cornerRadius: 16)
-                .stroke(.blue.opacity(0.2), lineWidth: 1)
+            RoundedRectangle(cornerRadius: DS.Radius.card)
+                .stroke(accent.opacity(0.22), lineWidth: 1)
         )
     }
 
-    private var taskName: String {
-        session.Task?.name ?? "Working..."
+    private var header: some View {
+        HStack {
+            Label {
+                Text("Working")
+            } icon: {
+                Image(systemName: "record.circle")
+                    .symbolEffect(.pulse, options: .repeating)
+            }
+            .font(.subheadline.weight(.semibold))
+            .foregroundStyle(accent)
+
+            Spacer()
+
+            if let taskType { TypeBadge(taskType: taskType) }
+        }
+    }
+
+    @ViewBuilder
+    private func progress(elapsed: TimeInterval, planned: Double, isOvertime: Bool) -> some View {
+        HStack {
+            if isOvertime {
+                Text("\(Int((elapsed - planned) / 60))m overtime").foregroundStyle(.red)
+            } else {
+                Text("\(Int((planned - elapsed) / 60))m remaining").foregroundStyle(.secondary)
+            }
+            Spacer()
+            Text("\(DurationLabel.format(minutes: session.plannedMinutes)) planned")
+                .foregroundStyle(.secondary)
+        }
+        .font(.caption)
+
+        GeometryReader { geo in
+            ZStack(alignment: .leading) {
+                Capsule().fill(.gray.opacity(0.2))
+                Capsule()
+                    .fill(isOvertime ? Color.red : accent)
+                    .frame(width: geo.size.width * min(1.0, elapsed / max(planned, 1)))
+            }
+        }
+        .frame(height: 6)
+        .animation(.smooth, value: Int(elapsed))
+    }
+
+    private var actions: some View {
+        HStack(spacing: DS.Space.md) {
+            Button(action: onPause) {
+                Label(isPausing ? "Pausing…" : "Pause", systemImage: "pause.fill")
+                    .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(.bordered)
+            .tint(.orange)
+            .disabled(isPausing || isCompleting)
+
+            Button(action: onComplete) {
+                Label(isCompleting ? "Completing…" : "Complete", systemImage: "checkmark")
+                    .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(.borderedProminent)
+            .tint(.green)
+            .disabled(isPausing || isCompleting)
+        }
     }
 
     private func formatTimer(seconds: TimeInterval) -> String {
-        let totalSeconds = Int(seconds)
-        let hours = totalSeconds / 3600
-        let minutes = (totalSeconds % 3600) / 60
-        let secs = totalSeconds % 60
-
-        if hours > 0 {
-            return String(format: "%d:%02d:%02d", hours, minutes, secs)
-        }
-        return String(format: "%d:%02d", minutes, secs)
+        let total = Int(seconds)
+        let h = total / 3600, m = (total % 3600) / 60, s = total % 60
+        return h > 0 ? String(format: "%d:%02d:%02d", h, m, s) : String(format: "%d:%02d", m, s)
     }
 }

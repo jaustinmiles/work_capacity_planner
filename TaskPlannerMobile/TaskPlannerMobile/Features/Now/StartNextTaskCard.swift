@@ -1,9 +1,6 @@
 import SwiftUI
 
-/// Shows the next scheduled task and a prominent "Start" button.
-///
-/// Mirrors the desktop's StartNextTaskWidget but optimized for mobile —
-/// the entire card is a tappable action.
+/// The next scheduled task + a prominent Start action — the primary "what should I do now?" surface.
 struct StartNextTaskCard: View {
     let nextItem: NextScheduledItem?
     let taskType: UserTaskType?
@@ -11,120 +8,107 @@ struct StartNextTaskCard: View {
     let onStart: () -> Void
     let onSkip: () -> Void
 
+    private var accent: Color { taskType?.swiftUIColor ?? .accentColor }
+
     var body: some View {
-        VStack(spacing: 16) {
-            // Header
-            HStack {
-                Image(systemName: "forward.fill")
-                    .foregroundStyle(.blue)
-                Text("Start Next Task")
-                    .font(.subheadline)
-                    .fontWeight(.semibold)
-                    .foregroundStyle(.blue)
-                Spacer()
-                Button {
-                    onSkip()
-                } label: {
-                    Image(systemName: "forward.end.fill")
-                        .font(.caption)
-                }
-                .buttonStyle(.bordered)
-                .controlSize(.small)
-                .disabled(nextItem == nil || isStarting)
-            }
-
+        VStack(spacing: DS.Space.lg) {
+            header
             if let item = nextItem {
-                // Task info
-                VStack(spacing: 8) {
-                    Text(item.title)
-                        .font(.title3)
-                        .fontWeight(.bold)
-                        .multilineTextAlignment(.center)
-
-                    if let workflowName = item.workflowName {
-                        Text(workflowName)
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
-
-                    // Metadata row
-                    HStack(spacing: 12) {
-                        // Duration
-                        Label {
-                            if item.loggedMinutes > 0 {
-                                let remaining = max(0, item.estimatedDuration - item.loggedMinutes)
-                                Text(DurationLabel.format(minutes: remaining) + " left")
-                            } else {
-                                Text(DurationLabel.format(minutes: item.estimatedDuration))
-                            }
-                        } icon: {
-                            Image(systemName: "clock")
-                        }
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-
-                        // Type indicator
-                        Label {
-                            Text(item.type == .step ? "Workflow Step" : "Task")
-                        } icon: {
-                            Image(systemName: item.type == .step ? "arrow.triangle.branch" : "checkmark.square")
-                        }
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-
-                        if let taskType {
-                            TypeBadge(taskType: taskType)
-                        }
-                    }
-
-                    // Logged time indicator
-                    if item.loggedMinutes > 0 {
-                        HStack(spacing: 4) {
-                            Image(systemName: "clock.badge.checkmark")
-                                .font(.caption2)
-                            Text("\(DurationLabel.format(minutes: item.loggedMinutes)) already logged")
-                                .font(.caption2)
-                        }
-                        .foregroundStyle(.green)
-                    }
-                }
-
-                // Start button
-                Button {
-                    onStart()
-                } label: {
-                    if isStarting {
-                        ProgressView()
-                            .frame(maxWidth: .infinity)
-                    } else {
-                        Label("Start Working", systemImage: "play.fill")
-                            .frame(maxWidth: .infinity)
-                    }
-                }
-                .buttonStyle(.borderedProminent)
-                .controlSize(.large)
-                .disabled(isStarting)
+                taskInfo(item)
+                startButton
             } else {
-                // No tasks available
-                VStack(spacing: 8) {
-                    Image(systemName: "checkmark.seal.fill")
-                        .font(.largeTitle)
-                        .foregroundStyle(.green)
-                    Text("All caught up!")
-                        .font(.headline)
-                    Text("No tasks scheduled right now")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-                .padding(.vertical, 8)
+                allCaughtUp
             }
         }
-        .padding()
-        .background(.blue.opacity(0.05))
-        .clipShape(RoundedRectangle(cornerRadius: 16))
+        .padding(DS.Space.lg)
+        .background(accent.opacity(0.08), in: RoundedRectangle(cornerRadius: DS.Radius.card))
         .overlay(
-            RoundedRectangle(cornerRadius: 16)
-                .stroke(.blue.opacity(0.2), lineWidth: 1)
+            RoundedRectangle(cornerRadius: DS.Radius.card)
+                .stroke(accent.opacity(0.22), lineWidth: 1)
         )
+    }
+
+    private var header: some View {
+        HStack {
+            Label("Up next", systemImage: "forward.fill")
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(accent)
+            Spacer()
+            Button(action: onSkip) {
+                Image(systemName: "forward.end.fill").font(.caption)
+            }
+            .buttonStyle(.bordered)
+            .controlSize(.small)
+            .tint(accent)
+            .disabled(nextItem == nil || isStarting)
+            .accessibilityLabel("Skip to the task after this")
+        }
+    }
+
+    @ViewBuilder
+    private func taskInfo(_ item: NextScheduledItem) -> some View {
+        VStack(spacing: DS.Space.sm) {
+            Text(item.title)
+                .font(.title3.weight(.bold))
+                .multilineTextAlignment(.center)
+
+            if let workflowName = item.workflowName {
+                Text(workflowName).font(.caption).foregroundStyle(.secondary)
+            }
+
+            HStack(spacing: DS.Space.md) {
+                Label(durationText(item), systemImage: "clock")
+                Label(item.type == .step ? "Workflow step" : "Task",
+                      systemImage: item.type == .step ? "arrow.triangle.branch" : "checkmark.square")
+                if let taskType { TypeBadge(taskType: taskType) }
+            }
+            .font(.caption)
+            .foregroundStyle(.secondary)
+
+            if item.loggedMinutes > 0 {
+                Label("\(DurationLabel.format(minutes: item.loggedMinutes)) already logged",
+                      systemImage: "clock.badge.checkmark")
+                    .font(.caption2)
+                    .foregroundStyle(.green)
+            }
+        }
+    }
+
+    private var startButton: some View {
+        Button(action: onStart) {
+            Group {
+                if isStarting {
+                    ProgressView()
+                } else {
+                    Label("Start working", systemImage: "play.fill")
+                }
+            }
+            .frame(maxWidth: .infinity)
+        }
+        .buttonStyle(.borderedProminent)
+        .controlSize(.large)
+        .tint(accent)
+        .disabled(isStarting)
+    }
+
+    private var allCaughtUp: some View {
+        VStack(spacing: DS.Space.sm) {
+            Image(systemName: "checkmark.seal.fill")
+                .font(.largeTitle)
+                .foregroundStyle(.green)
+                .symbolEffect(.bounce, value: nextItem == nil)
+            Text("All caught up!").font(.headline)
+            Text("No tasks scheduled right now").font(.caption).foregroundStyle(.secondary)
+        }
+        .padding(.vertical, DS.Space.sm)
+        .frame(maxWidth: .infinity)
+    }
+
+    private func durationText(_ item: NextScheduledItem) -> String {
+        if item.loggedMinutes > 0 {
+            let remaining = max(0, item.estimatedDuration - item.loggedMinutes)
+            return DurationLabel.format(minutes: remaining) + " left"
+        }
+        return DurationLabel.format(minutes: item.estimatedDuration)
     }
 }

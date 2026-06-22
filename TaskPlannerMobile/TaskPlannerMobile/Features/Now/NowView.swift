@@ -28,9 +28,7 @@ struct NowView: View {
                     } else {
                         StartNextTaskCard(
                             nextItem: viewModel.nextScheduledItem,
-                            taskType: viewModel.nextScheduledItem.flatMap { _ in
-                                appState.taskType(for: "")
-                            },
+                            taskType: nil,
                             isStarting: viewModel.isStarting,
                             onStart: { Task { await viewModel.startNextTask() } },
                             onSkip: { Task { await viewModel.skipToNext() } }
