@@ -37,7 +37,7 @@ struct MainTabView: View {
             }
 
             Tab("Today", systemImage: "clock.fill", value: AppTab.today) {
-                ScheduleView()   // Phase 7 rebuilds this as the editable clock/log
+                TodayView()
             }
 
             Tab("Endeavors", systemImage: "square.stack.3d.up.fill", value: AppTab.endeavors) {
