@@ -25,7 +25,9 @@ struct QuickTaskSheet: View {
                         VoiceInputButton(
                             isTranscribing: false,
                             onTranscription: { text in
-                                viewModel.name = text
+                                // Append rather than clobber anything already typed.
+                                let dictated = text.trimmingCharacters(in: .whitespacesAndNewlines)
+                                viewModel.name = viewModel.name.isEmpty ? dictated : viewModel.name + " " + dictated
                                 UINotificationFeedbackGenerator().notificationOccurred(.success)
                             },
                             onAudioData: { _ in }

@@ -5,6 +5,9 @@ import UIKit
 /// session and its live timer. Read by BOTH the Now tab and the tab-bar running-task pill, so
 /// starting / stopping / completing in one place updates everywhere. Owned by `AppState`, exposed
 /// through the environment via AppState.
+// NOTE: SwiftUI drives this from main-actor contexts (view button tasks). Full `@MainActor` isolation
+// is the correct hardening but is an app-wide migration (every @Observable VM + AppState must adopt it
+// together, per SWIFT_DEFAULT_ACTOR_ISOLATION) — tracked as a deliberate follow-up, not done piecemeal.
 @Observable
 final class WorkTrackingModel {
     private(set) var activeSession: WorkSession?
@@ -18,6 +21,7 @@ final class WorkTrackingModel {
     private let workSessionService: WorkSessionService
     private let taskService: TaskService
     private var timerTask: Task<Void, Never>?
+    private var isRefreshing = false
 
     init(workSessionService: WorkSessionService, taskService: TaskService) {
         self.workSessionService = workSessionService
@@ -27,7 +31,11 @@ final class WorkTrackingModel {
     var isRunning: Bool { activeSession != nil }
 
     /// Pull the current active session from the server (app foreground / tab appear / external change).
+    /// Guarded against overlapping calls — both the Now tab and the pill kick this off on launch.
     func refresh() async {
+        if isRefreshing { return }
+        isRefreshing = true
+        defer { isRefreshing = false }
         do {
             activeSession = try await workSessionService.getActive()
             if activeSession != nil { startTimer() } else { stopTimer() }

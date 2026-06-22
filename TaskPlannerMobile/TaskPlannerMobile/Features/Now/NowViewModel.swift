@@ -101,6 +101,13 @@ final class NowViewModel {
     /// Start working on the next scheduled task.
     func startNextTask() async {
         guard let tracking, let next = nextScheduledItem else { return }
+        // Re-validate the CACHED suggestion against current task data before starting — it can go
+        // stale (the task may have been completed/parked on desktop while the phone was pocketed).
+        // If it's no longer startable, reload instead of logging time onto a done task.
+        guard NextTaskValidation.isItemStartable(next, tasks: sprintTasks) else {
+            await loadAll()
+            return
+        }
         let started = await tracking.start(
             taskId: next.workflowId ?? next.id,
             stepId: next.type == .step ? next.id : nil,

@@ -146,6 +146,11 @@ struct NowView: View {
                 viewModel.configure(with: appState)
                 await viewModel.loadAll()
             }
+            // Re-sync when the running session changes elsewhere (e.g. stopped from the tab-bar pill
+            // or started from an endeavor) so the next-task suggestion never goes stale.
+            .onChange(of: appState.workTracking.activeSession?.id) {
+                Task { await viewModel.loadAll() }
+            }
         }
     }
 }

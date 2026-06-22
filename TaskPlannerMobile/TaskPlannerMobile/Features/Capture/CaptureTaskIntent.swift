@@ -22,7 +22,11 @@ struct CaptureTaskIntent: AppIntent {
 
         let client = TRPCClient(authManager: auth)
         let types = try await UserTaskTypeService(client: client).getAll()
-        guard let defaultType = types.first else { throw CaptureError.noTaskTypes }
+        // Deterministic default (lowest sortOrder) so a captured task always lands under the same
+        // type, rather than whatever order the server happened to return.
+        guard let defaultType = types.sorted(by: { $0.sortOrder < $1.sortOrder }).first else {
+            throw CaptureError.noTaskTypes
+        }
 
         _ = try await TaskService(client: client).create(CreateTaskInput(
             name: trimmed,
