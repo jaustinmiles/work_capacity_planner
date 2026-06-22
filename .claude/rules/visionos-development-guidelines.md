@@ -15,12 +15,17 @@
    ```
    xcodebuild -scheme TaskPlannerVision -destination 'generic/platform=visionOS Simulator' build
    ```
-2. **Where files live decides whether they compile.** `TaskPlannerVision/` is a **filesystem‑synchronized
-   group** — any Swift file dropped under it auto‑joins the target (the `.xcodeproj` is gitignored; only
-   sources are tracked). **`Core/` is NOT synchronized** — its files were enrolled per‑target by hand in
-   the pbxproj. So a **new shared service in `Core/` will not compile into the Vision target** (you'll get
-   "cannot find type" from *xcodebuild*, not just SourceKit). Put new Vision‑only code under
-   `TaskPlannerVision/Spatial/`. A genuinely shared Core file needs a manual Xcode/pbxproj enrollment.
+2. **`TaskPlannerMobile/project.yml` (XcodeGen) is the source of truth — NOT the `.xcodeproj`** (which is
+   gitignored and regenerated). The `TaskPlannerVision` target is defined there. Add Vision‑only Swift under
+   `TaskPlannerVision/` (covered by the target's source path), then run **`xcodegen generate`** so new files
+   join the target, and build. Shared `Core/` is enrolled into the Vision target via project.yml source
+   paths (`TaskPlannerMobile/Core` + `TaskPlannerMobile/Shared/Color+Hex.swift`), so a genuinely new shared
+   Core file compiles into Vision automatically. The one trap: a new Core file whose **type name collides**
+   with a Vision `Spatial/` type (e.g. `Core/Services/EndeavorService.swift` vs Vision's own
+   `EndeavorService`) is a duplicate‑symbol error — add it to the target's `excludes`. **NEVER hand‑edit the
+   `.xcodeproj`** — it's regenerated from project.yml; edit project.yml. (History: the target was once
+   hand‑added in Xcode and a `xcodegen generate` wiped it; codified in project.yml 2026‑06‑20. Always check
+   `xcodebuild -list` shows `TaskPlannerVision` before/after running xcodegen.)
 3. **Reuse the one backend engine; the Swift client is a thin projection.** All business logic
    (scheduling, the workflow morph, the AI agent, endeavors) lives server‑side and is shared with
    desktop/web via tRPC. The spatial client creates/places entities and calls the same procedures. If
@@ -151,13 +156,11 @@
     fail gracefully. The Simulator has no usable mic — design voice to degrade to an error there.
 - **Permissions are two separate grants:** speech (`SFSpeechRecognizer.requestAuthorization`) ≠ microphone
   (`AVAudioApplication.requestRecordPermission`). Request **both**, in sequence, before starting the engine.
-- **The physical `Info.plist` needs a membership EXCEPTION in the pbxproj.** Because `TaskPlannerVision/`
-  is a filesystem-synchronized group, `Info.plist` auto-joins Copy Bundle Resources while `INFOPLIST_FILE`
-  also processes it → `Multiple commands produce .../Info.plist` build failure. Fix: a
-  `PBXFileSystemSynchronizedBuildFileExceptionSet` with `membershipExceptions = (Info.plist)` wired into the
-  root group's `exceptions`. The `.xcodeproj` is gitignored, so this must be re-applied (Xcode: uncheck the
-  file's target membership) whenever the project is regenerated. Verify the privacy strings survive with
-  `plutil -p <DerivedData>/.../TaskPlannerVision.app/Info.plist | grep -i microphone`.
+- **The physical `Info.plist` must be EXCLUDED from the target's sources, or it double-produces.** It is
+  wired via `INFOPLIST_FILE`; if it ALSO gets copied as a resource you get `Multiple commands produce
+  .../Info.plist`. This is now handled in `project.yml` by the Vision target's `sources.excludes:
+  ["Info.plist"]` (no manual pbxproj exception — that approach is obsolete under XcodeGen). Verify the
+  privacy strings survive with `plutil -p <DerivedData>/.../TaskPlannerVision.app/Info.plist | grep -i microphone`.
 - **Lifecycle:** tear the engine/tap/session down on the chat window's `.onDisappear` (it's a dismissable
   window — closing mid‑dictation otherwise leaves the mic hot), and `setActive(false)` to un‑duck other audio.
 
@@ -199,8 +202,9 @@
 ## 8. Hygiene & gotchas checklist
 
 - [ ] Built with `xcodebuild` (not "SourceKit is green").
-- [ ] New Vision‑only files are under `TaskPlannerVision/` (auto‑join); no new file expecting to compile sits
-      orphaned in `Core/`.
+- [ ] New Vision‑only files under `TaskPlannerVision/` AND ran `xcodegen generate` (they don't join the
+      target until regen); a new shared `Core/` file compiles in unless its type name collides with a
+      `Spatial/` type (then add it to the Vision target's `excludes` in `project.yml`).
 - [ ] No business logic added to Swift — reused a tRPC procedure.
 - [ ] Reconcile writes identity only; no live‑transform write in the `update:` closure.
 - [ ] Controls are child entities (own `ManipulationComponent`, token colliders, distinct hover GroupID),
