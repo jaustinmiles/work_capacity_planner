@@ -159,8 +159,13 @@
 - **The physical `Info.plist` must be EXCLUDED from the target's sources, or it double-produces.** It is
   wired via `INFOPLIST_FILE`; if it ALSO gets copied as a resource you get `Multiple commands produce
   .../Info.plist`. This is now handled in `project.yml` by the Vision target's `sources.excludes:
-  ["Info.plist"]` (no manual pbxproj exception — that approach is obsolete under XcodeGen). Verify the
-  privacy strings survive with `plutil -p <DerivedData>/.../TaskPlannerVision.app/Info.plist | grep -i microphone`.
+  ["Info.plist"]` (no manual pbxproj exception — that approach is obsolete under XcodeGen).
+- **The partial Info.plist ALSO needs `GENERATE_INFOPLIST_FILE: true`.** The physical plist only holds the
+  privacy strings + scene manifest; `GENERATE_INFOPLIST_FILE` merges the standard keys (CFBundleIdentifier
+  from PRODUCT_BUNDLE_IDENTIFIER, CFBundleExecutable, versions) ONTO it. Without it the app **builds but
+  has no CFBundleIdentifier and fails to INSTALL** on device (`CoreDeviceError` 3000) — `xcodebuild build`
+  does NOT catch this; only install does. Verify the merged bundle with
+  `plutil -p <DerivedData>/.../TaskPlannerVision.app/Info.plist | grep -iE "CFBundleIdentifier|microphone"`.
 - **Lifecycle:** tear the engine/tap/session down on the chat window's `.onDisappear` (it's a dismissable
   window — closing mid‑dictation otherwise leaves the mic hot), and `setActive(false)` to un‑duck other audio.
 
