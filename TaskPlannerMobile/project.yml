@@ -2,7 +2,7 @@ name: TaskPlannerMobile
 options:
   bundleIdPrefix: com.leftbrain
   deploymentTarget:
-    iOS: "18.0"
+    iOS: "26.0"
   xcodeVersion: "16.0"
   generateEmptyDirectories: true
 

@@ -17,7 +17,6 @@ final class AppState {
     let workPatternService: WorkPatternService
     let userTaskTypeService: UserTaskTypeService
     let conversationService: ConversationService
-    let deepWorkBoardService: DeepWorkBoardService
     let endeavorService: EndeavorService
 
     // MARK: - App-Level State
@@ -39,7 +38,6 @@ final class AppState {
         self.workPatternService = WorkPatternService(client: client)
         self.userTaskTypeService = UserTaskTypeService(client: client)
         self.conversationService = ConversationService(client: client)
-        self.deepWorkBoardService = DeepWorkBoardService(client: client)
         self.endeavorService = EndeavorService(client: client)
     }
 

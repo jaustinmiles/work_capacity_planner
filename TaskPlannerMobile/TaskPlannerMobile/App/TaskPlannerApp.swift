@@ -36,10 +36,6 @@ struct MainTabView: View {
                 ScheduleView()
             }
 
-            Tab("Board", systemImage: "square.grid.3x3.topleft.filled", value: 2) {
-                BoardView()
-            }
-
             Tab("Chat", systemImage: "bubble.left.and.bubble.right.fill", value: 3) {
                 ChatView()
             }
