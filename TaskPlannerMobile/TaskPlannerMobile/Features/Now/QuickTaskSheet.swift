@@ -14,13 +14,23 @@ struct QuickTaskSheet: View {
         NavigationStack {
             ScrollView {
                 VStack(spacing: 20) {
-                    // Task name
-                    TextField("What do you need to do?", text: $viewModel.name)
-                        .font(.title3)
-                        .focused($nameFieldFocused)
-                        .textInputAutocapitalization(.sentences)
-                        .autocorrectionDisabled()
-                        .submitLabel(.done)
+                    // Task name + one-tap voice dictation (brain-dump straight into the field).
+                    HStack(spacing: DS.Space.sm) {
+                        TextField("What do you need to do?", text: $viewModel.name)
+                            .font(.title3)
+                            .focused($nameFieldFocused)
+                            .textInputAutocapitalization(.sentences)
+                            .autocorrectionDisabled()
+                            .submitLabel(.done)
+                        VoiceInputButton(
+                            isTranscribing: false,
+                            onTranscription: { text in
+                                viewModel.name = text
+                                UINotificationFeedbackGenerator().notificationOccurred(.success)
+                            },
+                            onAudioData: { _ in }
+                        )
+                    }
 
                     // Type picker
                     VStack(alignment: .leading, spacing: 8) {
