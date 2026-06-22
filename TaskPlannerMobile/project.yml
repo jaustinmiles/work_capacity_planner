@@ -12,6 +12,10 @@ settings:
     TARGETED_DEVICE_FAMILY: "1"  # iPhone only
     DEVELOPMENT_TEAM: ""
 
+packages:
+  RealityKitContent:
+    path: Packages/RealityKitContent
+
 targets:
   TaskPlannerMobile:
     type: application
@@ -57,3 +61,37 @@ targets:
       base:
         GENERATE_INFOPLIST_FILE: true
         PRODUCT_BUNDLE_IDENTIFIER: com.leftbrain.TaskPlannerMobileTests
+
+  # visionOS spatial workspace. Codified here (was previously hand-added in Xcode and clobbered by
+  # `xcodegen generate`) so it is reproducible and survives regeneration. See
+  # .claude/rules/visionos-development-guidelines.md.
+  TaskPlannerVision:
+    type: application
+    platform: visionOS
+    deploymentTarget: "26.0"
+    sources:
+      # Vision-only sources. Exclude the physical Info.plist (wired via INFOPLIST_FILE below —
+      # including it here double-produces it) and the untracked "Assets 2.xcassets" sync-conflict copy.
+      - path: TaskPlannerVision
+        excludes:
+          - "Info.plist"
+          - "Assets 2.xcassets"
+      # Shared Core (networking, models, services), reused by the spatial client. Exclude the iOS-only
+      # EndeavorService: the Vision target has its OWN under Spatial/, and compiling both is a
+      # duplicate-symbol error.
+      - path: TaskPlannerMobile/Core
+        excludes:
+          - "Services/EndeavorService.swift"
+      # Core/Models/EndeavorModels.swift (and the Vision design system) use Color(hex:), defined here.
+      - path: TaskPlannerMobile/Shared/Color+Hex.swift
+    dependencies:
+      - package: RealityKitContent
+    settings:
+      base:
+        TARGETED_DEVICE_FAMILY: "7"  # visionOS
+        INFOPLIST_FILE: TaskPlannerVision/Info.plist
+        PRODUCT_BUNDLE_IDENTIFIER: com.leftbrain.TaskPlannerVision
+        MARKETING_VERSION: "1.0.0"
+        CURRENT_PROJECT_VERSION: "1"
+        CODE_SIGN_STYLE: Automatic
+        SWIFT_EMIT_LOC_STRINGS: true
