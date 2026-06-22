@@ -148,9 +148,6 @@ struct NowView: View {
                 viewModel.configure(with: appState)
                 await viewModel.loadAll()
             }
-            .onDisappear {
-                viewModel.stopTimer()
-            }
         }
     }
 }

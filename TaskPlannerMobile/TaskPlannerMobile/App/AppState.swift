@@ -19,6 +19,9 @@ final class AppState {
     let conversationService: ConversationService
     let endeavorService: EndeavorService
 
+    // MARK: - Shared running-task state (read by the Now tab AND the tab-bar pill)
+    let workTracking: WorkTrackingModel
+
     // MARK: - App-Level State
     var sessions: [Session] = []
     var activeSession: Session?
@@ -39,6 +42,10 @@ final class AppState {
         self.userTaskTypeService = UserTaskTypeService(client: client)
         self.conversationService = ConversationService(client: client)
         self.endeavorService = EndeavorService(client: client)
+        self.workTracking = WorkTrackingModel(
+            workSessionService: workSessionService,
+            taskService: taskService
+        )
     }
 
     // MARK: - Initial Data Loading
