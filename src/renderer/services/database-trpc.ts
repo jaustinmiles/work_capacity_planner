@@ -536,6 +536,8 @@ export class TrpcDatabaseService {
       type?: string
       cognitiveComplexity?: number | null
       dependsOn?: string[]
+      importance?: number | null
+      urgency?: number | null
     },
   ): Promise<unknown> {
     return this.client.workflow.updateStep.mutate({

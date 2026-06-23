@@ -51,6 +51,26 @@ The scheduler in `src/shared/unified-scheduler.ts` is the most complex part of t
 - Modifications to scheduling logic require corresponding test updates
 - The Eisenhower base + boost factors (async, complexity, deadline) are all in the priority calculator
 
+### Tournament ranking (Eisenhower priorities via pairwise comparison)
+The `RankingView` (`src/renderer/components/ranking/`) ranks items by running single-elimination
+brackets; results map to 1–10 `importance`/`urgency` via depth-based leveling. Key facts:
+- **It's polymorphic over opaque string ids.** `TaskComparison` (Prisma) stores `itemAId`/`itemBId`
+  as plain strings with **no FK** (resolved at read time). So *any* entity with an id can compete —
+  tasks, workflows, AND workflow steps coexist in the same comparison table. `comparison.list`
+  requires BOTH ids ∈ the queried set (`AND` of two `in`s), so different competitor sets are isolated
+  for free (e.g. a workflow↔task comparison can't bleed into a steps-only session).
+- **`TournamentItem` is a discriminated union** on `EntityType` (`Task`/`Workflow`/`Step`). Branch on
+  `item.type` to narrow `item.data` — no casts. Display label = `getItemLabel` (`item.label ?? data.name`);
+  steps carry `label = "Workflow › Step"` to disambiguate.
+- **Three granularities** (start-screen "Rank:" selector): `Units` (tasks + workflows), `Steps` (tasks +
+  every workflow's individual steps — lets a step outrank a standalone task), `SingleWorkflow` (one
+  workflow's steps only; ignores the sprint scope). Apply writes via `updateTask` / `updateSequencedTask`
+  / `updateTaskStep` respectively.
+- **Per-step priority is real, not cosmetic.** `scheduler-priority.ts` resolves a step's effective
+  priority as `step.importance ?? parentWorkflow.importance ?? 5` (same for urgency), so writing a
+  per-step override genuinely re-orders the schedule. This is why step-level ranking matters: a
+  high-priority workflow can still have a low-priority step scheduled after other work.
+
 ### Working with time
 - Import from `time-provider`, never use `new Date()`
 - All time manipulation uses tested utility functions in `src/shared/utils/time/`
