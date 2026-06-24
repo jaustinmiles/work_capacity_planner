@@ -300,10 +300,16 @@ export function RankingView({ onClose }: RankingViewProps) {
           await updateTask(item.id, { importance, urgency })
         } else if (item.type === EntityType.Workflow) {
           await updateSequencedTask(item.id, { importance, urgency })
-        } else {
+        } else if (item.type === EntityType.Step) {
           // Step: persist a per-step override on the parent workflow. The
           // scheduler reads step.importance/urgency ?? parent ?? 5.
           await updateTaskStep(item.data.taskId, item.id, { importance, urgency })
+        } else {
+          // Exhaustiveness guard: a new TournamentItem kind must be handled
+          // here explicitly — `item` is `never` if all kinds are covered, so
+          // this both fails the build and throws clearly at runtime.
+          const unhandled: never = item
+          throw new Error(`Unsupported ranking item type: ${JSON.stringify(unhandled)}`)
         }
         updateCount++
       } catch (error) {
