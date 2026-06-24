@@ -3,7 +3,9 @@ import { subscribeWithSelector } from 'zustand/middleware'
 import { Task } from '@shared/types'
 import { useSchedulerStore } from './useSchedulerStore'
 import { SequencedTask } from '@shared/sequencing-types'
-import { TaskStatus, StepStatus } from '@shared/enums'
+import { TaskStatus, StepStatus, NextScheduledItemType } from '@shared/enums'
+import { isItemStartable, StartableItemRef } from '@shared/next-task-validation'
+import { useWorkPatternStore } from './useWorkPatternStore'
 import { WorkSettings, DEFAULT_WORK_SETTINGS } from '@shared/work-settings-types'
 import { UnifiedWorkSession } from '@shared/unified-work-session-types'
 // Scheduler now handled by useSchedulerStore
@@ -108,7 +110,19 @@ interface TaskStore {
     isPaused: boolean
     elapsedMinutes: number
   }
-  startNextTask: () => Promise<void>
+  /**
+   * Start the given item (the widget passes its DISPLAYED next task), or fall back to the
+   * scheduler store's cached next item after validating it against live data.
+   * Returns true when a work session was actually started.
+   */
+  startNextTask: (item?: StartableItemRef) => Promise<boolean>
+  /**
+   * Manual schedule refresh: refetch tasks/workflows/work patterns (writes from the AI agent
+   * or other clients don't reach this store otherwise) and re-anchor the schedule to the
+   * current time. All scheduling consumers (Gantt, start-next-task widget, calendar) update
+   * reactively — no page refresh.
+   */
+  refreshSchedule: () => Promise<void>
 }
 
 
@@ -583,6 +597,26 @@ export const useTaskStore = create<TaskStore>()(
     window.localStorage.setItem('workSettings', JSON.stringify(settings))
   },
 
+  refreshSchedule: async () => {
+    // Refetch canonical data WITHOUT clearing state or resetting the skip index — consumers
+    // update reactively, so nothing flashes empty (unlike initializeData).
+    const [tasks, sequencedTasks] = await Promise.all([
+      getDatabase().getTasks(),
+      getDatabase().getSequencedTasks(),
+    ])
+    // New array references so the storeConnector's change detection sees the update.
+    set({ tasks: [...tasks], sequencedTasks: [...sequencedTasks] })
+    await useWorkPatternStore.getState().loadWorkPatterns()
+    // Unconditional recompute re-anchors the schedule to the current time even when no
+    // content changed (the connector only recomputes on comparison-key changes). If content
+    // DID change, the connector's own debounced recompute follows and wins — idempotent.
+    useSchedulerStore.getState().recomputeSchedule()
+    logger.ui.info('Schedule manually refreshed', {
+      taskCount: tasks.length,
+      workflowCount: sequencedTasks.length,
+    }, 'schedule-refresh')
+  },
+
   // Sprint management actions
   setSprintModeEnabled: (enabled: boolean) => {
     set({ sprintModeEnabled: enabled })
@@ -720,7 +754,7 @@ export const useTaskStore = create<TaskStore>()(
 
       // Update step status in database
       await getDatabase().updateTaskStepProgress(stepId, {
-        status: 'in_progress',
+        status: StepStatus.InProgress,
         startedAt: getCurrentTime(),  // Always set a valid timestamp when starting work
       })
 
@@ -1713,34 +1747,44 @@ export const useTaskStore = create<TaskStore>()(
 
   // Moved to useSchedulerStore for reactive scheduling
 
-  startNextTask: async () => {
+  startNextTask: async (item?: StartableItemRef): Promise<boolean> => {
     try {
       // Check if any work is already active
       if (getWorkTrackingService().isAnyWorkActive()) {
-        return
+        return false
       }
 
-      // Get the next scheduled item from the scheduler store
-      const nextItem = useSchedulerStore.getState().nextScheduledItem
+      // Prefer the caller's explicit item — the widget passes the task it DISPLAYS, so the
+      // action can never diverge from the display. The fallback is the scheduler store's
+      // cached item, which is derived from a frozen scheduleResult and can be stale (it once
+      // restarted the just-completed task) — validate it against LIVE task data first.
+      let nextItem: StartableItemRef | null = item ?? null
+      if (!nextItem) {
+        const cached = useSchedulerStore.getState().nextScheduledItem
+        if (cached && isItemStartable(cached, get().tasks, get().sequencedTasks)) {
+          nextItem = cached
+        }
+      }
 
       if (!nextItem) {
-        return
+        return false
       }
 
       // Start work based on item type
-      if (nextItem.type === 'step' && nextItem.workflowId) {
+      if (nextItem.type === NextScheduledItemType.Step && nextItem.workflowId) {
         await get().startWorkOnStep(nextItem.id, nextItem.workflowId)
-      } else if (nextItem.type === 'task') {
+      } else if (nextItem.type === NextScheduledItemType.Task) {
         // Start work on regular task
         await get().startWorkOnTask(nextItem.id)
+      } else {
+        return false
       }
 
       // Reset skip index after starting a task (to show actual next task when they finish)
       get().resetNextTaskSkipIndex()
+      return true
 
-      // Emit event to notify UI that a new work session started
       // The startWorkOnStep/startWorkOnTask methods already updated the state
-      // Event removed - reactive state handles updates
     } catch (error) {
       set({
         error: error instanceof Error ? error.message : 'Failed to start next task',

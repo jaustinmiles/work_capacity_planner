@@ -226,6 +226,23 @@ describe('store-comparison', () => {
     it('should handle empty arrays', () => {
       expect(haveTasksChanged([], [])).toBe(false)
     })
+
+    it('detects a STATUS-ONLY transition (regression: completing an async-wait task sets Waiting with completed unchanged)', () => {
+      // Completing a task with asyncWaitTime > 0 writes {completed: false, overallStatus: Waiting}.
+      // The comparison key used to omit overallStatus, so the scheduler never recomputed and
+      // kept recommending the just-completed task (work logged onto it again on Start).
+      const previous = [createTestTask({ id: 'task-1', overallStatus: TaskStatus.NotStarted })]
+      const current = [createTestTask({ id: 'task-1', overallStatus: TaskStatus.Waiting })]
+
+      expect(haveTasksChanged(current, previous)).toBe(true)
+    })
+
+    it('detects a completedAt-only change (wait-block timing input to the scheduler)', () => {
+      const previous = [createTestTask({ id: 'task-1', completedAt: undefined })]
+      const current = [createTestTask({ id: 'task-1', completedAt: new Date('2026-06-11T10:00:00Z') })]
+
+      expect(haveTasksChanged(current, previous)).toBe(true)
+    })
   })
 
   describe('haveSequencedTasksChanged', () => {

@@ -268,5 +268,15 @@ SpatialKit + Vitest green; spatial drag/drop bits need device verification (flag
   `EdgeComponent` of surviving edges in place on collapse/expand and dedupes coincident volume↔volume
   edges. Needs a Simulator/device eyeball for the visuals.
 
+**Backlog window (2026-06-11)** — resolves "Backlog and New Task Type Panels Immovable": the
+Backlog tray ORNAMENT (fixed to the volume; its New-Task-Type sheet spawned far overhead) became
+`BacklogWindowView`, its own user-movable `WindowGroup` (`SpatialWindowID.backlog`), opened from
+the toolbar. It fetches its own tasks (data-loading doctrine), classifies via the shared
+`SpatialTaskClassifier`, and syncs with the volume BOTH ways through `sceneReloadToken` (reloads
+on bumps; bumps after add-to-sprint / create-type so the volume materializes the changes — the
+volume's `load()` runs `ensurePanels` + `relayout`). VM `backlogTasks`/`addToSprint`/
+`createTaskType` deleted (moved into the window). Draggable type-panel ENTITIES deliberately NOT
+done — columns/tray slabs wouldn't follow (see `decisions/2026-06-11-vision-backlog-window.md`).
+
 Full plans: `~/.claude/plans/fluttering-hatching-dijkstra.md` (M1–3),
 `~/.claude/plans/fizzy-dancing-shell.md` (M4 setup-workflow + UX fixes; M5 endeavors built on top).

@@ -501,13 +501,6 @@ final class SpatialSceneViewModel {
         }
     }
 
-    /// Tasks NOT in the active sprint (the backlog) — listed in the tray ornament to pull into the scene.
-    var backlogTasks: [TaskItem] {
-        tasksById.values
-            .filter { bucket(for: $0) == .backlog }
-            .sorted { $0.name < $1.name }
-    }
-
     /// Completed tasks/workflows — listed in the Done tray for review. Most-recently-finished first;
     /// drag one into the scene to reactivate it (`reactivate`).
     var doneItems: [TaskItem] {
@@ -547,25 +540,8 @@ final class SpatialSceneViewModel {
         await relayout()
     }
 
-    /// Pull a backlog task into the active sprint (from the tray ornament); it materializes in its
-    /// type tray on the next layout pass.
-    func addToSprint(taskId: String) async {
-        guard let root else { return }
-        do {
-            _ = try await root.taskService.setSprintMembership(id: taskId, inSprint: true)
-            await refreshTasks()
-            await relayout()
-        } catch {
-            errorMessage = error.localizedDescription
-        }
-    }
-
-    /// Create a new task type (from the tray ornament), then re-flow so its panel + tray appear.
-    func createTaskType(name: String, emoji: String, color: String) async {
-        guard let root else { return }
-        await root.createTaskType(name: name, emoji: emoji, color: color)
-        await relayout()
-    }
+    // Backlog listing, add-to-sprint, and task-type creation moved to BacklogWindowView (its own
+    // movable window) — it talks to SpatialRoot directly and syncs via sceneReloadToken.
 
     /// Create a free-floating note at a 3D point.
     func createNote(text: String, x: Double, y: Double, z: Double) async {

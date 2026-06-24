@@ -326,6 +326,44 @@ describe('computeActionableNodeIds', () => {
     const result = computeActionableNodeIds(new Map(), [])
     expect(result.size).toBe(0)
   })
+
+  it('a waiting step is not actionable itself', () => {
+    const parentTask = makeTask('wf-1', { hasSteps: true })
+    const nodes = new Map<string, DeepWorkNodeWithData>([
+      ['n1', makeStepNode('n1', makeStep('step-a', 'wf-1', { status: StepStatus.Waiting }), parentTask)],
+    ])
+    const result = computeActionableNodeIds(nodes, [])
+    expect(result.has('n1')).toBe(false)
+  })
+
+  it('a waiting dependency BLOCKS its dependents (regression: waiting counted as satisfied)', () => {
+    const parentTask = makeTask('wf-1', { hasSteps: true })
+    const nodes = new Map<string, DeepWorkNodeWithData>([
+      ['n1', makeStepNode('n1', makeStep('step-a', 'wf-1', { status: StepStatus.Waiting }), parentTask)],
+      ['n2', makeStepNode('n2', makeStep('step-b', 'wf-1'), parentTask)],
+    ])
+    const edges: DeepWorkEdge[] = [{
+      id: 'e1', sourceNodeId: 'n1', targetNodeId: 'n2', edgeType: DeepWorkEdgeType.IntraWorkflow,
+    }]
+    const result = computeActionableNodeIds(nodes, edges)
+    // The async result hasn't arrived — the dependent can't start yet.
+    expect(result.has('n2')).toBe(false)
+  })
+
+  it('a completed dependency still unblocks when a SIBLING is merely waiting elsewhere', () => {
+    const parentTask = makeTask('wf-1', { hasSteps: true })
+    const nodes = new Map<string, DeepWorkNodeWithData>([
+      ['n1', makeStepNode('n1', makeStep('step-a', 'wf-1', { status: StepStatus.Completed }), parentTask)],
+      ['n2', makeStepNode('n2', makeStep('step-b', 'wf-1', { status: StepStatus.Waiting }), parentTask)],
+      ['n3', makeStepNode('n3', makeStep('step-c', 'wf-1'), parentTask)],
+    ])
+    const edges: DeepWorkEdge[] = [{
+      id: 'e1', sourceNodeId: 'n1', targetNodeId: 'n3', edgeType: DeepWorkEdgeType.IntraWorkflow,
+    }]
+    const result = computeActionableNodeIds(nodes, edges)
+    // n3 depends only on the completed n1 — the unrelated waiting n2 must not affect it.
+    expect(result.has('n3')).toBe(true)
+  })
 })
 
 // =============================================================================
