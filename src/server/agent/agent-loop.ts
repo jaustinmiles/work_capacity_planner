@@ -22,6 +22,7 @@ import {
   AgentChatMode,
 } from '../../shared/enums'
 import { ALL_TOOLS, READ_TOOL_NAMES, MEMORY_TOOL_NAMES, TOOL_REGISTRY } from './tool-definitions'
+import { MessageRole } from './message-roles'
 import { createToolExecutor } from './tool-executors'
 import { buildAgentSystemPrompt, buildQuickAgentSystemPrompt, AgentSessionInfo } from './agent-context'
 import { generateActionPreview, PreviewEntityContext, EntityNameMap } from './action-previews'
@@ -132,7 +133,7 @@ export async function runAgentLoop(options: AgentLoopOptions): Promise<AgentLoop
   // Build the messages array: history + new user message
   const messages: Anthropic.MessageParam[] = [
     ...conversationHistory,
-    { role: 'user', content: userMessage },
+    { role: MessageRole.User, content: userMessage },
   ]
 
   let responseText = ''
@@ -344,7 +345,7 @@ export async function runAgentLoop(options: AgentLoopOptions): Promise<AgentLoop
 
     // Add assistant message to history
     messages.push({
-      role: 'assistant',
+      role: MessageRole.Assistant,
       content: assistantContent,
     })
 
@@ -357,7 +358,7 @@ export async function runAgentLoop(options: AgentLoopOptions): Promise<AgentLoop
     if (finalMessage.stop_reason === 'tool_use' && toolResultMessages.length > 0) {
       // Claude wants to continue after tool results — feed them back
       messages.push({
-        role: 'user',
+        role: MessageRole.User,
         content: toolResultMessages,
       })
       // Continue loop for next iteration
