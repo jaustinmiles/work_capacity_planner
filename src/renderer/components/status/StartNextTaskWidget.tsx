@@ -152,7 +152,7 @@ export function StartNextTaskWidget(): ReactElement {
           workflowName: workflow.name,
           estimatedDuration: step.duration,
           loggedMinutes: step.actualDuration ?? 0,
-          type: 'step' as const,
+          type: NextScheduledItemType.Step,
         }
       }
     }
@@ -165,7 +165,7 @@ export function StartNextTaskWidget(): ReactElement {
       workflowName: undefined,
       estimatedDuration: item.duration,
       loggedMinutes: task?.actualDuration ?? 0,
-      type: 'task' as const,
+      type: NextScheduledItemType.Task,
     }
   }, [activeSession, scheduleResult, tasks, sequencedTasks, nextTaskSkipIndex, workPatternsLoading, isLoading])
 

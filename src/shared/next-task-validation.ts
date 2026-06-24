@@ -15,7 +15,7 @@ import type { SequencedTask } from './sequencing-types'
 /** The minimal identity needed to validate and start a scheduled item. */
 export interface StartableItemRef {
   id: string
-  type: NextScheduledItemType | 'task' | 'step'
+  type: NextScheduledItemType
   workflowId?: string
 }
 
