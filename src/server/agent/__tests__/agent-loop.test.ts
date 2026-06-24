@@ -53,6 +53,7 @@ vi.mock('../tool-executors', () => ({
 
 vi.mock('../agent-context', () => ({
   buildAgentSystemPrompt: vi.fn(() => 'test system prompt'),
+  buildQuickAgentSystemPrompt: vi.fn(() => 'test quick system prompt'),
 }))
 
 vi.mock('../action-previews', () => ({
@@ -73,8 +74,9 @@ vi.mock('../../../logger', () => ({
   },
 }))
 
-import { runAgentLoop, pendingApprovals, resolveApproval } from '../agent-loop'
-import { ApprovalDecision } from '../../../shared/enums'
+import { runAgentLoop, pendingApprovals, resolveApproval, QUICK_AGENT_MODEL } from '../agent-loop'
+import { ApprovalDecision, ActionResultStatus, AgentChatMode } from '../../../shared/enums'
+import { validateToolReferences } from '../reference-validator'
 import type { AgentSSEEvent } from '../../../shared/agent-types'
 import { createMockContext } from '../../router/__tests__/router-test-helpers'
 
@@ -209,6 +211,7 @@ interface RunLoopOutcome {
  */
 async function runLoop(
   approvalDecision?: ApprovalDecision.Approved | ApprovalDecision.Rejected,
+  mode?: AgentChatMode,
 ): Promise<RunLoopOutcome> {
   const events: AgentSSEEvent[] = []
   const result = await runAgentLoop({
@@ -216,6 +219,7 @@ async function runLoop(
     conversationHistory: [],
     sessionInfo: { sessionName: 'Test Session', sessionId: 'session-1' },
     ctx: createMockContext(),
+    mode,
     onEvent: event => {
       events.push(event)
       if (event.type === 'proposed_action' && approvalDecision) {
@@ -392,5 +396,112 @@ describe('runAgentLoop no-tool-warning gating', () => {
     expect(mockCheckForHallucination).toHaveBeenCalledTimes(1)
     expect(events.some(event => event.type === 'no_tool_warning')).toBe(false)
     expect(result.noToolWarning).toBeNull()
+  })
+})
+
+// ============================================================================
+// runAgentLoop — quick command mode
+// ============================================================================
+
+describe('runAgentLoop quick mode', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    mockCreateAgentStream.mockReset()
+    pendingApprovals.clear()
+    mockCheckForHallucination.mockResolvedValue(null)
+  })
+
+  it('auto-applies validated write tools without waiting for approval', async () => {
+    queueStreamMessages(
+      {
+        content: [
+          { type: 'tool_use', id: 'tu-q1', name: 'create_task', input: { name: 'Quick task' } },
+        ],
+        stop_reason: 'tool_use',
+      },
+      {
+        content: [{ type: 'text', text: 'done — created Quick task' }],
+        stop_reason: 'end_turn',
+      },
+    )
+    mockExecute.mockResolvedValue({ success: true, data: { id: 'task-q1' } })
+
+    // NO approval decision is queued — quick mode must not block on one.
+    const { result, events } = await runLoop(undefined, AgentChatMode.Quick)
+
+    expect(pendingApprovals.size).toBe(0)
+    expect(mockExecute).toHaveBeenCalledWith('create_task', { name: 'Quick task' })
+    expect(result.toolCalls).toHaveLength(1)
+    expect(result.toolCalls[0].approvalStatus).toBe(ApprovalDecision.Approved)
+    // Clients still get the proposal card + an immediate applied result.
+    expect(events.some(event => event.type === 'proposed_action')).toBe(true)
+    expect(
+      events.some(
+        event => event.type === 'action_result' && event.status === ActionResultStatus.Applied,
+      ),
+    ).toBe(true)
+  })
+
+  it('uses the fast model with a reduced token budget', async () => {
+    queueStreamMessages({
+      content: [{ type: 'text', text: 'didn\'t catch that — try again' }],
+      stop_reason: 'end_turn',
+    })
+
+    await runLoop(undefined, AgentChatMode.Quick)
+
+    expect(mockCreateAgentStream).toHaveBeenCalledWith(
+      expect.objectContaining({ model: QUICK_AGENT_MODEL, maxTokens: 2000 }),
+    )
+  })
+
+  it('full mode does not override the model (default omitted)', async () => {
+    queueStreamMessages({
+      content: [{ type: 'text', text: 'Here is an explanation.' }],
+      stop_reason: 'end_turn',
+    })
+
+    await runLoop()
+
+    const options = mockCreateAgentStream.mock.calls[0][0]
+    expect(options.model).toBeUndefined()
+    expect(options.maxTokens).toBe(8000)
+  })
+
+  it('skips the hallucination check even when no write was applied', async () => {
+    queueStreamMessages({
+      content: [{ type: 'text', text: CLAIM_TEXT }],
+      stop_reason: 'end_turn',
+    })
+
+    const { result } = await runLoop(undefined, AgentChatMode.Quick)
+
+    expect(mockCheckForHallucination).not.toHaveBeenCalled()
+    expect(result.noToolWarning).toBeNull()
+  })
+
+  it('does not execute a write the reference validator rejected', async () => {
+    queueStreamMessages(
+      {
+        content: [
+          { type: 'tool_use', id: 'tu-q2', name: 'create_task', input: { type: 'fake-type' } },
+        ],
+        stop_reason: 'tool_use',
+      },
+      {
+        content: [{ type: 'text', text: 'didn\'t catch that task type — try again' }],
+        stop_reason: 'end_turn',
+      },
+    )
+    vi.mocked(validateToolReferences).mockResolvedValueOnce({
+      valid: false,
+      error: 'Unknown task type: fake-type',
+    })
+
+    const { result } = await runLoop(undefined, AgentChatMode.Quick)
+
+    expect(mockExecute).not.toHaveBeenCalled()
+    expect(result.toolCalls[0].approvalStatus).toBe(ApprovalDecision.Rejected)
+    expect(result.toolCalls[0].error).toBe('Unknown task type: fake-type')
   })
 })

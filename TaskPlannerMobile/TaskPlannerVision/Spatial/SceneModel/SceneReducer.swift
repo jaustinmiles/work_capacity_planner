@@ -36,6 +36,18 @@ nonisolated enum SceneReducer {
     static func writableIds(current: [String], ownership: [String: TransformOwnership]) -> [String] {
         current.filter { (ownership[$0] ?? .data) == .data }
     }
+
+    /// Resolve a cross-workflow link endpoint to the entity that currently SHOWS it: the entity
+    /// itself when rendered, else its parent workflow volume when the endpoint is a step hidden
+    /// inside a collapsed volume — so endeavor links stay visible between collapsed workflows.
+    /// Returns nil when nothing visible represents the endpoint (the edge should not draw).
+    static func visibleLinkAnchor(entityId: String,
+                                  renderedIds: Set<String>,
+                                  parentById: [String: String]) -> String? {
+        if renderedIds.contains(entityId) { return entityId }
+        if let parent = parentById[entityId], renderedIds.contains(parent) { return parent }
+        return nil
+    }
 }
 
 /// Whether dropping one node's port onto another forms a workflow (merge) or a dependency (link).

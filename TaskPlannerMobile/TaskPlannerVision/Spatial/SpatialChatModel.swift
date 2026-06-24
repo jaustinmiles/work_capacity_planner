@@ -30,6 +30,9 @@ final class SpatialChatModel {
     var pendingActions: [PendingAction] = []
     var noToolWarning: String?
     var autoApprove = false
+    /// Quick mode: one-shot fast-model commands — writes auto-apply SERVER-side
+    /// (no Apply/Skip cards), ambiguity gets "didn't catch that" instead of questions.
+    var quickMode = false
     var isStreaming = false
     var isRecording = false
     var errorMessage: String?
@@ -56,7 +59,12 @@ final class SpatialChatModel {
         defer { isStreaming = false; toolStatus = nil }
         do {
             let convId = try await ensureConversation()
-            for try await event in root.agentStream.stream(userMessage: userMessage, conversationId: convId) {
+            let stream = root.agentStream.stream(
+                userMessage: userMessage,
+                conversationId: convId,
+                mode: quickMode ? .quick : .full
+            )
+            for try await event in stream {
                 handle(event)
             }
             if !streamingText.isEmpty {
@@ -75,6 +83,11 @@ final class SpatialChatModel {
         case .toolStatus(let label):
             toolStatus = label
         case .proposedAction(let id, let title, let description):
+            if quickMode {
+                // Quick mode applies writes server-side — the actionResult follows
+                // immediately, so there is nothing to approve (and no card flicker).
+                break
+            }
             if autoApprove {
                 Task { try? await root.agentService.approve(proposalId: id) }
             } else {

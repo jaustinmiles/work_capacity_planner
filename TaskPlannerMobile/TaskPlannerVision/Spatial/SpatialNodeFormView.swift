@@ -11,16 +11,21 @@ struct SpatialNodeFormView: View {
     @State private var edits: TaskEdits
     @State private var isSaving = false
     @State private var confirmingDelete = false
+    @FocusState private var nameFocused: Bool
     private let isStep: Bool
     private let isWorkflow: Bool
+    /// Focus the name field on appear — set when the form opens for a freshly created task,
+    /// so its placeholder name can be replaced without an extra tap.
+    private let focusName: Bool
 
     private var deleteLabel: String {
         isStep ? "Delete Step" : (isWorkflow ? "Delete Workflow" : "Delete Task")
     }
 
-    init(viewModel: SpatialSceneViewModel, entity: SpatialEntity) {
+    init(viewModel: SpatialSceneViewModel, entity: SpatialEntity, focusName: Bool = false) {
         self.viewModel = viewModel
         self.entity = entity
+        self.focusName = focusName
         self.isWorkflow = entity.kind == .workflowVolume
 
         // Seed the form from the current task / workflow / step content.
@@ -67,6 +72,7 @@ struct SpatialNodeFormView: View {
             Form {
                 Section("Basics") {
                     TextField("Name", text: $edits.name)
+                        .focused($nameFocused)
 
                     Picker("Type", selection: $edits.type) {
                         ForEach(viewModel.userTaskTypes) { type in
@@ -139,6 +145,10 @@ struct SpatialNodeFormView: View {
             }
         }
         .frame(minWidth: 420, minHeight: 540)
+        // Both paths: defaultFocus covers initial presentation; the onAppear assignment covers
+        // visionOS sheets where defaultFocus alone doesn't reliably take after the open animation.
+        .defaultFocus($nameFocused, focusName)
+        .onAppear { if focusName { nameFocused = true } }
     }
 
     // MARK: - Bindings for optionals

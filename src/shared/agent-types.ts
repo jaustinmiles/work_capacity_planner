@@ -5,7 +5,7 @@
  * Used by both server (agent loop) and renderer (stream handler, UI).
  */
 
-import type { ToolExecutionStatus, ActionResultStatus } from './enums'
+import type { ToolExecutionStatus, ActionResultStatus, AgentChatMode } from './enums'
 
 // ============================================================================
 // SSE Event Types — server emits these, client consumes them
@@ -136,6 +136,8 @@ export interface ToolRegistration {
 export interface AgentChatInput {
   userMessage: string
   conversationId: string
+  /** Chat mode — omitted means AgentChatMode.Full (the conversational agent). */
+  mode?: AgentChatMode
 }
 
 export interface AgentApprovalInput {

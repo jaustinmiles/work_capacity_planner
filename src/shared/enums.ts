@@ -131,6 +131,14 @@ export enum ChatMessageRole {
   System = 'system',
 }
 
+// Agent chat modes: Full is the conversational brainstorm agent with write
+// approval; Quick is the one-shot fast-model command mode — writes auto-apply
+// and ambiguity gets "didn't understand", never a clarifying back-and-forth.
+export enum AgentChatMode {
+  Full = 'full',
+  Quick = 'quick',
+}
+
 // Recurring pattern types for meetings and work blocks
 export enum RecurringPattern {
   None = 'none',

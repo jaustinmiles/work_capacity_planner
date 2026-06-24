@@ -11,12 +11,21 @@ import os      // OSLog string interpolation (privacy:) for SpatialLog must be i
 struct SpatialSceneView: View {
     @Bindable var viewModel: SpatialSceneViewModel
     @State private var selectedEntityID: String?
-    @State private var pendingCreate: PendingCreate?
+    @State private var creatingNote = false
     @State private var selectedNoteID: String?
     /// The cross-link edge whose endeavor assignment is being changed (via its pencil control).
     @State private var reassigningLink: LinkEndpoints?
     /// Entity id of a freshly spawned node whose type wheel is showing (gaze + double-pinch create).
     @State private var typeWheelEntityID: String?
+    /// True when the edit form opens for a FRESHLY CREATED task — focuses the name field so the
+    /// placeholder can be replaced immediately. Reset when the form dismisses.
+    @State private var focusNameOnEdit = false
+    /// Newly spawned task awaiting its type-wheel pick; when the wheel dismisses, its edit form
+    /// opens (name focused) so create flows straight into naming.
+    @State private var editAfterWheelID: String?
+    /// The in-flight type assignment from the wheel — awaited before opening the edit form, so
+    /// the form never seeds from a stale type (saving would silently undo the wheel pick).
+    @State private var typeAssignment: Task<Void, Never>?
     /// Whether the dismissable backlog tray ornament is shown.
     @State private var showTray = false
     /// Whether the dismissable endeavors panel ornament is shown.
@@ -55,8 +64,8 @@ struct SpatialSceneView: View {
             Task { await viewModel.reactivate(taskIds: taskIds) }
             return true
         }
-        .sheet(item: selectedEntityBinding) { entity in
-            SpatialNodeFormView(viewModel: viewModel, entity: entity)
+        .sheet(item: selectedEntityBinding, onDismiss: { focusNameOnEdit = false }) { entity in
+            SpatialNodeFormView(viewModel: viewModel, entity: entity, focusName: focusNameOnEdit)
         }
         .sheet(item: selectedNoteBinding) { entity in
             NoteEditView(
@@ -76,17 +85,30 @@ struct SpatialSceneView: View {
         .ornament(visibility: showDone ? .visible : .hidden, attachmentAnchor: .scene(.top)) {
             DoneTrayView(viewModel: viewModel)
         }
-        .sheet(item: typeWheelBinding) { entity in
+        .sheet(item: typeWheelBinding, onDismiss: {
+            // A freshly spawned task flows straight into its edit form (name focused) once the
+            // type wheel closes — sheets can't overlap, so this waits for the dismissal, and
+            // awaits the type assignment so the form seeds from the PICKED type, not a stale one.
+            if let id = editAfterWheelID {
+                editAfterWheelID = nil
+                let assignment = typeAssignment
+                Task {
+                    await assignment?.value
+                    focusNameOnEdit = true
+                    selectedEntityID = id
+                }
+            }
+        }) { entity in
             SpatialTypeWheel(
                 types: viewModel.userTaskTypes,
                 currentTypeId: viewModel.task(for: entity)?.type
             ) { typeId in
-                Task { await viewModel.assignType(entityId: entity.id, typeId: typeId) }
+                typeAssignment = Task { await viewModel.assignType(entityId: entity.id, typeId: typeId) }
             }
         }
-        .sheet(item: $pendingCreate) { pending in
-            CreatePromptView(kind: pending.kind) { name in
-                Task { await create(name: name, kind: pending.kind) }
+        .sheet(isPresented: $creatingNote) {
+            CreatePromptView { text in
+                Task { await createNote(text: text) }
             }
         }
         .sheet(item: $reassigningLink) { ends in
@@ -102,10 +124,21 @@ struct SpatialSceneView: View {
         .toolbar {
             ToolbarItemGroup(placement: .bottomOrnament) {
                 Button("Task", systemImage: "plus.circle.fill") {
-                    pendingCreate = PendingCreate(kind: .task)
+                    // Create immediately and open the edit form (name focused) — one surface for
+                    // name/type/duration instead of a separate name prompt.
+                    Task {
+                        let p = nextSpawn()
+                        if let id = await viewModel.createTask(
+                            name: Self.defaultTaskName,
+                            x: Double(p.x), y: Double(p.y), z: Double(p.z)
+                        ) {
+                            focusNameOnEdit = true
+                            selectedEntityID = id
+                        }
+                    }
                 }
                 Button("Note", systemImage: "note.text.badge.plus") {
-                    pendingCreate = PendingCreate(kind: .note)
+                    creatingNote = true
                 }
                 Divider()
                 Button("Backlog", systemImage: "tray.full.fill") {
@@ -528,7 +561,15 @@ struct SpatialSceneView: View {
     /// the live endpoint positions (so they follow a dragged node and don't rebuild every pass).
     private func syncEdges(content: RealityViewContent, rendered: [SpatialEntity]) {
         // endeavorId is non-nil only for cross-workflow LINK edges (gives them a rename control).
-        var desired: [String: (from: String, to: String, color: UIColor, endeavorId: String?)] = [:]
+        // `from`/`to` are the edge's IDENTITY (the link's entity pair — controls and remove/reassign
+        // key off them); `anchorFrom`/`anchorTo` are where it DRAWS (the visible representatives,
+        // which fall back to a collapsed workflow's volume when the step endpoint is hidden).
+        typealias EdgeSpec = (
+            from: String, to: String,
+            anchorFrom: String, anchorTo: String,
+            color: UIColor, endeavorId: String?
+        )
+        var desired: [String: EdgeSpec] = [:]
 
         var entityByStepId: [String: String] = [:]
         for entity in rendered where entity.kind == .stepNode {
@@ -538,19 +579,38 @@ struct SpatialSceneView: View {
             guard let step = viewModel.step(for: entity) else { continue }
             for depId in step.dependsOn {
                 if let srcId = entityByStepId[depId] {
-                    desired["\(srcId)|\(entity.id)"] = (srcId, entity.id, SpatialColor.dependencyEdge, nil)
+                    desired["\(srcId)|\(entity.id)"] =
+                        (srcId, entity.id, srcId, entity.id, SpatialColor.dependencyEdge, nil)
                 }
             }
         }
+
+        let renderedIds = Set(rendered.map(\.id))
+        var parentById: [String: String] = [:]
+        for entity in viewModel.entities {
+            if let parent = entity.parentId { parentById[entity.id] = parent }
+        }
+        var seenAnchorPairs = Set<String>()
         for link in viewModel.links {
+            // Anchor each endpoint at the entity that currently shows it — the step node when
+            // expanded, its workflow volume when collapsed. No visible anchor → no edge.
+            guard
+                let anchorFrom = SceneReducer.visibleLinkAnchor(
+                    entityId: link.sourceEntityId, renderedIds: renderedIds, parentById: parentById),
+                let anchorTo = SceneReducer.visibleLinkAnchor(
+                    entityId: link.targetEntityId, renderedIds: renderedIds, parentById: parentById),
+                anchorFrom != anchorTo,
+                seenAnchorPairs.insert("\(anchorFrom)|\(anchorTo)").inserted  // collapse duplicate volume↔volume edges
+            else { continue }
             // Color each cross-workflow edge by its endeavor (the panel swatches are the legend).
             let color = link.endeavorColor.map { UIColor(Color(hex: $0)) } ?? SpatialColor.crossLinkEdge
             desired["\(link.sourceEntityId)|\(link.targetEntityId)"] =
-                (link.sourceEntityId, link.targetEntityId, color, link.endeavorId)
+                (link.sourceEntityId, link.targetEntityId, anchorFrom, anchorTo, color, link.endeavorId)
         }
         // Transient rubber-band while dragging a port: source node center → its dragged port tip.
         if let src = viewModel.pendingConnectSourceId {
-            desired["pending"] = (src, "\(Self.controlPrefix)port::\(src)", SpatialColor.pendingEdge, nil)
+            let tip = "\(Self.controlPrefix)port::\(src)"
+            desired["pending"] = (src, tip, src, tip, SpatialColor.pendingEdge, nil)
         }
 
         var existing: [String: Entity] = [:]
@@ -558,17 +618,31 @@ struct SpatialSceneView: View {
             existing[String(ent.name.dropFirst(Self.edgePrefix.count))] = ent
         }
         for (key, ent) in existing where desired[key] == nil { content.remove(ent) }
-        for (key, edge) in desired where existing[key] == nil {
-            content.add(makeEdge(key: key, from: edge.from, to: edge.to, color: edge.color, endeavorId: edge.endeavorId))
+        for (key, edge) in desired {
+            if let ent = existing[key] {
+                // Keep the edge entity (stable key = the link's identity pair) but retarget its
+                // anchors — collapse/expand moves an endpoint between step node and volume.
+                ent.components.set(EdgeComponent(fromName: edge.anchorFrom, toName: edge.anchorTo))
+            } else {
+                content.add(makeEdge(
+                    key: key, from: edge.from, to: edge.to,
+                    anchorFrom: edge.anchorFrom, anchorTo: edge.anchorTo,
+                    color: edge.color, endeavorId: edge.endeavorId
+                ))
+            }
         }
     }
 
     /// An edge container (at the origin) with a unit `line` box + two end `port` spheres, all
-    /// positioned each frame by `EdgeSystem` from the endpoints' live positions.
-    private func makeEdge(key: String, from: String, to: String, color: UIColor, endeavorId: String?) -> Entity {
+    /// positioned each frame by `EdgeSystem` from the endpoints' live positions. `from`/`to` are
+    /// the edge's identity (baked into control names for remove/reassign); `anchorFrom`/`anchorTo`
+    /// are the entities it draws between (a collapsed endpoint anchors at its workflow volume).
+    private func makeEdge(key: String, from: String, to: String,
+                          anchorFrom: String, anchorTo: String,
+                          color: UIColor, endeavorId: String?) -> Entity {
         let edge = Entity()
         edge.name = "\(Self.edgePrefix)\(key)"
-        edge.components.set(EdgeComponent(fromName: from, toName: to))
+        edge.components.set(EdgeComponent(fromName: anchorFrom, toName: anchorTo))
 
         let line = ModelEntity(
             mesh: .generateBox(size: [0.004, 0.004, 1], cornerRadius: 0.002),
@@ -727,12 +801,13 @@ struct SpatialSceneView: View {
 
     // MARK: - Create
 
-    private func create(name: String, kind: CreateKind) async {
+    /// Placeholder name for a just-created task — replaced immediately in the edit form,
+    /// which opens with the name field focused.
+    static let defaultTaskName = "New Task"
+
+    private func createNote(text: String) async {
         let p = nextSpawn()
-        switch kind {
-        case .task: await viewModel.createTask(name: name, x: Double(p.x), y: Double(p.y), z: Double(p.z))
-        case .note: await viewModel.createNote(text: name, x: Double(p.x), y: Double(p.y), z: Double(p.z))
-        }
+        await viewModel.createNote(text: text, x: Double(p.x), y: Double(p.y), z: Double(p.z))
     }
 
     /// Spawn point toward the viewer, spread by how many things already exist so successive
@@ -772,9 +847,10 @@ struct SpatialSceneView: View {
                 let clamped = VolumeMetrics.standard.clamp(SIMD3<Float>(Float(pt.x), Float(pt.y), Float(pt.z)))
                 Task {
                     if let id = await viewModel.createTask(
-                        name: "New Task",
+                        name: Self.defaultTaskName,
                         x: Double(clamped.x), y: Double(clamped.y), z: Double(clamped.z)
                     ) {
+                        editAfterWheelID = id   // wheel → edit form (name focused) on dismiss
                         typeWheelEntityID = id
                     }
                 }
@@ -865,13 +941,6 @@ private struct LinkEndpoints: Identifiable {
     init(from: String, to: String) { self.id = "\(from)|\(to)"; self.from = from; self.to = to }
 }
 
-enum CreateKind { case task, note }
-
-struct PendingCreate: Identifiable {
-    let id = UUID()
-    let kind: CreateKind
-}
-
 /// Edit or delete a note.
 private struct NoteEditView: View {
     let initialText: String
@@ -911,9 +980,9 @@ private struct NoteEditView: View {
     }
 }
 
-/// Name-entry prompt for creating a task or note.
+/// Text-entry prompt for creating a note. (Tasks skip this — they create immediately and open
+/// the full edit form with the name field focused.)
 private struct CreatePromptView: View {
-    let kind: CreateKind
     let onCreate: (String) -> Void
     @Environment(\.dismiss) private var dismiss
     @State private var text = ""
@@ -921,9 +990,9 @@ private struct CreatePromptView: View {
     var body: some View {
         NavigationStack {
             Form {
-                TextField(kind == .task ? "Task name" : "Note", text: $text, axis: .vertical)
+                TextField("Note", text: $text, axis: .vertical)
             }
-            .navigationTitle(kind == .task ? "New Task" : "New Note")
+            .navigationTitle("New Note")
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") { dismiss() }

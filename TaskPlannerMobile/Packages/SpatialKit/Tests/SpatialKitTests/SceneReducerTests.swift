@@ -65,3 +65,35 @@ struct ConnectionRulesTests {
                                        sameStepParent: false, sourceIsWorkflow: false, targetIsWorkflow: true) == .merge)
     }
 }
+
+@Suite("SceneReducer.visibleLinkAnchor")
+struct VisibleLinkAnchorTests {
+    // step1 lives inside volume1 (collapsed unless rendered); loose entities have no parent.
+    let parentById = ["step1": "volume1", "step2": "volume2"]
+
+    @Test func renderedEntityAnchorsToItself() {
+        let anchor = SceneReducer.visibleLinkAnchor(
+            entityId: "step1", renderedIds: ["step1", "volume1"], parentById: parentById)
+        #expect(anchor == "step1")
+    }
+
+    @Test func hiddenStepAnchorsToItsRenderedVolume() {
+        // Collapsed workflow: the step is hidden but its volume shows → the endeavor link
+        // edge should draw to the volume.
+        let anchor = SceneReducer.visibleLinkAnchor(
+            entityId: "step1", renderedIds: ["volume1"], parentById: parentById)
+        #expect(anchor == "volume1")
+    }
+
+    @Test func fullyHiddenEndpointHasNoAnchor() {
+        let anchor = SceneReducer.visibleLinkAnchor(
+            entityId: "step1", renderedIds: [], parentById: parentById)
+        #expect(anchor == nil)
+    }
+
+    @Test func parentlessHiddenEntityHasNoAnchor() {
+        let anchor = SceneReducer.visibleLinkAnchor(
+            entityId: "loose", renderedIds: ["volume1"], parentById: parentById)
+        #expect(anchor == nil)
+    }
+}
