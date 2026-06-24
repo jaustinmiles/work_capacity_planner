@@ -17,6 +17,7 @@ import { validateApiKey } from '../middleware/auth'
 import { prisma } from '../prisma'
 import { runAgentLoop } from './agent-loop'
 import { AgentChatMode, ChatMessageRole } from '../../shared/enums'
+import { MessageRole, isAssistantRole } from './message-roles'
 import { generateUniqueId } from '../../shared/step-id-utils'
 import { getCurrentTime } from '../../shared/time-provider'
 import type { AgentSSEEvent } from '../../shared/agent-types'
@@ -90,7 +91,7 @@ export async function agentChatHandler(req: Request, res: Response): Promise<voi
       conversationHistory = conversationHistory.slice(-QUICK_MODE_HISTORY_LIMIT)
       // The Messages API requires the first message to be from the user — an
       // uneven tail (orphaned assistant reply) would 500 the whole turn.
-      while (conversationHistory[0]?.role === 'assistant') {
+      while (isAssistantRole(conversationHistory[0]?.role)) {
         conversationHistory = conversationHistory.slice(1)
       }
     }
@@ -204,7 +205,7 @@ async function loadConversationHistory(
 
   for (const msg of messages) {
     if (msg.role === ChatMessageRole.User) {
-      history.push({ role: 'user', content: msg.content })
+      history.push({ role: MessageRole.User, content: msg.content })
     } else if (msg.role === ChatMessageRole.Assistant) {
       let content = msg.content
 
@@ -223,7 +224,7 @@ async function loadConversationHistory(
         }
       }
 
-      history.push({ role: 'assistant', content })
+      history.push({ role: MessageRole.Assistant, content })
     }
   }
 
