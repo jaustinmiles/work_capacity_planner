@@ -1,11 +1,13 @@
 import { describe, it, expect } from 'vitest'
 import { ComparisonType } from '@/shared/constants'
-import { EntityType } from '@shared/enums'
+import { EntityType, StepStatus } from '@shared/enums'
 import {
   selectTournamentItems,
   seedRound1Pairs,
   computeItemDepths,
   computeRankingScores,
+  getDimensionScore,
+  getItemLabel,
   UnrankedItemsError,
   type TournamentItem,
 } from '../tournament-utils'
@@ -32,6 +34,31 @@ function mkItem(id: string, importance = 5, urgency = 5): TournamentItem {
   }
 }
 
+function mkStep(
+  id: string,
+  opts: { importance?: number; urgency?: number; name?: string; label?: string } = {},
+): TournamentItem {
+  return {
+    id,
+    type: EntityType.Step,
+    data: {
+      id,
+      name: opts.name ?? id,
+      duration: 30,
+      type: 'focused',
+      taskId: 'wf1',
+      dependsOn: [],
+      asyncWaitTime: 0,
+      status: StepStatus.Pending,
+      stepIndex: 0,
+      percentComplete: 0,
+      importance: opts.importance,
+      urgency: opts.urgency,
+    },
+    label: opts.label,
+  }
+}
+
 function priorityCmp(winner: string, loser: string): ComparisonResult {
   return {
     itemA: winner, itemB: loser,
@@ -39,6 +66,44 @@ function priorityCmp(winner: string, loser: string): ComparisonResult {
     timestamp: 0,
   }
 }
+
+describe('getDimensionScore', () => {
+  it('reads importance/urgency from a Task item', () => {
+    const item = mkItem('t', 8, 3)
+    expect(getDimensionScore(item, ComparisonType.Priority)).toBe(8)
+    expect(getDimensionScore(item, ComparisonType.Urgency)).toBe(3)
+  })
+
+  it('reads per-step overrides from a Step item', () => {
+    const step = mkStep('s', { importance: 9, urgency: 2 })
+    expect(getDimensionScore(step, ComparisonType.Priority)).toBe(9)
+    expect(getDimensionScore(step, ComparisonType.Urgency)).toBe(2)
+  })
+
+  it('falls back to 5 when a step has no override', () => {
+    const step = mkStep('s')
+    expect(getDimensionScore(step, ComparisonType.Priority)).toBe(5)
+    expect(getDimensionScore(step, ComparisonType.Urgency)).toBe(5)
+  })
+
+  it('lets steps seed alongside tasks by score', () => {
+    // A high-importance step should sort ahead of a low-importance task.
+    const items = [mkItem('task', 2), mkStep('step', { importance: 9, label: 'WF › Step' })]
+    expect(seedRound1Pairs(items, ComparisonType.Priority)).toEqual([['step', 'task']])
+  })
+})
+
+describe('getItemLabel', () => {
+  it('prefers an explicit label over the entity name', () => {
+    expect(getItemLabel(mkStep('s', { name: 'Write tests', label: 'Backend › Write tests' })))
+      .toBe('Backend › Write tests')
+  })
+
+  it('falls back to the entity name when no label is set', () => {
+    expect(getItemLabel(mkItem('a'))).toBe('a')
+    expect(getItemLabel(mkStep('s', { name: 'Deploy' }))).toBe('Deploy')
+  })
+})
 
 describe('selectTournamentItems', () => {
   it('returns empty when sampleSize is 0 or items is empty', () => {

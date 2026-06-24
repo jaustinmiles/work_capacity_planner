@@ -12,7 +12,7 @@
  */
 
 import { ComparisonType } from '@/shared/constants'
-import { Task } from '@shared/types'
+import { Task, TaskStep } from '@shared/types'
 import { SequencedTask } from '@shared/sequencing-types'
 import { EntityType } from '@shared/enums'
 import {
@@ -22,15 +22,28 @@ import {
   type ItemId,
 } from '../../utils/comparison-graph'
 
-export type TournamentItem = {
-  id: ItemId
-  type: EntityType.Task | EntityType.Workflow
-  data: Task | SequencedTask
-}
+/**
+ * One competitor in a tournament. A discriminated union on `type` so callers
+ * that branch on the kind get `data` narrowed for free (e.g. a `.Step` item's
+ * `data` is a `TaskStep`, exposing `taskId` without a cast).
+ *
+ * `label` is an optional display override — used to disambiguate a workflow
+ * step ("Workflow › Step") whose bare `data.name` would be ambiguous across
+ * workflows. Rendering prefers `label` over `data.name`.
+ */
+export type TournamentItem =
+  | { id: ItemId; type: EntityType.Task; data: Task; label?: string }
+  | { id: ItemId; type: EntityType.Workflow; data: SequencedTask; label?: string }
+  | { id: ItemId; type: EntityType.Step; data: TaskStep; label?: string }
 
 export function getDimensionScore(item: TournamentItem, dim: ComparisonType): number {
-  if (dim === ComparisonType.Priority) return (item.data as Task).importance ?? 5
-  return (item.data as Task).urgency ?? 5
+  const value = dim === ComparisonType.Priority ? item.data.importance : item.data.urgency
+  return value ?? 5
+}
+
+/** The label to show for an item: explicit `label` if set, else its name. */
+export function getItemLabel(item: TournamentItem): string {
+  return item.label ?? item.data.name
 }
 
 /**

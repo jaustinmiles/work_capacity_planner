@@ -91,6 +91,7 @@ interface TaskStore {
   checkAndCompleteExpiredWaitTimes: () => Promise<void>
   startExpiredWaitTimePolling: () => () => void
   updateStepProgress: (stepId: string, __percentComplete: number) => Promise<void>
+  updateTaskStep: (taskId: string, stepId: string, updates: { importance?: number; urgency?: number }) => Promise<void>
   logWorkSession: (stepId: string, __minutes: number, notes?: string) => Promise<void>
   loadWorkSessionHistory: (__stepId: string) => Promise<void>
 
@@ -1517,6 +1518,32 @@ export const useTaskStore = create<TaskStore>()(
     } catch (error) {
       set({
         error: error instanceof Error ? error.message : 'Failed to update step progress',
+      })
+    }
+  },
+
+  updateTaskStep: async (taskId: string, stepId: string, updates: { importance?: number; urgency?: number }) => {
+    try {
+      await getDatabase().updateTaskStep(taskId, stepId, updates)
+
+      // Update local state so the scheduler (which reads sequencedTasks[].steps)
+      // reflects the new per-step priority without a reload.
+      set(state => ({
+        sequencedTasks: state.sequencedTasks.map(task =>
+          task.id === taskId
+            ? {
+                ...task,
+                steps: task.steps.map(step =>
+                  step.id === stepId ? { ...step, ...updates } : step,
+                ),
+              }
+            : task,
+        ),
+        error: null,
+      }))
+    } catch (error) {
+      set({
+        error: error instanceof Error ? error.message : 'Failed to update task step',
       })
     }
   },
