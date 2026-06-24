@@ -11,7 +11,7 @@ import { useMemo, useState, useEffect } from 'react'
 import { Button, Typography, Tag } from '@arco-design/web-react'
 import { ComparisonType } from '@/shared/constants'
 import type { ComparisonResult, ItemId } from '../../utils/comparison-graph'
-import type { TournamentItem } from './tournament-utils'
+import { getItemLabel, type TournamentItem } from './tournament-utils'
 
 const { Text } = Typography
 
@@ -128,7 +128,7 @@ export function BracketTournament({
   onComplete,
   isCompact = false,
 }: BracketTournamentProps) {
-  const titleById = useMemo(() => new Map(items.map(i => [i.id, i.data.name])), [items])
+  const titleById = useMemo(() => new Map(items.map(i => [i.id, getItemLabel(i)])), [items])
 
   const rounds = useMemo(
     () => buildBracket(initialPairs, dimension, comparisons),

@@ -18,7 +18,7 @@
  */
 
 import { useState, useEffect, useMemo } from 'react'
-import { Button, Space, Typography, Tag, Card, Switch, Radio } from '@arco-design/web-react'
+import { Button, Space, Typography, Tag, Card, Switch, Radio, Select } from '@arco-design/web-react'
 import {
   IconCheck,
   IconLeft,
@@ -29,7 +29,8 @@ import {
 } from '@arco-design/web-react/icon'
 import { useResponsive } from '../../providers/ResponsiveProvider'
 import { useTaskStore } from '../../store/useTaskStore'
-import { EntityType } from '@shared/enums'
+import { EntityType, StepStatus } from '@shared/enums'
+import { SequencedTask } from '@shared/sequencing-types'
 import { ComparisonType } from '@/shared/constants'
 import { getDatabase } from '../../services/database'
 import type { PersistedComparison } from '../../services/database-trpc'
@@ -46,6 +47,7 @@ import {
   selectTournamentItems,
   seedRound1Pairs,
   computeRankingScores,
+  getItemLabel,
   UnrankedItemsError,
   type TournamentItem,
 } from './tournament-utils'
@@ -54,6 +56,25 @@ const { Title, Text, Paragraph } = Typography
 
 type SampleSize = 4 | 8 | 16 | 32
 const SAMPLE_SIZES: readonly SampleSize[] = [4, 8, 16, 32] as const
+
+/**
+ * What competes in the tournament:
+ *   - Units:          standalone tasks + workflows (a workflow is one competitor).
+ *   - Steps:          standalone tasks + every workflow's individual steps, so a
+ *                     step can rank above/below standalone tasks.
+ *   - SingleWorkflow: only the steps of one chosen workflow, ranked against each
+ *                     other (set per-step priorities within a big workflow).
+ */
+enum RankGranularity {
+  Units = 'units',
+  Steps = 'steps',
+  SingleWorkflow = 'single-workflow',
+}
+
+/** Steps that are done/skipped don't need ranking — they won't be scheduled. */
+function isRankableStepStatus(status: StepStatus): boolean {
+  return status !== StepStatus.Completed && status !== StepStatus.Skipped
+}
 
 interface TournamentSession {
   items: TournamentItem[]
@@ -93,22 +114,68 @@ export function RankingView({ onClose }: RankingViewProps) {
   const [comparisons, setComparisons] = useState<ComparisonResult[]>([])
   const [isHydrated, setIsHydrated] = useState(false)
   const [sprintOnly, setSprintOnly] = useState(false)
+  const [granularity, setGranularity] = useState<RankGranularity>(RankGranularity.Units)
+  const [selectedWorkflowId, setSelectedWorkflowId] = useState<string | null>(null)
   const [sampleSize, setSampleSize] = useState<SampleSize>(8)
   const [tournament, setTournament] = useState<TournamentSession | null>(null)
   const [showFullGraph, setShowFullGraph] = useState(false)
 
+  // Active workflows (with at least one rankable step) — the pool the
+  // SingleWorkflow picker draws from; ignores the sprint scope on purpose.
+  const rankableWorkflows = useMemo<SequencedTask[]>(() =>
+    sequencedTasks.filter(w =>
+      !w.archived && !w.completed && w.steps.some(s => isRankableStepStatus(s.status)),
+    ),
+  [sequencedTasks])
+
   const items = useMemo<TournamentItem[]>(() => {
+    const stepItemsFor = (workflows: SequencedTask[]): TournamentItem[] =>
+      workflows.flatMap(w =>
+        w.steps
+          .filter(s => isRankableStepStatus(s.status))
+          .map(step => ({
+            id: step.id,
+            type: EntityType.Step as const,
+            data: step,
+            label: `${w.name} › ${step.name}`,
+          })),
+      )
+
+    // SingleWorkflow: just the chosen workflow's steps, no sprint filtering.
+    if (granularity === RankGranularity.SingleWorkflow) {
+      const wf = rankableWorkflows.find(w => w.id === selectedWorkflowId)
+      return wf ? stepItemsFor([wf]) : []
+    }
+
     const workflowIds = new Set(sequencedTasks.map(w => w.id))
     const taskItems: TournamentItem[] = tasks
       .filter(t => !t.archived && !t.completed && !workflowIds.has(t.id))
       .filter(t => !sprintOnly || t.inActiveSprint)
       .map(task => ({ id: task.id, type: EntityType.Task, data: task }))
-    const workflowItems: TournamentItem[] = sequencedTasks
+
+    const activeWorkflows = sequencedTasks
       .filter(w => !w.archived && !w.completed)
       .filter(w => !sprintOnly || w.inActiveSprint)
+
+    // Steps: standalone tasks + every workflow's individual steps.
+    if (granularity === RankGranularity.Steps) {
+      return [...taskItems, ...stepItemsFor(activeWorkflows)]
+    }
+
+    // Units (default): standalone tasks + workflows as single competitors.
+    const workflowItems: TournamentItem[] = activeWorkflows
       .map(workflow => ({ id: workflow.id, type: EntityType.Workflow, data: workflow }))
     return [...taskItems, ...workflowItems]
-  }, [tasks, sequencedTasks, sprintOnly])
+  }, [tasks, sequencedTasks, sprintOnly, granularity, selectedWorkflowId, rankableWorkflows])
+
+  // Re-hydrate from a clean slate when the competitor set changes (scope,
+  // granularity, or chosen workflow) — comparisons are keyed by item id, so a
+  // different id set means a different session.
+  const resetSession = () => {
+    setIsHydrated(false)
+    setComparisons([])
+    setTournament(null)
+  }
 
   // Hydrate persisted comparisons on mount + scope change.
   useEffect(() => {
@@ -224,15 +291,25 @@ export function RankingView({ onClose }: RankingViewProps) {
     }
 
     let updateCount = 0
-    const { updateTask, updateSequencedTask } = useTaskStore.getState()
+    const { updateTask, updateSequencedTask, updateTaskStep } = useTaskStore.getState()
     for (const item of items) {
       const importance = priorityScores.get(item.id) ?? 5
       const urgency = urgencyScores.get(item.id) ?? 5
       try {
         if (item.type === EntityType.Task) {
           await updateTask(item.id, { importance, urgency })
-        } else {
+        } else if (item.type === EntityType.Workflow) {
           await updateSequencedTask(item.id, { importance, urgency })
+        } else if (item.type === EntityType.Step) {
+          // Step: persist a per-step override on the parent workflow. The
+          // scheduler reads step.importance/urgency ?? parent ?? 5.
+          await updateTaskStep(item.data.taskId, item.id, { importance, urgency })
+        } else {
+          // Exhaustiveness guard: a new TournamentItem kind must be handled
+          // here explicitly — `item` is `never` if all kinds are covered, so
+          // this both fails the build and throws clearly at runtime.
+          const unhandled: never = item
+          throw new Error(`Unsupported ranking item type: ${JSON.stringify(unhandled)}`)
         }
         updateCount++
       } catch (error) {
@@ -300,27 +377,66 @@ export function RankingView({ onClose }: RankingViewProps) {
             </Paragraph>
           </div>
 
-          <Space size={6}>
-            <Text style={{ fontSize: 13, color: '#86909C' }}>Scope:</Text>
-            <Switch
-              size="small"
-              checked={sprintOnly}
-              onChange={(checked) => {
-                setSprintOnly(checked)
-                setIsHydrated(false)
-                setComparisons([])
-              }}
-            />
-            <Text style={{ fontSize: 13 }}>{sprintOnly ? 'Sprint only' : 'All active items'}</Text>
-            <Tag color="gray" size="small">{items.length} items</Tag>
+          <Space direction="vertical" size={12} style={{ width: '100%' }}>
+            <Space size={6}>
+              <Text style={{ fontSize: 13, color: '#86909C' }}>Scope:</Text>
+              <Switch
+                size="small"
+                disabled={granularity === RankGranularity.SingleWorkflow}
+                checked={sprintOnly}
+                onChange={(checked) => {
+                  setSprintOnly(checked)
+                  resetSession()
+                }}
+              />
+              <Text style={{ fontSize: 13 }}>{sprintOnly ? 'Sprint only' : 'All active items'}</Text>
+              <Tag color="gray" size="small">{items.length} items</Tag>
+            </Space>
+
+            <Space size={6} wrap>
+              <Text style={{ fontSize: 13, color: '#86909C' }}>Rank:</Text>
+              <Radio.Group
+                type="button"
+                size="small"
+                value={granularity}
+                onChange={(value) => {
+                  setGranularity(value as RankGranularity)
+                  resetSession()
+                }}
+              >
+                <Radio value={RankGranularity.Units}>Tasks &amp; workflows</Radio>
+                <Radio value={RankGranularity.Steps}>Split workflows into steps</Radio>
+                <Radio value={RankGranularity.SingleWorkflow}>One workflow&apos;s steps</Radio>
+              </Radio.Group>
+              {granularity === RankGranularity.SingleWorkflow && (
+                <Select
+                  size="small"
+                  placeholder="Pick a workflow…"
+                  style={{ minWidth: 220 }}
+                  value={selectedWorkflowId ?? undefined}
+                  onChange={(value) => {
+                    setSelectedWorkflowId(value as string)
+                    resetSession()
+                  }}
+                  options={rankableWorkflows.map(w => ({ label: w.name, value: w.id }))}
+                  notFoundContent="No workflows with rankable steps"
+                />
+              )}
+            </Space>
           </Space>
 
           {items.length < 2 ? (
             <Card style={{ textAlign: 'center', padding: 24 }}>
               <Text type="secondary">
-                {sprintOnly
-                  ? 'Need at least 2 sprint items to rank. Add items to the sprint or toggle this off.'
-                  : 'Need at least 2 tasks or workflows to rank.'}
+                {granularity === RankGranularity.SingleWorkflow
+                  ? (selectedWorkflowId
+                      ? 'This workflow has fewer than 2 rankable steps.'
+                      : 'Pick a workflow above to rank its steps.')
+                  : granularity === RankGranularity.Steps
+                    ? 'Need at least 2 tasks or workflow steps to rank.'
+                    : sprintOnly
+                      ? 'Need at least 2 sprint items to rank. Add items to the sprint or toggle this off.'
+                      : 'Need at least 2 tasks or workflows to rank.'}
               </Text>
             </Card>
           ) : (
@@ -430,6 +546,11 @@ export function RankingView({ onClose }: RankingViewProps) {
           <Title heading={isCompact ? 6 : 5} style={{ margin: 0 }}>
             Ranking by {dimensionLabel}
           </Title>
+          {granularity !== RankGranularity.Units && (
+            <Tag color="purple" size={isCompact ? 'small' : 'default'}>
+              {granularity === RankGranularity.SingleWorkflow ? 'workflow steps' : 'steps + tasks'}
+            </Tag>
+          )}
           <Tag color="blue" size={isCompact ? 'small' : 'default'}>
             {rankedCount}/{items.length} ranked · {coveragePct}%
           </Tag>
@@ -438,12 +559,11 @@ export function RankingView({ onClose }: RankingViewProps) {
           <Text style={{ fontSize: 12, color: '#86909C' }}>Sprint only</Text>
           <Switch
             size="small"
+            disabled={granularity === RankGranularity.SingleWorkflow}
             checked={sprintOnly}
             onChange={(checked) => {
               setSprintOnly(checked)
-              setIsHydrated(false)
-              setComparisons([])
-              setTournament(null)
+              resetSession()
             }}
           />
           <Tag size={isCompact ? 'small' : 'default'} color="gray">{items.length} items</Tag>
@@ -537,7 +657,7 @@ export function RankingView({ onClose }: RankingViewProps) {
           <div style={{ height: 280, position: 'relative', borderTop: '1px solid #F2F3F5' }}>
             <div style={{ position: 'absolute', inset: 0 }}>
               <TournamentBracket
-                items={items.map(i => ({ id: i.id, title: i.data.name }))}
+                items={items.map(i => ({ id: i.id, title: getItemLabel(i) }))}
                 winsGraph={dimensionGraphs.winsGraph}
                 equalsGraph={dimensionGraphs.equalsGraph}
                 width="100%"

@@ -3,7 +3,8 @@ import { render, screen, fireEvent, waitFor, act } from '@testing-library/react'
 import { RankingView } from '../RankingView'
 import { useTaskStore } from '../../../store/useTaskStore'
 import { ComparisonType } from '@/shared/constants'
-import { TaskStatus } from '@shared/enums'
+import { TaskStatus, StepStatus } from '@shared/enums'
+import type { TaskStep } from '@shared/types'
 import { Message } from '../../common/Message'
 import { logger } from '@/logger'
 import type { Task } from '@shared/types'
@@ -100,11 +101,27 @@ function makeTask(id: string, name: string, overrides: Partial<Task> = {}): Task
   }
 }
 
-function makeWorkflow(id: string, name: string, overrides: Partial<Task> = {}): SequencedTask {
+function makeStep(id: string, taskId: string, name: string, overrides: Partial<TaskStep> = {}): TaskStep {
+  return {
+    id,
+    name,
+    duration: 30,
+    type: 'focused',
+    taskId,
+    dependsOn: [],
+    asyncWaitTime: 0,
+    status: StepStatus.Pending,
+    stepIndex: 0,
+    percentComplete: 0,
+    ...overrides,
+  }
+}
+
+function makeWorkflow(id: string, name: string, overrides: Partial<Task> = {}, steps: TaskStep[] = []): SequencedTask {
   return {
     ...makeTask(id, name, overrides),
     hasSteps: true as const,
-    steps: [],
+    steps,
   }
 }
 
@@ -149,6 +166,7 @@ const mockedStore = useTaskStore as unknown as ReturnType<typeof vi.fn> & {
 }
 const mockUpdateTask = vi.fn()
 const mockUpdateSequencedTask = vi.fn()
+const mockUpdateTaskStep = vi.fn()
 
 function setStore(tasks: Task[], sequencedTasks: SequencedTask[]): void {
   mockedStore.mockReturnValue({ tasks, sequencedTasks })
@@ -185,9 +203,11 @@ describe('RankingView', () => {
     mockedStore.getState.mockReturnValue({
       updateTask: mockUpdateTask,
       updateSequencedTask: mockUpdateSequencedTask,
+      updateTaskStep: mockUpdateTaskStep,
     })
     mockUpdateTask.mockResolvedValue(undefined)
     mockUpdateSequencedTask.mockResolvedValue(undefined)
+    mockUpdateTaskStep.mockResolvedValue(undefined)
     dbMocks.listComparisons.mockResolvedValue([])
     dbMocks.recordComparison.mockResolvedValue(undefined)
     dbMocks.clearComparisonDimension.mockResolvedValue(0)
@@ -667,6 +687,84 @@ describe('RankingView', () => {
 
       expect(byFullText('Ranking by Importance')).toBeInTheDocument()
       expect(screen.queryByText('Change dimension')).not.toBeInTheDocument()
+    })
+  })
+
+  describe('step granularity', () => {
+    // Delta workflow with two rankable steps + one completed (filtered out).
+    const stepTasks: Task[] = [
+      makeTask('t-alpha', 'Alpha Task', { importance: 9 }),
+      makeTask('t-beta', 'Beta Task', { importance: 7 }),
+      makeTask('w-delta', 'Delta Workflow', { hasSteps: true }),
+    ]
+    const stepWorkflows: SequencedTask[] = [
+      makeWorkflow('w-delta', 'Delta Workflow', {}, [
+        makeStep('s1', 'w-delta', 'Design', { importance: 4 }),
+        makeStep('s2', 'w-delta', 'Build', { importance: 6 }),
+        makeStep('s3', 'w-delta', 'Old', { status: StepStatus.Completed }),
+      ]),
+    ]
+
+    it('"Split workflows into steps" replaces the workflow with its rankable steps', async () => {
+      setStore(stepTasks, stepWorkflows)
+      await renderView()
+      // Units default: 2 tasks + 1 workflow = 3.
+      expect(byFullText('3 items')).toBeInTheDocument()
+
+      fireEvent.click(screen.getByText('Split workflows into steps'))
+      await act(async () => {})
+
+      // 2 tasks + 2 rankable steps (completed step excluded) = 4.
+      expect(byFullText('4 items')).toBeInTheDocument()
+      expect(dbMocks.listComparisons).toHaveBeenLastCalledWith(['t-alpha', 't-beta', 's1', 's2'])
+    })
+
+    it('"One workflow\'s steps" prompts for a workflow and disables the sprint scope', async () => {
+      setStore(stepTasks, stepWorkflows)
+      await renderView()
+
+      fireEvent.click(screen.getByText("One workflow's steps"))
+      await act(async () => {})
+
+      // No workflow chosen yet → guidance, no dimension cards, picker shown.
+      expect(screen.getByText('Pick a workflow above to rank its steps.')).toBeInTheDocument()
+      expect(screen.queryByText('Rank by Importance')).not.toBeInTheDocument()
+      expect(screen.getAllByText('Pick a workflow…').length).toBeGreaterThan(0)
+      // Scope is irrelevant when ranking a single workflow's steps.
+      expect(screen.getByRole('switch')).toBeDisabled()
+    })
+
+    it('applies depth-based scores to steps via updateTaskStep and tasks via updateTask', async () => {
+      setStore(stepTasks, stepWorkflows)
+      // Chain across tasks AND steps in both dimensions:
+      // alpha > beta > s2 > s1  → depths 0/1/2/3 over maxDepth 3 → 10/7/4/1.
+      dbMocks.listComparisons.mockResolvedValue([
+        makeRow('t-alpha', 't-beta', ComparisonType.Priority, 't-alpha'),
+        makeRow('t-alpha', 't-beta', ComparisonType.Urgency, 't-alpha'),
+        makeRow('t-beta', 's2', ComparisonType.Priority, 't-beta'),
+        makeRow('t-beta', 's2', ComparisonType.Urgency, 't-beta'),
+        makeRow('s1', 's2', ComparisonType.Priority, 's2'),
+        makeRow('s1', 's2', ComparisonType.Urgency, 's2'),
+      ])
+      await renderView()
+
+      // Split workflows into steps so a step ranks against standalone tasks.
+      fireEvent.click(screen.getByText('Split workflows into steps'))
+      await act(async () => {})
+
+      fireEvent.click(screen.getByText('Apply Rankings'))
+      await waitFor(() => expect(mockUpdateTaskStep).toHaveBeenCalled())
+
+      // Tasks route through updateTask; steps through updateTaskStep(parentId, stepId).
+      expect(mockUpdateTask).toHaveBeenCalledWith('t-alpha', { importance: 10, urgency: 10 })
+      expect(mockUpdateTask).toHaveBeenCalledWith('t-beta', { importance: 7, urgency: 7 })
+      expect(mockUpdateTaskStep).toHaveBeenCalledWith('w-delta', 's2', { importance: 4, urgency: 4 })
+      expect(mockUpdateTaskStep).toHaveBeenCalledWith('w-delta', 's1', { importance: 1, urgency: 1 })
+      // A split-out step is never persisted as a standalone task/workflow.
+      expect(mockUpdateSequencedTask).not.toHaveBeenCalled()
+      expect(Message.success).toHaveBeenCalledWith(
+        'Updated 4 items with new importance and urgency rankings',
+      )
     })
   })
 })
