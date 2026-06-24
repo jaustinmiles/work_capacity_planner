@@ -33,6 +33,12 @@ final class SpatialSceneViewModel {
     /// Entities the user has hand-moved; the layout engine leaves these where they are.
     private(set) var manuallyMovedIds: Set<String> = []
 
+    /// Where each workflow volume sat when the user collapsed it (volume entity id → position),
+    /// so a later expand can translate the stored step arrangement by however far the volume
+    /// moved in between. In-memory only: with no anchor (fresh launch) the stored positions are
+    /// restored verbatim, which is equally correct whenever the volume hasn't moved.
+    private var collapseAnchors: [String: SIMD3<Float>] = [:]
+
     /// Who owns each entity's *presented* transform right now (see `TransformOwnership`).
     /// Authoritative and `@Observable` — read synchronously by the reconcile pass so it never
     /// fights a live gesture/animation. Absent ⇒ `.data` (the resting state).
@@ -817,7 +823,10 @@ final class SpatialSceneViewModel {
     }
 
     /// Tap a workflow volume to pop out its step graph (materializing step nodes on first
-    /// expand) or collapse it back.
+    /// expand) or collapse it back. Expand prefers each step's PERSISTED position — the user's
+    /// arrangement survives collapse → expand, translated by however far the volume moved in
+    /// between — and gives never-placed steps a slot in the topologically layered grid
+    /// (dependencies left, dependents right). Collapse only hides; it never rewrites positions.
     func toggleWorkflowVolume(_ volume: SpatialEntity) async {
         guard let service else { return }
         let children = childEntities(of: volume.id)
@@ -826,14 +835,23 @@ final class SpatialSceneViewModel {
             return
         }
         let isExpanded = children.contains { $0.isRendered }
-        let positions = stepRowPositions(count: children.count, around: volume)
         do {
-            for (index, child) in children.enumerated() {
-                if isExpanded {
+            if isExpanded {
+                collapseAnchors[volume.id] = entityPosition(volume)
+                for child in children {
                     let updated = try await service.setRendered(SetRenderedInput(id: child.id, isRendered: false))
                     replaceEntity(updated)
-                } else {
-                    let p = positions[index]
+                }
+            } else {
+                let placements = SpatialLayoutEngine.stepGraph(
+                    nodes: children.map(stepGraphInput(for:)),
+                    volume: entityPosition(volume),
+                    collapseAnchor: collapseAnchors[volume.id]
+                )
+                collapseAnchors[volume.id] = nil
+                let positionById = Dictionary(uniqueKeysWithValues: placements.map { ($0.entityId, $0.position) })
+                for child in children {
+                    guard let p = positionById[child.id] else { continue }
                     let updated = try await service.updateEntityTransform(UpdateEntityTransformInput(
                         id: child.id,
                         positionX: Double(p.x), positionY: Double(p.y), positionZ: Double(p.z),
@@ -847,15 +865,22 @@ final class SpatialSceneViewModel {
         }
     }
 
-    /// Create step-node entities for a workflow volume's steps, laid out in a row, shown.
+    /// Create step-node entities for a workflow volume's steps, laid out as a topological
+    /// graph (dependencies left, dependents right — matching output→input edge flow), shown.
     private func materializeSteps(for volume: SpatialEntity) async {
         guard let service, let scene, let refId = volume.refId,
               let workflow = tasksById[refId] else { return }
         let steps = (workflow.steps ?? []).sorted { $0.stepIndex < $1.stepIndex }
         guard !steps.isEmpty else { return }
-        let positions = stepRowPositions(count: steps.count, around: volume)
-        for (index, step) in steps.enumerated() {
-            let p = positions[index]
+        let placements = SpatialLayoutEngine.stepGraph(
+            nodes: steps.map { SpatialLayoutEngine.StepNodeInput(
+                entityId: $0.id, stepId: $0.id, dependsOn: $0.dependsOn, order: $0.stepIndex
+            ) },
+            volume: entityPosition(volume)
+        )
+        let positionByStepId = Dictionary(uniqueKeysWithValues: placements.map { ($0.entityId, $0.position) })
+        for step in steps {
+            guard let p = positionByStepId[step.id] else { continue }
             do {
                 let created = try await service.createEntity(CreateSpatialEntityInput(
                     sceneId: scene.id, kind: .stepNode, refId: step.id, parentId: volume.id,
@@ -868,18 +893,24 @@ final class SpatialSceneViewModel {
         }
     }
 
-    /// Positions for a workflow's steps, in a centered row just below the volume.
-    private func stepRowPositions(count: Int, around volume: SpatialEntity) -> [SIMD3<Float>] {
-        let metrics = VolumeMetrics.standard
-        let step: Float = 0.24
-        return (0..<count).map { index in
-            let offset = (Float(index) - Float(count - 1) / 2.0) * step
-            return metrics.clamp(SIMD3(
-                Float(volume.positionX) + offset,
-                Float(volume.positionY) - 0.18,
-                Float(volume.positionZ) + 0.08
-            ))
-        }
+    private func entityPosition(_ entity: SpatialEntity) -> SIMD3<Float> {
+        SIMD3(Float(entity.positionX), Float(entity.positionY), Float(entity.positionZ))
+    }
+
+    /// Engine projection of a placed step node. The origin is the "never placed" sentinel
+    /// (same convention as relayout), so such a node gets a fresh grid slot instead of
+    /// "restoring" to a stack at the volume center.
+    private func stepGraphInput(for child: SpatialEntity) -> SpatialLayoutEngine.StepNodeInput {
+        let step = step(for: child)
+        let p = entityPosition(child)
+        let isSentinel = abs(p.x) < 1e-4 && abs(p.y) < 1e-4 && abs(p.z) < 1e-4
+        return SpatialLayoutEngine.StepNodeInput(
+            entityId: child.id,
+            stepId: child.refId ?? child.id,
+            dependsOn: step?.dependsOn ?? [],
+            order: step?.stepIndex ?? 0,
+            stored: isSentinel ? nil : p
+        )
     }
 
     private func replaceEntity(_ updated: SpatialEntity) {

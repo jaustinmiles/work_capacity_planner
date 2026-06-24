@@ -237,5 +237,19 @@ SpatialKit + Vitest green; spatial drag/drop bits need device verification (flag
   whose serializer omits nil optionals — e.g. the Swift client — can't send an explicit null).
   (Vitest regression: reopen clears completedAt; unrelated updates don't touch it.) NO Prisma migration.
 
+**Workflow pop-out layout (2026-06-11).** Rules for `toggleWorkflowVolume`/`materializeSteps`:
+- **Lay steps out with `SpatialLayoutEngine.stepGraph(nodes:volume:collapseAnchor:metrics:)`** (pure,
+  SpatialKit-tested) — never ad-hoc rows. Longest-path topological layering (Kahn passes; in-set
+  `dependsOn` only; deterministic cycle fallback). Levels = columns along +x (dependencies → dependents,
+  matching output→input edge flow); siblings stacked along y by `stepIndex`. Spacing packs to the volume
+  (`stepColumnGap`/`stepRowGap` shrink for wide/tall graphs).
+- **Stored positions win:** a node with a persisted position keeps it (clamped); only never-placed nodes
+  (origin sentinel) get grid slots — so expand restores the user's arrangement verbatim and a newly-merged
+  step slots in without disturbing the rest. **Collapse must ONLY hide (`setRendered(false)`) — never
+  rewrite positions.**
+- **`collapseAnchors` (VM, in-memory):** record the volume position at collapse; on expand translate the
+  whole stored shape by however far the volume moved since (verbatim restore when unmoved / after relaunch).
+- Layout math is unit-tested in SpatialKit; the expand/collapse round-trip is RealityKit behavior — eyeball on device.
+
 Full plans: `~/.claude/plans/fluttering-hatching-dijkstra.md` (M1–3),
 `~/.claude/plans/fizzy-dancing-shell.md` (M4 setup-workflow + UX fixes; M5 endeavors built on top).

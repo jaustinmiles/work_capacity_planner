@@ -151,6 +151,13 @@
     fail gracefully. The Simulator has no usable mic — design voice to degrade to an error there.
 - **Permissions are two separate grants:** speech (`SFSpeechRecognizer.requestAuthorization`) ≠ microphone
   (`AVAudioApplication.requestRecordPermission`). Request **both**, in sequence, before starting the engine.
+- **The physical `Info.plist` needs a membership EXCEPTION in the pbxproj.** Because `TaskPlannerVision/`
+  is a filesystem-synchronized group, `Info.plist` auto-joins Copy Bundle Resources while `INFOPLIST_FILE`
+  also processes it → `Multiple commands produce .../Info.plist` build failure. Fix: a
+  `PBXFileSystemSynchronizedBuildFileExceptionSet` with `membershipExceptions = (Info.plist)` wired into the
+  root group's `exceptions`. The `.xcodeproj` is gitignored, so this must be re-applied (Xcode: uncheck the
+  file's target membership) whenever the project is regenerated. Verify the privacy strings survive with
+  `plutil -p <DerivedData>/.../TaskPlannerVision.app/Info.plist | grep -i microphone`.
 - **Lifecycle:** tear the engine/tap/session down on the chat window's `.onDisappear` (it's a dismissable
   window — closing mid‑dictation otherwise leaves the mic hot), and `setActive(false)` to un‑duck other audio.
 
