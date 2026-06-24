@@ -237,26 +237,19 @@ SpatialKit + Vitest green; spatial drag/drop bits need device verification (flag
   whose serializer omits nil optionals — e.g. the Swift client — can't send an explicit null).
   (Vitest regression: reopen clears completedAt; unrelated updates don't touch it.) NO Prisma migration.
 
-**Pop-out layout fix (2026-06-11) — topological step graph + arrangement persistence.** Resolves the
-feedback "Vision Pro Workflows buggy display". Two root causes in `toggleWorkflowVolume`/`materializeSteps`:
-steps were laid out in raw `entities`-array order (not even stepIndex) in a flat row, so dependency edges
-doubled back; and every expand re-stamped freshly computed row positions over each child's persisted
-transform, wiping the user's dragged arrangement. Fix (the previously deferred "richer pop-out layout"):
-- **`SpatialLayoutEngine.stepGraph(nodes:volume:collapseAnchor:metrics:)`** (pure, symlinked into
-  SpatialKit, 10 tests): longest-path topological layering via `stepLevels` (Kahn-style passes; in-set
-  `dependsOn` only; defensive cycle fallback that always terminates deterministically). Levels = columns
-  along +x (dependencies left → dependents right, matching output→input edge flow), siblings of a level
-  stacked along y by `stepIndex`. Spacing packs to fit the volume (`stepColumnGap` 0.28 / `stepRowGap`
-  0.16 shrink for wide/tall graphs) and the grid center shifts so the span stays in bounds.
-- **Stored positions win:** a node with a persisted position keeps it (clamped) — expand restores exactly
-  what the user left; only never-placed nodes (origin sentinel) get grid slots, so a step newly merged
-  into an expanded workflow slots in without disturbing the rest. Collapse now ONLY hides
-  (`setRendered(false)`) — it never rewrites positions.
-- **`collapseAnchors` (VM, in-memory):** volume position recorded at collapse; expand translates the whole
-  stored shape by however far the volume moved since (verbatim restore when unmoved / after relaunch).
-- Layout math unit-tested in SpatialKit; the expand/collapse round-trip itself is RealityKit behavior —
-  **eyeball on Simulator/device**. Same-session pbxproj fix: Info.plist membership exception (see
-  guidelines §5 — the synchronized group was double-producing Info.plist).
+**Workflow pop-out layout (2026-06-11).** Rules for `toggleWorkflowVolume`/`materializeSteps`:
+- **Lay steps out with `SpatialLayoutEngine.stepGraph(nodes:volume:collapseAnchor:metrics:)`** (pure,
+  SpatialKit-tested) — never ad-hoc rows. Longest-path topological layering (Kahn passes; in-set
+  `dependsOn` only; deterministic cycle fallback). Levels = columns along +x (dependencies → dependents,
+  matching output→input edge flow); siblings stacked along y by `stepIndex`. Spacing packs to the volume
+  (`stepColumnGap`/`stepRowGap` shrink for wide/tall graphs).
+- **Stored positions win:** a node with a persisted position keeps it (clamped); only never-placed nodes
+  (origin sentinel) get grid slots — so expand restores the user's arrangement verbatim and a newly-merged
+  step slots in without disturbing the rest. **Collapse must ONLY hide (`setRendered(false)`) — never
+  rewrite positions.**
+- **`collapseAnchors` (VM, in-memory):** record the volume position at collapse; on expand translate the
+  whole stored shape by however far the volume moved since (verbatim restore when unmoved / after relaunch).
+- Layout math is unit-tested in SpatialKit; the expand/collapse round-trip is RealityKit behavior — eyeball on device.
 
 Full plans: `~/.claude/plans/fluttering-hatching-dijkstra.md` (M1–3),
 `~/.claude/plans/fizzy-dancing-shell.md` (M4 setup-workflow + UX fixes; M5 endeavors built on top).
