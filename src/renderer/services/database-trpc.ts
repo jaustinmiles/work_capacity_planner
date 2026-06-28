@@ -156,6 +156,15 @@ export class TrpcDatabaseService {
     return TrpcDatabaseService.instance
   }
 
+  /**
+   * Expose the typed tRPC client for routers that don't need bespoke wrapper
+   * methods (e.g. the mind-map/journal router). The client carries the active
+   * session header automatically.
+   */
+  getApiClient(): ApiClient {
+    return this.client
+  }
+
   // ============================================================================
   // Session Management
   // ============================================================================

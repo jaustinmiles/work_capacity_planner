@@ -210,6 +210,8 @@ export interface MindMapRelationshipConfig {
   label: string
   /** Short description injected into the AI prompt. */
   description: string
+  /** Hex color the edge renders in (centralized so the legend stays coherent). */
+  color: string
   /** Allowed source kinds (null = any kind). */
   sourceKinds: MindMapNodeKind[] | null
   /** Allowed target kinds (null = any kind). */
@@ -234,36 +236,42 @@ export const MIND_MAP_RELATIONSHIP_CONFIG: Record<
   [MindMapRelationshipType.RelatesTo]: {
     label: 'relates to',
     description: 'a general association between two ideas',
+    color: '#86909C', // neutral gray
     sourceKinds: null,
     targetKinds: null,
   },
   [MindMapRelationshipType.LeadsTo]: {
     label: 'leads to',
     description: 'one thing causes or temporally precedes another',
+    color: '#00B42A', // green (flow)
     sourceKinds: null,
     targetKinds: null,
   },
   [MindMapRelationshipType.PartOf]: {
     label: 'part of',
     description: 'the source is a component of the larger target',
+    color: '#7C5CFC', // violet (hierarchy)
     sourceKinds: null,
     targetKinds: [MindMapNodeKind.Theme, MindMapNodeKind.Concept],
   },
   [MindMapRelationshipType.Blocks]: {
     label: 'blocks',
     description: 'an actionable item that must be done before another (todo → todo only)',
+    color: '#F53F3F', // red (blocker)
     sourceKinds: [MindMapNodeKind.Todo],
     targetKinds: [MindMapNodeKind.Todo],
   },
   [MindMapRelationshipType.Contradicts]: {
     label: 'contradicts',
     description: 'a tension or conflict between two ideas or feelings',
+    color: '#F77234', // orange (tension)
     sourceKinds: IDEA_KINDS,
     targetKinds: IDEA_KINDS,
   },
   [MindMapRelationshipType.Elaborates]: {
     label: 'elaborates',
     description: 'the source expands on or details the target',
+    color: '#3491FA', // blue (detail)
     sourceKinds: [MindMapNodeKind.Theme, MindMapNodeKind.Concept, MindMapNodeKind.Question],
     targetKinds: [MindMapNodeKind.Theme, MindMapNodeKind.Concept],
   },

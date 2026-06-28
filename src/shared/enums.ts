@@ -401,6 +401,7 @@ export enum GraphNodeType {
   Goal = 'goal',
   DeepWorkTask = 'deepWorkTask',
   DeepWorkStep = 'deepWorkStep',
+  MindMapConcept = 'mindMapConcept',
 }
 
 // ReactFlow edge type identifiers
