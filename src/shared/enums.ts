@@ -281,6 +281,7 @@ export enum ViewType {
   Memory = 'memory',
   Decision = 'decision',
   Ranking = 'ranking',
+  Journal = 'journal',
 }
 
 // Decision tree node types
@@ -434,6 +435,39 @@ export enum SpatialEntityKind {
   TypePanel = 'typePanel',
   WorkflowVolume = 'workflowVolume',
   Note = 'note',
+}
+
+// Mind-map node kinds — the CLOSED set of concept categories the journal-processing
+// AI may produce. The AI cannot invent new kinds; output is validated against this
+// set server-side (see src/shared/mindmap-extraction.ts). Color + default symbol per
+// kind live in MIND_MAP_NODE_KIND_CONFIG (src/shared/mindmap-types.ts).
+export enum MindMapNodeKind {
+  Theme = 'theme',       // recurring topic / subject running through entries
+  Concept = 'concept',   // an idea, insight, or realization
+  Todo = 'todo',         // an actionable item (may link to a canonical Task)
+  Question = 'question', // an open question / uncertainty
+  Feeling = 'feeling',   // an emotion / mood expressed
+  Person = 'person',     // a person mentioned
+}
+
+// Mind-map relationship kinds — the CLOSED set of relationships the AI may draw
+// between nodes. Which (sourceKind → targetKind) pairs are legal per type is
+// codified in the relationship matrix (isRelationshipAllowed); edges violating it
+// are dropped server-side. This is the "AI cannot hallucinate relationships outside
+// the codified set" guarantee.
+export enum MindMapRelationshipType {
+  RelatesTo = 'relates_to',     // general association (any → any)
+  LeadsTo = 'leads_to',         // causal / temporal progression (any → any)
+  PartOf = 'part_of',           // hierarchical: source is part of target (→ theme/concept)
+  Blocks = 'blocks',            // actionable dependency (todo → todo)
+  Contradicts = 'contradicts',  // tension between ideas/feelings
+  Elaborates = 'elaborates',    // source expands/details target
+}
+
+// Journal tab view modes: the calendar/list of entries vs the mind-map scene.
+export enum JournalViewMode {
+  Calendar = 'calendar',
+  Scene = 'scene',
 }
 
 // Re-export enum utility functions from enum-utils.ts for backwards compatibility
