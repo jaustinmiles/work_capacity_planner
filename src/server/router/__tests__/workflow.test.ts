@@ -409,6 +409,90 @@ describe('workflow router', () => {
     })
   })
 
+  // Deep-work detail panel regression: step edits used to go through task.update,
+  // whose input schema has no `steps` field — Zod stripped the payload and every
+  // step edit was a silent no-op. The panel now saves through updateStep, so this
+  // pins the full editable field set (asyncWaitTime was missing from the input).
+  describe('updateStep detail-panel field set', () => {
+    it('persists every field the deep-work detail panel edits', async () => {
+      mockPrisma.task.findUnique.mockResolvedValue({ sessionId: 'test-session-id' })
+      mockPrisma.userTaskType.findMany.mockResolvedValue([{ id: 'type-admin' }])
+      mockPrisma.taskStep.update.mockResolvedValue(
+        createMockStep({
+          id: 'step-1',
+          name: 'Renamed',
+          duration: 45,
+          type: 'type-admin',
+          notes: 'new notes',
+          cognitiveComplexity: 4,
+          asyncWaitTime: 120,
+          importance: 9,
+          urgency: 8,
+          dependsOn: '[]',
+        }),
+      )
+
+      const caller = appRouter.createCaller(ctx)
+      await caller.workflow.updateStep({
+        taskId: 'workflow-123',
+        stepId: 'step-1',
+        name: 'Renamed',
+        duration: 45,
+        type: 'type-admin',
+        notes: 'new notes',
+        cognitiveComplexity: 4,
+        asyncWaitTime: 120,
+        importance: 9,
+        urgency: 8,
+      })
+
+      expect(mockPrisma.taskStep.update).toHaveBeenCalledWith({
+        where: { id: 'step-1' },
+        data: {
+          name: 'Renamed',
+          duration: 45,
+          type: 'type-admin',
+          notes: 'new notes',
+          cognitiveComplexity: 4,
+          asyncWaitTime: 120,
+          importance: 9,
+          urgency: 8,
+        },
+      })
+    })
+
+    it('clears notes when null is sent', async () => {
+      mockPrisma.taskStep.update.mockResolvedValue(
+        createMockStep({ id: 'step-1', notes: null, dependsOn: '[]' }),
+      )
+
+      const caller = appRouter.createCaller(ctx)
+      await caller.workflow.updateStep({
+        taskId: 'workflow-123',
+        stepId: 'step-1',
+        notes: null,
+      })
+
+      expect(mockPrisma.taskStep.update).toHaveBeenCalledWith({
+        where: { id: 'step-1' },
+        data: { notes: null },
+      })
+    })
+
+    it('rejects a negative asyncWaitTime', async () => {
+      const caller = appRouter.createCaller(ctx)
+      await expect(
+        caller.workflow.updateStep({
+          taskId: 'workflow-123',
+          stepId: 'step-1',
+          asyncWaitTime: -5,
+        }),
+      ).rejects.toMatchObject({ code: 'BAD_REQUEST' })
+
+      expect(mockPrisma.taskStep.update).not.toHaveBeenCalled()
+    })
+  })
+
   // Trust-boundary regression: any client (including the AI agent) could persist step
   // types that don't exist because the server never validated them against UserTaskType.
   // These tests exercise the REAL router procedures via createCaller.

@@ -30,9 +30,10 @@ import {
 import dayjs from 'dayjs'
 import { DeepWorkNodeStatus } from '@shared/deep-work-board-types'
 import { DeadlineType } from '@shared/enums'
-import type { Task, TaskStep } from '@shared/types'
+import type { Task } from '@shared/types'
 import { formatMinutes } from '@shared/time-utils'
 import {
+  buildStepUpdatePayload,
   deriveDeepWorkDisplayStatus,
   getInitialFields,
   STATUS_LABELS,
@@ -58,6 +59,7 @@ export function DeepWorkNodeDetailPanel() {
   const recomputeEdges = useDeepWorkBoardStore((s) => s.recomputeEdges)
 
   const updateTask = useTaskStore((s) => s.updateTask)
+  const updateTaskStep = useTaskStore((s) => s.updateTaskStep)
   const userTypes = useSortedUserTaskTypes()
 
   const node = expandedNodeId ? nodes.get(expandedNodeId) ?? null : null
@@ -144,31 +146,18 @@ export function DeepWorkNodeDetailPanel() {
         }, 'dwb-detail-save-task')
         await updateTask(task.id, payload)
       } else if (step && parentTask) {
-        // Workflow step — update the parent workflow's step data
-        const updatedSteps = parentTask.steps?.map((s) => {
-          if (s.id !== step.id) return s
-          return {
-            ...s,
-            name: currentFields.name,
-            duration: currentFields.duration,
-            type: currentFields.type,
-            importance: currentFields.importance,
-            urgency: currentFields.urgency,
-            notes: currentFields.notes || undefined,
-            cognitiveComplexity: currentFields.cognitiveComplexity as TaskStep['cognitiveComplexity'],
-            asyncWaitTime: currentFields.asyncWaitTime,
-          }
-        })
-
-        if (updatedSteps) {
+        // Workflow step — persist via workflow.updateStep. task.update silently
+        // drops a `steps` payload (Zod strips unknown keys), so steps MUST go
+        // through the per-step procedure. Only changed fields are sent, so an
+        // edit never freezes the parent-priority fallback into a step override.
+        const payload = buildStepUpdatePayload(currentFields, getInitialFields(node))
+        if (Object.keys(payload).length > 0) {
           logger.ui.info('Detail panel saving step', {
             parentTaskId: parentTask.id,
             stepId: step.id,
-            type: currentFields.type,
+            fields: Object.keys(payload),
           }, 'dwb-detail-save-step')
-          await updateTask(parentTask.id, {
-            steps: updatedSteps,
-          } as Partial<Task>)
+          await updateTaskStep(parentTask.id, step.id, payload)
         }
       }
 
@@ -183,7 +172,7 @@ export function DeepWorkNodeDetailPanel() {
         error: error instanceof Error ? error.message : String(error),
       }, 'dwb-detail-save-error')
     }
-  }, [node, task, step, parentTask, updateTask, recomputeEdges])
+  }, [node, task, step, parentTask, updateTask, updateTaskStep, recomputeEdges])
 
   if (!node) return null
 

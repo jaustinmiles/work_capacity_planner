@@ -544,6 +544,7 @@ export class TrpcDatabaseService {
       duration?: number
       type?: string
       cognitiveComplexity?: number | null
+      asyncWaitTime?: number
       dependsOn?: string[]
       importance?: number | null
       urgency?: number | null

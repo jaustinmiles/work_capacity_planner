@@ -74,6 +74,23 @@ export interface TaskStep extends TimeLoggable {
 }
 
 /**
+ * Editable TaskStep fields accepted by workflow.updateStep.
+ * Progress/status fields have their own path (updateTaskStepProgress).
+ * Null clears a nullable column (notes, cognitiveComplexity, priority overrides).
+ */
+export interface TaskStepUpdate {
+  name?: string
+  duration?: number
+  type?: string
+  notes?: string | null
+  cognitiveComplexity?: number | null
+  asyncWaitTime?: number
+  dependsOn?: string[]
+  importance?: number | null
+  urgency?: number | null
+}
+
+/**
  * Represents a scheduled item (task or workflow step) returned by the scheduler
  * Used for "Start Next Task" functionality
  */
