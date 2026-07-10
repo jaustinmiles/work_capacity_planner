@@ -8,7 +8,7 @@
  */
 
 import { createDynamicClient, type ApiClient } from '@shared/trpc-client'
-import type { Task, Session, AICallOptions, Endeavor, EndeavorWithTasks, EndeavorProgress } from '@shared/types'
+import type { Task, TaskUpdate, Session, AICallOptions, Endeavor, EndeavorWithTasks, EndeavorProgress } from '@shared/types'
 import type {
   DeepWorkBoard,
   DeepWorkNodeWithData,
@@ -352,7 +352,7 @@ export class TrpcDatabaseService {
     return task as Task
   }
 
-  async updateTask(id: string, updates: Partial<Task>): Promise<Task> {
+  async updateTask(id: string, updates: TaskUpdate): Promise<Task> {
     const task = await this.client.task.update.mutate({ id, ...updates })
     return task as Task
   }

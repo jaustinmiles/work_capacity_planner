@@ -54,6 +54,18 @@ export interface Task extends TimeLoggable {
   isAsyncTrigger?: boolean
 }
 
+/**
+ * Update payload for a task. Unlike `Partial<Task>`, nullable fields may be set
+ * to `null` to explicitly CLEAR them. `Partial<Task>` can only omit or set a
+ * `Date`, and an omitted/undefined value is treated as "no change" at the Prisma
+ * boundary — which is why a cleared deadline was silently dropped. Mirrors the
+ * endeavor update payload (`deadline?: Date | null`).
+ */
+export type TaskUpdate = Partial<Omit<Task, 'deadline' | 'deadlineType'>> & {
+  deadline?: Date | null
+  deadlineType?: DeadlineType | null
+}
+
 export interface TaskStep extends TimeLoggable {
   // Inherited from TimeLoggable: id, name, duration, actualDuration
   type: string // Required for steps (overrides optional from TimeLoggable)

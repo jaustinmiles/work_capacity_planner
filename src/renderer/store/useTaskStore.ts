@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 import { subscribeWithSelector } from 'zustand/middleware'
-import { Task, TaskStepUpdate } from '@shared/types'
+import { Task, TaskStepUpdate, TaskUpdate } from '@shared/types'
 import { applyTaskStepUpdate } from '@shared/deep-work-node-utils'
 import { useSchedulerStore } from './useSchedulerStore'
 import { SequencedTask } from '@shared/sequencing-types'
@@ -58,7 +58,7 @@ interface TaskStore {
   addTask: (__task: Omit<Task, 'id' | 'createdAt' | 'updatedAt'>) => Promise<void>
   addSequencedTask: (task: Omit<SequencedTask, 'id' | 'createdAt' | 'updatedAt'>) => Promise<void>
   addOrUpdateSequencedTask: (task: Omit<SequencedTask, 'id' | 'createdAt' | 'updatedAt'>) => Promise<void>
-  updateTask: (__id: string, updates: Partial<Task>) => Promise<void>
+  updateTask: (__id: string, updates: TaskUpdate) => Promise<void>
   updateSequencedTask: (__id: string, updates: Partial<SequencedTask>) => Promise<void>
   deleteTask: (__id: string) => Promise<void>
   deleteSequencedTask: (id: string) => Promise<void>

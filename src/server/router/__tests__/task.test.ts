@@ -276,6 +276,35 @@ describe('task router', () => {
       const dataArg = mockPrisma.task.update.mock.calls[0][0].data
       expect(dataArg).not.toHaveProperty('completedAt')
     })
+
+    // Regression: clearing a deadline. Prisma treats undefined as "no change", so a
+    // cleared deadline MUST reach the DB as an explicit null. The edit forms now send
+    // null on clear; this locks the contract that the router forwards it verbatim.
+    it('clears the deadline when deadline is explicitly null', async () => {
+      mockPrisma.task.update.mockResolvedValue(
+        createMockTask({ id: 'task-123', deadline: null }),
+      )
+
+      const caller = appRouter.createCaller(ctx)
+      await caller.task.update({ id: 'task-123', deadline: null })
+
+      expect(mockPrisma.task.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { id: 'task-123' },
+          data: expect.objectContaining({ deadline: null }),
+        }),
+      )
+    })
+
+    it('leaves the deadline untouched when deadline is omitted', async () => {
+      mockPrisma.task.update.mockResolvedValue(createMockTask({ id: 'task-123', name: 'Renamed' }))
+
+      const caller = appRouter.createCaller(ctx)
+      await caller.task.update({ id: 'task-123', name: 'Renamed' })
+
+      const dataArg = mockPrisma.task.update.mock.calls[0][0].data
+      expect(dataArg).not.toHaveProperty('deadline')
+    })
   })
 
   describe('delete', () => {
