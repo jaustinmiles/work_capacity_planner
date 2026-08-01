@@ -135,4 +135,52 @@ struct SpatialLayoutEngineTests {
     @Test func trayBoundsEmptyWhenNoTypes() {
         #expect(SpatialLayoutEngine.trayBounds(.init(types: [], tasks: [])).isEmpty)
     }
+
+    /// Build N types (no tasks) to exercise dense-lane geometry.
+    private func typesInput(_ n: Int, metrics: VolumeMetrics = .standard) -> SpatialLayoutEngine.Input {
+        let types = (0..<n).map {
+            SpatialLayoutEngine.TypeInput(typeId: "t\($0)", panelEntityId: "p\($0)", order: $0)
+        }
+        return SpatialLayoutEngine.Input(types: types, tasks: [], metrics: metrics)
+    }
+
+    // Regression for the device-reported flicker: at 5+ types the fixed-width slabs overlapped AND
+    // shared one depth, so coplanar translucent surfaces z-fought. Neither may recur.
+    @Test func trayWidthsDoNotOverlapAtManyTypes() {
+        for n in 5...8 {
+            let trays = SpatialLayoutEngine.trayBounds(typesInput(n)).sorted { $0.center.x < $1.center.x }
+            for (a, b) in zip(trays, trays.dropFirst()) {
+                let gap = (b.center.x - a.center.x) - (a.size.x + b.size.x) / 2
+                #expect(gap >= 0, "trays \(a.typeId)/\(b.typeId) overlap at n=\(n) (gap \(gap))")
+            }
+        }
+    }
+
+    @Test func trayDepthsAreDistinctSoSlabsCannotZFight() {
+        let trays = SpatialLayoutEngine.trayBounds(typesInput(6))
+        let depths = trays.map(\.center.z)
+        #expect(Set(depths.map { ($0 * 1e6).rounded() }).count == depths.count)   // all distinct
+    }
+
+    @Test func traysAreWiderInABiggerVolume() {
+        let small = SpatialLayoutEngine.trayBounds(typesInput(6, metrics: VolumeMetrics(size: [1.4, 1.0, 1.4])))
+        let big = SpatialLayoutEngine.trayBounds(typesInput(6, metrics: VolumeMetrics(size: [3.0, 1.6, 2.0])))
+        #expect(big[0].size.x > small[0].size.x)   // more room → wider, still non-overlapping lanes
+    }
+
+    // A hand-moved tray: the panel's storedAnchor drives the whole unit (panel + column + slab).
+    @Test func storedAnchorMovesPanelColumnAndTray() {
+        let moved = SIMD3<Float>(0.3, 0.1, 0.05)
+        let input = SpatialLayoutEngine.Input(
+            types: [.init(typeId: "t1", panelEntityId: "p1", order: 0, storedAnchor: moved),
+                    .init(typeId: "t2", panelEntityId: "p2", order: 1)],
+            tasks: [.init(entityId: "a", typeId: "t1", order: 0)]
+        )
+        let pos = Dictionary(uniqueKeysWithValues: SpatialLayoutEngine.layout(input).map { ($0.entityId, $0.position) })
+        #expect(abs(pos["p1"]!.x - moved.x) < 1e-4)          // panel sits at the moved anchor
+        #expect(abs(pos["a"]!.x - moved.x) < 1e-4)           // its task column follows in x
+        #expect(pos["a"]!.y < moved.y)                       // and stacks below the anchor
+        let tray = SpatialLayoutEngine.trayBounds(input).first { $0.typeId == "t1" }!
+        #expect(abs(tray.center.x - moved.x) < 1e-4)         // the slab follows too
+    }
 }

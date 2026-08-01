@@ -12,7 +12,10 @@ nonisolated struct VolumeMetrics: Sendable {
     /// Inset from the walls so a card (and its depth/scale) stays fully inside the bounds.
     var inset: Float
 
-    init(size: SIMD3<Float> = [1.4, 1.0, 1.4], inset: Float = 0.12) {
+    /// Default matches the volume WindowGroup's `defaultSize` so the pre-geometry fallback lays out
+    /// against the right bounds (no first-frame "small layout → snap to fill" flash before the
+    /// `GeometryReader3D` size read lands). Resizing then drives `size` from the real geometry.
+    init(size: SIMD3<Float> = [1.8, 1.2, 1.8], inset: Float = 0.12) {
         self.size = size
         self.inset = inset
     }

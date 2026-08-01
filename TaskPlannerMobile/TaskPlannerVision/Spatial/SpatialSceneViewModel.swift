@@ -33,6 +33,13 @@ final class SpatialSceneViewModel {
     /// Entities the user has hand-moved; the layout engine leaves these where they are.
     private(set) var manuallyMovedIds: Set<String> = []
 
+    /// The volume's live coordinate space, driven by the actual window geometry (see `setVolumeSize`).
+    /// Every clamp, spawn, tray, and layout reads this — so resizing the volume reflows the scene to
+    /// fill it. Falls back to `.standard` until the first geometry read arrives.
+    private(set) var metrics: VolumeMetrics = .standard
+    /// Debounces persistence of resize-driven reflows so a continuous drag-resize doesn't spam writes.
+    private var resizePersistTask: Task<Void, Never>?
+
     /// Where each workflow volume sat when the user collapsed it (volume entity id → position),
     /// so a later expand can translate the stored step arrangement by however far the volume
     /// moved in between. In-memory only: with no anchor (fresh launch) the stored positions are
@@ -280,8 +287,7 @@ final class SpatialSceneViewModel {
             // Only place freshly-created entities (still at the (0,0,0) creation placeholder).
             // Entities with a stored position — including ones the user dragged in a previous
             // session — are left exactly where they are, so layout persists across restarts.
-            let isPlaceholder = abs(cur.positionX) < 1e-4 && abs(cur.positionY) < 1e-4 && abs(cur.positionZ) < 1e-4
-            guard isPlaceholder else { continue }
+            guard isPlaceholder(cur) else { continue }
             entities[idx].positionX = Double(p.position.x)
             entities[idx].positionY = Double(p.position.y)
             entities[idx].positionZ = Double(p.position.z)
@@ -354,14 +360,27 @@ final class SpatialSceneViewModel {
         SpatialLayoutEngine.trayBounds(buildLayoutInput())
     }
 
-    private func buildLayoutInput() -> SpatialLayoutEngine.Input {
+    /// Build the engine input from the current entities.
+    ///
+    /// `useStoredAnchors` (default) anchors each type's column + tray to its panel's persisted
+    /// position, so a hand-moved tray (and the resize classifier's "where SHOULD this sit" baseline)
+    /// stay correct. Pass `false` to compute the pure index layout (used to classify auto- vs
+    /// hand-placed entities at resize time, where the index grid is the reference).
+    private func buildLayoutInput(useStoredAnchors: Bool = true) -> SpatialLayoutEngine.Input {
+        var panelEntityById: [String: SpatialEntity] = [:]
         var panelEntityByType: [String: String] = [:]
         for e in entities where e.kind == .typePanel {
+            panelEntityById[e.id] = e
             if let refId = e.refId { panelEntityByType[refId] = e.id }
         }
         let types: [SpatialLayoutEngine.TypeInput] = userTaskTypes.enumerated().compactMap { index, type in
             guard let panelId = panelEntityByType[type.id] else { return nil }
-            return SpatialLayoutEngine.TypeInput(typeId: type.id, panelEntityId: panelId, order: index)
+            // The panel's stored position is the tray anchor once it has been placed (non-origin).
+            var anchor: SIMD3<Float>?
+            if useStoredAnchors, let e = panelEntityById[panelId], !isPlaceholder(e) {
+                anchor = SIMD3(Float(e.positionX), Float(e.positionY), Float(e.positionZ))
+            }
+            return SpatialLayoutEngine.TypeInput(typeId: type.id, panelEntityId: panelId, order: index, storedAnchor: anchor)
         }
 
         var taskInputs: [SpatialLayoutEngine.TaskInput] = []
@@ -387,7 +406,121 @@ final class SpatialSceneViewModel {
             }
         }
 
-        return SpatialLayoutEngine.Input(types: types, tasks: taskInputs, manual: manual, metrics: .standard)
+        return SpatialLayoutEngine.Input(types: types, tasks: taskInputs, manual: manual, metrics: metrics)
+    }
+
+    /// An entity still at the (0,0,0) creation placeholder (never positioned by layout or a drag).
+    private func isPlaceholder(_ e: SpatialEntity) -> Bool {
+        abs(e.positionX) < 1e-4 && abs(e.positionY) < 1e-4 && abs(e.positionZ) < 1e-4
+    }
+
+    // MARK: - Volume resizing (geometry-driven metrics)
+
+    /// Adopt the volume's actual size (pushed from the RealityView's `GeometryReader3D`). Trays are
+    /// live projections so they reflow immediately; persisted cards that still sit at their computed
+    /// default slot follow to the respaced layout (hand-arranged cards are left alone). Sub-cm jitter
+    /// from continuous geometry updates is ignored.
+    func setVolumeSize(_ size: SIMD3<Float>) {
+        guard size.x > 0.1, size.y > 0.1, size.z > 0.1 else { return }
+        let new = VolumeMetrics(size: size, inset: metrics.inset)
+        // Reflow in ~3 cm steps: coarse enough that a continuous drag-resize doesn't recompute the
+        // layout every geometry tick, fine enough that the settled size is always within 3 cm (trays
+        // are live projections, so they track each reconcile regardless).
+        guard simd_distance(new.size, metrics.size) > 0.03 else { return }
+        let old = metrics
+        metrics = new
+        reflowAutoEntities(old: old, new: new)
+    }
+
+    /// Pure index-grid positions under a given size — the reference for "is this entity sitting where
+    /// the engine would auto-place it?" (storedAnchors + manual overrides removed).
+    private func defaultPositions(_ m: VolumeMetrics) -> [String: SIMD3<Float>] {
+        var base = buildLayoutInput(useStoredAnchors: false)
+        base.manual = [:]
+        base.metrics = m
+        return Dictionary(uniqueKeysWithValues: SpatialLayoutEngine.layout(base).map { ($0.entityId, $0.position) })
+    }
+
+    /// Move every auto-placed entity (one still at its old computed slot) to the new size's slot, so
+    /// cards stay on their now-respaced trays. Hand-moved entities (which don't match) keep their spot.
+    private func reflowAutoEntities(old: VolumeMetrics, new: VolumeMetrics) {
+        let oldDefault = defaultPositions(old)
+        let newDefault = defaultPositions(new)
+        var changed: Set<String> = []
+        for idx in entities.indices {
+            let e = entities[idx]
+            guard let was = oldDefault[e.id], let target = newDefault[e.id] else { continue }
+            let cur = SIMD3<Float>(Float(e.positionX), Float(e.positionY), Float(e.positionZ))
+            guard simd_distance(cur, was) < 0.02 else { continue }   // auto-placed ⇒ follow; else skip
+            entities[idx].positionX = Double(target.x)
+            entities[idx].positionY = Double(target.y)
+            entities[idx].positionZ = Double(target.z)
+            changed.insert(e.id)
+        }
+        scheduleTransformPersist(changed)
+    }
+
+    /// Debounced batch persist for positions touched by a continuous resize (avoids per-frame writes).
+    private var pendingPersistIds: Set<String> = []
+    private func scheduleTransformPersist(_ ids: Set<String>) {
+        guard !ids.isEmpty else { return }
+        pendingPersistIds.formUnion(ids)
+        resizePersistTask?.cancel()
+        resizePersistTask = Task { [weak self] in
+            try? await Task.sleep(for: .milliseconds(400))
+            guard !Task.isCancelled else { return }
+            await self?.flushPendingTransformPersist()
+        }
+    }
+
+    private func flushPendingTransformPersist() async {
+        let ids = pendingPersistIds
+        pendingPersistIds.removeAll()
+        await persistTransforms(ids: ids)
+    }
+
+    /// Batch-persist the current stored transforms of the given entities.
+    private func persistTransforms(ids: Set<String>) async {
+        guard let service, !ids.isEmpty else { return }
+        let updates = ids.compactMap { id -> UpdateEntityTransformInput? in
+            guard let e = entities.first(where: { $0.id == id }) else { return nil }
+            return UpdateEntityTransformInput(
+                id: e.id, positionX: e.positionX, positionY: e.positionY, positionZ: e.positionZ)
+        }
+        guard !updates.isEmpty else { return }
+        do {
+            try await service.batchUpdateEntityTransforms(BatchUpdateEntityTransformsInput(updates: updates))
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    /// Shift a type's whole column (its task nodes + workflow volumes) by `delta` — used when its
+    /// tray panel is dragged, so the tray and its contents move as one unit. Local + persisted; the
+    /// dragged panel itself is excluded (the bridge persists it separately).
+    private func translateColumn(typeId: String, by delta: SIMD3<Float>, excluding panelId: String) {
+        var moved: Set<String> = []
+        for idx in entities.indices {
+            let e = entities[idx]
+            guard e.id != panelId else { continue }
+            let belongs: Bool
+            switch e.kind {
+            case .taskNode: belongs = task(for: e)?.type == typeId
+            case .workflowVolume: belongs = e.refId.flatMap { tasksById[$0]?.type } == typeId
+            default: belongs = false
+            }
+            guard belongs else { continue }
+            let p = metrics.clamp(SIMD3<Float>(
+                Float(e.positionX) + delta.x, Float(e.positionY) + delta.y, Float(e.positionZ) + delta.z))
+            entities[idx].positionX = Double(p.x)
+            entities[idx].positionY = Double(p.y)
+            entities[idx].positionZ = Double(p.z)
+            moved.insert(e.id)
+        }
+        if !moved.isEmpty {
+            let ids = moved
+            Task { await persistTransforms(ids: ids) }
+        }
     }
 
     // MARK: - Content lookup
@@ -588,10 +721,20 @@ final class SpatialSceneViewModel {
     /// guarantees no reconcile pass ever sees `.data` with a stale stored position, which is
     /// what made the card snap back. Call `persistTransform(id:)` afterwards for the network write.
     func commitDrag(id: String, x: Double, y: Double, z: Double) {
+        // Capture the pre-move position so a tray panel can drag its whole column along.
+        let before = entities.first { $0.id == id }
+            .map { SIMD3<Float>(Float($0.positionX), Float($0.positionY), Float($0.positionZ)) }
         updateLocalPosition(id: id, x: x, y: y, z: z)
         resetOrientation(id: id)   // cards are upright-locked; persist identity orientation
         manuallyMovedIds.insert(id)
         ownershipByID[id] = .data
+
+        // Moving a type panel moves its tray + entire column as one unit.
+        if let e = entities.first(where: { $0.id == id }), e.kind == .typePanel,
+           let typeId = e.refId, let before {
+            let delta = SIMD3<Float>(Float(x) - before.x, Float(y) - before.y, Float(z) - before.z)
+            translateColumn(typeId: typeId, by: delta, excluding: id)
+        }
     }
 
     func persistTransform(id: String) async {
@@ -990,7 +1133,10 @@ final class SpatialSceneViewModel {
             await refreshTasks()
         }
         manuallyMovedIds.removeAll()
-        for idx in entities.indices where entities[idx].kind == .taskNode || entities[idx].kind == .workflowVolume {
+        // Reset cards AND tray panels to placeholders so relayout re-flows the trays back to their
+        // default index lanes — "send everything back to its tray" also resets the trays themselves.
+        for idx in entities.indices
+        where entities[idx].kind == .taskNode || entities[idx].kind == .workflowVolume || entities[idx].kind == .typePanel {
             entities[idx].positionX = 0
             entities[idx].positionY = 0
             entities[idx].positionZ = 0

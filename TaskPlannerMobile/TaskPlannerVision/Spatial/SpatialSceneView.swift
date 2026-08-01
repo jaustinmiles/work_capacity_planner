@@ -1,6 +1,7 @@
 import SwiftUI
 import RealityKit
 import simd
+import Spatial  // Size3D for the volume's physical-size read (GeometryReader3D + physicalMetrics)
 import os      // OSLog string interpolation (privacy:) for SpatialLog must be imported at use site
 
 /// The volumetric workspace. Each rendered `SpatialEntity` is a SwiftUI glass card surfaced
@@ -34,6 +35,9 @@ struct SpatialSceneView: View {
     @State private var manipBridge = ManipulationBridge()
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.openWindow) private var openWindow
+    /// Converts the volume's point-space size (from `GeometryReader3D`) to meters so the layout can
+    /// fill the actual volume — the user can resize it and the trays/columns reflow to match.
+    @Environment(\.physicalMetrics) private var physicalMetrics
 
     /// Distinct hover groups so the card and its × control highlight independently on gaze
     /// (a shared/implicit group would couple them). `GroupID` is visionOS 26.
@@ -171,6 +175,23 @@ struct SpatialSceneView: View {
         .onChange(of: reduceMotion, initial: true) { _, newValue in
             viewModel.reduceMotion = newValue
         }
+        // Track the volume's real size so the layout fills it: a same-frame 3D geometry reader reports
+        // the workspace's point-space size, converted to meters and pushed to the view model. Resizing
+        // the volume reflows trays/columns; sub-cm jitter is filtered in `setVolumeSize`.
+        .background {
+            GeometryReader3D { proxy in
+                Color.clear
+                    .onChange(of: proxy.size, initial: true) { _, newSize in
+                        updateVolumeSize(newSize)
+                    }
+            }
+        }
+    }
+
+    /// Convert the volume's point-space size to meters and adopt it as the layout's coordinate space.
+    private func updateVolumeSize(_ size: Size3D) {
+        let meters = physicalMetrics.convert(size, to: .meters)
+        viewModel.setVolumeSize(SIMD3<Float>(Float(meters.width), Float(meters.height), Float(meters.depth)))
     }
 
     // MARK: - Control entity naming (gesture disambiguation backbone)
@@ -304,7 +325,7 @@ struct SpatialSceneView: View {
             // transform toward it (smooth, not a teleport). A gesture/animation owner is skipped —
             // the structural fix for the drag snap-back (decided by the pure SceneReducer).
             if writableIds.contains(entity.id) {
-                let target = VolumeMetrics.standard.clamp(
+                let target = viewModel.metrics.clamp(
                     SIMD3(Float(entity.positionX), Float(entity.positionY), Float(entity.positionZ))
                 )
                 card.components.set(LayoutTargetComponent(target: target))
@@ -333,15 +354,18 @@ struct SpatialSceneView: View {
             updateEditControl(on: card, entity: entity, bounds: bounds, valid: valid)
         }
 
+        syncSpawnPlane(content: content)
         syncTrayBackings(content: content)
         syncEdges(content: content, rendered: rendered)
     }
 
     // MARK: - Interaction wiring
 
-    /// Movable entity kinds get native object manipulation; type panels are static anchors.
+    /// Movable entity kinds get native object manipulation. The type panel is the grab handle for its
+    /// whole tray (header + slab + task column) — dragging it moves the column as one unit (see
+    /// `viewModel.commitDrag`); its tap is an inert no-op so grabbing it never opens an editor.
     private func isMovable(_ kind: SpatialEntityKind) -> Bool {
-        kind == .taskNode || kind == .stepNode || kind == .note || kind == .workflowVolume
+        kind == .taskNode || kind == .stepNode || kind == .note || kind == .workflowVolume || kind == .typePanel
     }
 
     /// Trigger a one-shot scale pulse on a card (`.pop` for create/select, `.bounce` for drop).
@@ -813,7 +837,7 @@ struct SpatialSceneView: View {
         let n = viewModel.entities.count
         let col = Float(n % 4) * 0.16 - 0.24
         let row = -Float((n / 4) % 3) * 0.14
-        return VolumeMetrics.standard.clamp([col, row, VolumeMetrics.standard.usableHalf.z * 0.4])
+        return viewModel.metrics.clamp([col, row, viewModel.metrics.usableHalf.z * 0.4])
     }
 
     // MARK: - Gaze + double-pinch spawn
@@ -826,12 +850,19 @@ struct SpatialSceneView: View {
     private func makeSpawnPlane() -> Entity {
         let plane = Entity()
         plane.name = Self.spawnPlaneName
-        let m = VolumeMetrics.standard
-        let size = SIMD3<Float>(m.usableHalf.x * 2 + 0.2, m.usableHalf.y * 2 + 0.2, 0.01)
-        plane.position = SIMD3(0, 0, m.backZ - 0.03)
-        plane.components.set(CollisionComponent(shapes: [.generateBox(size: size)]))
+        // Unit box scaled to the volume in `syncSpawnPlane` (scaling the entity scales its collider),
+        // so the gaze backdrop grows with a resized volume without regenerating the shape each pass.
+        plane.components.set(CollisionComponent(shapes: [.generateBox(width: 1, height: 1, depth: 0.01)]))
         plane.components.set(InputTargetComponent())
         return plane
+    }
+
+    /// Keep the invisible gaze backdrop sized to (and behind) the current volume bounds.
+    private func syncSpawnPlane(content: RealityViewContent) {
+        guard let plane = content.entities.first(where: { $0.name == Self.spawnPlaneName }) else { return }
+        let m = viewModel.metrics
+        plane.position = SIMD3(0, 0, m.backZ - 0.03)
+        plane.scale = SIMD3<Float>(m.usableHalf.x * 2 + 0.2, m.usableHalf.y * 2 + 0.2, 1)
     }
 
     /// Double-pinch on empty space → spawn a task at the look-location, then pop the type wheel.
@@ -841,7 +872,7 @@ struct SpatialSceneView: View {
             .onEnded { value in
                 guard value.entity.name == Self.spawnPlaneName else { return }
                 let pt = value.convert(value.location3D, from: .local, to: .scene)
-                let clamped = VolumeMetrics.standard.clamp(SIMD3<Float>(Float(pt.x), Float(pt.y), Float(pt.z)))
+                let clamped = viewModel.metrics.clamp(SIMD3<Float>(Float(pt.x), Float(pt.y), Float(pt.z)))
                 Task {
                     if let id = await viewModel.createTask(
                         name: Self.defaultTaskName,
