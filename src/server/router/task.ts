@@ -22,6 +22,7 @@ import { processCompletion } from '../../shared/task-completion-processor'
 import type { Task } from '../../shared/types'
 import type { SequencedTask } from '../../shared/sequencing-types'
 import type { DailyWorkPattern } from '../../shared/work-blocks-types'
+import { loadEndeavorDependencyEdges } from '../endeavor-dependency-edges'
 
 /**
  * Schema for creating a task
@@ -555,6 +556,11 @@ export const taskRouter = router({
       const scheduler = new UnifiedScheduler()
       const items = [...simpleTasks, ...workflows]
 
+      const endeavorDependencies = await loadEndeavorDependencyEdges(
+        ctx.prisma,
+        ctx.sessionId,
+      )
+
       const context = {
         startDate: todayDate,
         tasks: simpleTasks as Task[],
@@ -562,6 +568,7 @@ export const taskRouter = router({
         workPatterns: [workPattern],
         workSettings: DEFAULT_WORK_SETTINGS,
         currentTime,
+        endeavorDependencies,
       }
 
       const config = {
@@ -713,6 +720,11 @@ export const taskRouter = router({
       const scheduler = new UnifiedScheduler()
       const items = [...simpleTasks, ...workflows]
 
+      const endeavorDependencies = await loadEndeavorDependencyEdges(
+        ctx.prisma,
+        ctx.sessionId,
+      )
+
       const context = {
         startDate: targetDate,
         tasks: simpleTasks as Task[],
@@ -720,6 +732,7 @@ export const taskRouter = router({
         workPatterns: [workPattern],
         workSettings: DEFAULT_WORK_SETTINGS,
         currentTime,
+        endeavorDependencies,
       }
 
       const config = {

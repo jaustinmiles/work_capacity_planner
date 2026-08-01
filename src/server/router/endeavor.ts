@@ -16,6 +16,7 @@ import {
   getBlockingEndeavors,
 } from '../../shared/endeavor-utils'
 import type { EndeavorWithTasks } from '../../shared/types'
+import { loadEndeavorDependencyEdges } from '../endeavor-dependency-edges'
 
 /**
  * Schema for creating an endeavor
@@ -567,6 +568,16 @@ export const endeavorRouter = router({
 
       return resolved
     }),
+
+  /**
+   * Get ALL endeavor dependencies for the session, with the blocking step's
+   * name and status. This is the scheduler's input for cross-workflow hard
+   * blocks (ScheduleContext.endeavorDependencies) — one bulk query instead of
+   * per-endeavor fan-out.
+   */
+  getAllDependencies: sessionProcedure.query(async ({ ctx }) => {
+    return loadEndeavorDependencyEdges(ctx.prisma, ctx.sessionId)
+  }),
 
   /**
    * Get what's blocking a specific task or step

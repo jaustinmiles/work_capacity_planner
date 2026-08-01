@@ -27,6 +27,7 @@ import dayjs from 'dayjs'
 import { logger } from '@/logger'
 import { useTaskStore } from '../../store/useTaskStore'
 import { useWorkPatternStore } from '../../store/useWorkPatternStore'
+import { useEndeavorStore } from '../../store/useEndeavorStore'
 import { useSchedulerStore } from '../../store/useSchedulerStore'
 import { useUserTaskTypeStore } from '../../store/useUserTaskTypeStore'
 import { useScheduleSnapshotStore } from '../../store/useScheduleSnapshotStore'
@@ -100,6 +101,7 @@ export function SessionManager({ visible, onClose, onSessionChange }: SessionMan
       // Refresh stores for new session
       await useTaskStore.getState().initializeData()
       await useWorkPatternStore.getState().loadWorkPatterns()
+      await useEndeavorStore.getState().loadAllDependencies()
       await useUserTaskTypeStore.getState().loadTypes()
       await useScheduleSnapshotStore.getState().loadSnapshots()
       // Schedule will automatically recompute via store subscriptions
@@ -142,6 +144,7 @@ export function SessionManager({ visible, onClose, onSessionChange }: SessionMan
       // Refresh stores for new session
       await useTaskStore.getState().initializeData()
       await useWorkPatternStore.getState().loadWorkPatterns()
+      await useEndeavorStore.getState().loadAllDependencies()
       await useUserTaskTypeStore.getState().loadTypes()
       await useScheduleSnapshotStore.getState().loadSnapshots()
       // Schedule will automatically recompute via store subscriptions
@@ -199,6 +202,7 @@ export function SessionManager({ visible, onClose, onSessionChange }: SessionMan
       useScheduleSnapshotStore.getState().clearSnapshots()
       await useTaskStore.getState().initializeData()
       await useWorkPatternStore.getState().loadWorkPatterns()
+      await useEndeavorStore.getState().loadAllDependencies()
       await useUserTaskTypeStore.getState().loadTypes()
       await useScheduleSnapshotStore.getState().loadSnapshots()
       // Schedule will automatically recompute via reactive subscriptions

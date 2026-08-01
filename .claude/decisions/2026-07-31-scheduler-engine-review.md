@@ -2,6 +2,12 @@
 
 Date: 2026-07-31
 Branch: `feature/scheduler-review-redesign`
+
+> **UPDATE (2026-07-31, same branch):** the recommended direction was approved and
+> BUILT — interval-based free-slot core + dependency wavefront + endeavor hard blocks
+> + async-wait projection, same public API. Architecture doc:
+> `.claude/rules/scheduler-engine.md`. Findings 1-6 below are fixed; 7 partially
+> (inspector fixed; `totalCapacity` column still dead), 8 addressed by the redesign.
 Trigger: blocks in the "nvidia consistent" session (Fri 16:45–20:20, Sat 09:52–12:09) were
 ignored — the schedule ran continuously from 16:53 Friday through 12:08 Saturday, overnight.
 

@@ -9,6 +9,7 @@
 import { create } from 'zustand'
 import { subscribeWithSelector } from 'zustand/middleware'
 import { UnifiedScheduler, OptimizationMode, UnifiedScheduleItem, ScheduleResult } from '@/shared/unified-scheduler'
+import { EndeavorDependencyEdge } from '@/shared/scheduler/endeavor-dependencies'
 import { Task } from '@/shared/types'
 import { SequencedTask } from '@/shared/sequencing-types'
 import { DailyWorkPattern } from '@/shared/work-blocks-types'
@@ -45,6 +46,7 @@ interface SchedulerStoreState {
   workSettings: WorkSettings | null
   activeWorkSessions: Set<string>
   schedulingPreferences: SchedulingPrefs
+  endeavorDependencies: EndeavorDependencyEdge[]
 
   // Computed schedule result
   scheduleResult: ScheduleResult | null
@@ -62,6 +64,7 @@ interface SchedulerStoreState {
     workSettings?: WorkSettings | null
     activeWorkSessions?: Set<string>
     schedulingPreferences?: SchedulingPrefs
+    endeavorDependencies?: EndeavorDependencyEdge[]
   }) => void
   setNextTaskSkipIndex: (index: number) => void
   setNextScheduledItem: (item: NextScheduledItem | null) => void
@@ -154,6 +157,7 @@ const computeSchedule = (
   workPatterns: DailyWorkPattern[],
   workSettings: WorkSettings | null,
   schedulingPreferences: SchedulingPrefs = { taskSplittingEnabled: true, minimumSplitMinutes: 30 },
+  endeavorDependencies: EndeavorDependencyEdge[] = [],
 ): ScheduleResult | null => {
   try {
     if (!workPatterns || workPatterns.length === 0) {
@@ -182,6 +186,7 @@ const computeSchedule = (
       workPatterns,
       workSettings: workSettings || DEFAULT_WORK_SETTINGS,
       currentTime,
+      endeavorDependencies,
     }
 
     const config = {
@@ -336,6 +341,7 @@ export const useSchedulerStore = create<SchedulerStoreState>()(
     workSettings: null,
     activeWorkSessions: new Set(),
     schedulingPreferences: { taskSplittingEnabled: true, minimumSplitMinutes: 30 },
+    endeavorDependencies: [],
     scheduleResult: null,
     scheduledItems: [],
     nextScheduledItem: null,
@@ -353,7 +359,8 @@ export const useSchedulerStore = create<SchedulerStoreState>()(
         inputs.sequencedTasks !== undefined ||
         inputs.workPatterns !== undefined ||
         inputs.workSettings !== undefined ||
-        inputs.schedulingPreferences !== undefined
+        inputs.schedulingPreferences !== undefined ||
+        inputs.endeavorDependencies !== undefined
 
       if (needsScheduleRecompute) {
         // Defensive check: Detect rapid-fire recomputations (subscription storm)
@@ -392,6 +399,7 @@ export const useSchedulerStore = create<SchedulerStoreState>()(
           newState.workPatterns,
           newState.workSettings,
           newState.schedulingPreferences,
+          newState.endeavorDependencies,
         )
 
         // Extract derived values and add colors
@@ -462,6 +470,7 @@ export const useSchedulerStore = create<SchedulerStoreState>()(
         state.workPatterns,
         state.workSettings,
         state.schedulingPreferences,
+        state.endeavorDependencies,
       )
 
       const scheduledItems = scheduleResult ? addColorsToItems(scheduleResult.scheduled) : []
@@ -487,6 +496,7 @@ export const useSchedulerStore = create<SchedulerStoreState>()(
         workPatterns: [],
         workSettings: null,
         activeWorkSessions: new Set(),
+        endeavorDependencies: [],
         scheduleResult: null,
         scheduledItems: [],
         nextScheduledItem: null,

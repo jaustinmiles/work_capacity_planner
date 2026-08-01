@@ -8,6 +8,7 @@
 import { useTaskStore } from './useTaskStore'
 import { useSchedulerStore } from './useSchedulerStore'
 import { useWorkPatternStore } from './useWorkPatternStore'
+import { useEndeavorStore } from './useEndeavorStore'
 import { useDeepWorkBoardStore } from './useDeepWorkBoardStore'
 import { usePomodoroStore } from './usePomodoroStore'
 import { logger } from '@/logger'
@@ -193,6 +194,20 @@ export const connectStores = () => {
     },
   )
 
+  // Connect endeavor dependency changes to scheduler store
+  // Hard blocks (isHardBlock=true) gate cross-workflow scheduling
+  const unsubEndeavorDeps = useEndeavorStore.subscribe(
+    (state) => state.allDependencies,
+    (endeavorDependencies) => {
+      logger.ui.info('Endeavor dependencies changed, updating scheduler', {
+        count: endeavorDependencies.length,
+        hardBlocks: endeavorDependencies.filter(d => d.isHardBlock).length,
+      }, 'endeavor-deps-updated')
+
+      useSchedulerStore.getState().setInputs({ endeavorDependencies })
+    },
+  )
+
   // Connect task store changes to Deep Work Board store
   // When tasks/steps change status externally, refresh the board's node data
   let dwbRefreshTimeout: NodeJS.Timeout | null = null
@@ -266,6 +281,7 @@ export const connectStores = () => {
     }
     unsubTaskStore()
     unsubPatternStore()
+    unsubEndeavorDeps()
     unsubDwb()
     unsubPomodoro()
     isConnected = false

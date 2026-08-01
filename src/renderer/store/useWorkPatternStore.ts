@@ -149,9 +149,10 @@ export const useWorkPatternStore = create<WorkPatternStoreState>()(
       try {
         const patterns = await getDatabase().getWorkPatterns()
 
-        // Find today's pattern
+        // Find today's pattern — LOCAL date, not UTC (toISOString flips to
+        // tomorrow after ~4-5 PM Pacific and pointed at the wrong pattern)
         const currentTime = getCurrentTime()
-        const todayKey = currentTime.toISOString().split('T')[0]
+        const todayKey = dateToYYYYMMDD(currentTime)
         const currentPattern = patterns.find((p: DailyWorkPattern) => p.date === todayKey) || null
 
         // Calculate derived state
