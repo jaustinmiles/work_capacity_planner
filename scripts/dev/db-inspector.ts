@@ -188,11 +188,11 @@ program
 
     if (pattern.WorkBlock.length > 0) {
       console.log('\n⏰ Work Blocks')
-      console.log('Time          | Type      | Capacity | Split')
-      console.log('--------------|-----------|----------|------')
+      console.log('Time          | TypeConfig                               | Capacity')
+      console.log('--------------|-------------------------------------------|----------')
       pattern.WorkBlock.forEach(block => {
         console.log(
-          `${block.startTime} - ${block.endTime} | ${block.type.padEnd(9)} | ${block.totalCapacity.toString().padStart(7)}m | ${block.splitRatio || '-'}`,
+          `${block.startTime} - ${block.endTime} | ${block.typeConfig.padEnd(42)} | ${block.totalCapacity.toString().padStart(7)}m`,
         )
       })
     }

@@ -1476,6 +1476,26 @@ export class TrpcDatabaseService {
     return this.client.endeavor.getDependencies.query({ endeavorId })
   }
 
+  /**
+   * All endeavor dependencies for the session — the scheduler's input for
+   * cross-workflow hard blocks (ScheduleContext.endeavorDependencies).
+   */
+  async getAllEndeavorDependencies(): Promise<Array<{
+    id: string
+    endeavorId: string
+    blockedTaskId: string | null
+    blockedStepId: string | null
+    blockingStepId: string
+    blockingTaskId: string
+    isHardBlock: boolean
+    notes: string | null
+    createdAt: Date
+    blockingStepName: string
+    blockingStepStatus: string
+  }>> {
+    return this.client.endeavor.getAllDependencies.query()
+  }
+
   async getBlockersFor(options: {
     taskId?: string
     stepId?: string

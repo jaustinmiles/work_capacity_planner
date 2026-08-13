@@ -145,25 +145,23 @@ describe('UnifiedScheduler - Core Functionality', () => {
     })
   })
 
-  describe('scheduleForPersistence', () => {
-    it('should return enhanced results with capacity modeling', async () => {
+  describe('capacity and deadline reporting', () => {
+    it('should return capacity metrics and block utilization', () => {
       const tasks = [
         createTestTask('task1', 60),
         createTestTask('task2', 45),
       ]
 
-      const result = await scheduler.scheduleForPersistence(tasks, mockContext, mockConfig)
+      const result = scheduler.scheduleForDisplay(tasks, mockContext, mockConfig)
 
       expect(result.scheduled).toHaveLength(2)
       expect(result.metrics).toBeDefined()
-
-      // Check for enhanced async features
-      expect(result.metrics.capacityUtilization).toBeDefined()
-      expect(result.metrics.deadlineRiskScore).toBeDefined()
-      expect(result.debugInfo?.capacityModel).toBeDefined()
+      expect(result.metrics?.capacityUtilization).toBeDefined()
+      expect(result.metrics?.deadlineRiskScore).toBeDefined()
+      expect(result.debugInfo?.blockUtilization).toBeDefined()
     })
 
-    it('should analyze deadline risks', async () => {
+    it('should analyze deadline risks', () => {
       const tomorrow = new Date('2025-01-16T12:00:00.000Z')
       const tasks = [
         createTestTask('urgent-task', 120, {
@@ -172,10 +170,10 @@ describe('UnifiedScheduler - Core Functionality', () => {
         }),
       ]
 
-      const result = await scheduler.scheduleForPersistence(tasks, mockContext, mockConfig)
+      const result = scheduler.scheduleForDisplay(tasks, mockContext, mockConfig)
 
       expect(result.debugInfo?.deadlineAnalysis).toBeDefined()
-      expect(result.debugInfo?.deadlineAnalysis.riskyItems).toBeDefined()
+      expect(result.debugInfo?.deadlineAnalysis?.totalWithDeadlines).toBe(1)
     })
   })
 
@@ -346,22 +344,48 @@ describe('UnifiedScheduler - Core Functionality', () => {
     })
   })
 
-  describe('splitTaskAcrossDays', () => {
+  describe('task splitting across days', () => {
+    const twoDayPatterns: DailyWorkPattern[] = [
+      {
+        date: '2025-01-15',
+        blocks: [{
+          id: 'day1-focus',
+          startTime: '09:00',
+          endTime: '11:00', // 120 minutes
+          typeConfig: { kind: 'single', typeId: 'focused' },
+        }],
+        accumulated: {},
+        meetings: [],
+      },
+      {
+        date: '2025-01-16',
+        blocks: [{
+          id: 'day2-focus',
+          startTime: '09:00',
+          endTime: '11:00', // 120 minutes
+          typeConfig: { kind: 'single', typeId: 'focused' },
+        }],
+        accumulated: {},
+        meetings: [],
+      },
+    ]
+
     it('should split large tasks across multiple days', () => {
       const largeTask: UnifiedScheduleItem = {
         id: 'large-task',
         name: 'Large Task',
-        duration: 240, // 4 hours
+        type: UnifiedScheduleItemType.Task,
+        duration: 240, // 4 hours across two 2-hour blocks
         priority: 50,
+        taskTypeId: 'focused',
         originalItem: createTestTask('large-task', 240),
       }
 
-      const availableSlots = [
-        { date: new Date('2025-01-15'), duration: 120 },
-        { date: new Date('2025-01-16'), duration: 120 },
-      ]
-
-      const splitParts = scheduler.splitTaskAcrossDays(largeTask, availableSlots)
+      const splitParts = scheduler.allocateToWorkBlocks(
+        [largeTask],
+        twoDayPatterns,
+        { startDate: '2025-01-15', allowTaskSplitting: true },
+      )
 
       expect(splitParts.length).toBeGreaterThan(1)
 
@@ -371,6 +395,8 @@ describe('UnifiedScheduler - Core Functionality', () => {
         expect(part.splitPart).toBe(index + 1)
         expect(part.splitTotal).toBe(splitParts.length)
         expect(part.originalTaskId).toBe('large-task')
+        expect(part.startTime).toBeDefined()
+        expect(part.endTime).toBeDefined()
       })
 
       // Check total duration is preserved
@@ -378,23 +404,30 @@ describe('UnifiedScheduler - Core Functionality', () => {
       expect(totalSplitDuration).toBe(240)
     })
 
-    it('should not split tasks smaller than minimum duration', () => {
+    it('should not place a task when no slice is usable', () => {
       const smallTask: UnifiedScheduleItem = {
         id: 'small-task',
         name: 'Small Task',
-        duration: 15, // Less than 30min minimum
+        type: UnifiedScheduleItemType.Task,
+        duration: 15,
         priority: 50,
+        taskTypeId: 'focused',
         originalItem: createTestTask('small-task', 15),
       }
 
-      const availableSlots = [
-        { date: new Date('2025-01-15'), duration: 10 },
-        { date: new Date('2025-01-16'), duration: 10 },
-      ]
+      // Only 10-minute blocks exist: too small for the 15-minute task
+      const tinyPatterns: DailyWorkPattern[] = twoDayPatterns.map(pattern => ({
+        ...pattern,
+        blocks: pattern.blocks.map(block => ({ ...block, endTime: '09:10' })),
+      }))
 
-      const splitParts = scheduler.splitTaskAcrossDays(smallTask, availableSlots)
+      const allocated = scheduler.allocateToWorkBlocks(
+        [smallTask],
+        tinyPatterns,
+        { startDate: '2025-01-15', allowTaskSplitting: true },
+      )
 
-      expect(splitParts).toHaveLength(0) // Can't split effectively
+      expect(allocated).toHaveLength(0) // Can't split effectively
     })
   })
 
@@ -518,27 +551,57 @@ describe('UnifiedScheduler - Core Functionality', () => {
       expect(scheduled!.isSplit).toBeFalsy()
     })
 
-    it('should respect custom minimumSplitMinutes in splitTaskAcrossDays', () => {
+    it('should respect custom minimumSplitMinutes when splitting across days', () => {
       const largeTask: UnifiedScheduleItem = {
         id: 'large-task',
         name: 'Large Task',
+        type: UnifiedScheduleItemType.Task,
         duration: 60,
         priority: 50,
+        taskTypeId: 'focused',
         originalItem: createTestTask('large-task', 60),
       }
 
-      const availableSlots = [
-        { date: new Date('2025-01-15'), duration: 8 },  // Below 10 min default, but above 5 min custom
-        { date: new Date('2025-01-16'), duration: 52 },
+      const slotPatterns: DailyWorkPattern[] = [
+        {
+          date: '2025-01-15',
+          blocks: [{
+            id: 'tiny-slot',
+            startTime: '09:00',
+            endTime: '09:08', // 8 min: below 30 default, above 5 custom
+            typeConfig: { kind: 'single', typeId: 'focused' },
+          }],
+          accumulated: {},
+          meetings: [],
+        },
+        {
+          date: '2025-01-16',
+          blocks: [{
+            id: 'big-slot',
+            startTime: '09:00',
+            endTime: '09:52', // 52 min
+            typeConfig: { kind: 'single', typeId: 'focused' },
+          }],
+          accumulated: {},
+          meetings: [],
+        },
       ]
 
-      // With default (30), the 8-min slot would be skipped
-      const defaultSplit = scheduler.splitTaskAcrossDays(largeTask, availableSlots, 30)
-      expect(defaultSplit.length).toBe(1) // Only the 52-min slot used
+      // With default (30), the 8-min slot is skipped — only the 52-min slot is used
+      const defaultSplit = scheduler.allocateToWorkBlocks(
+        [largeTask],
+        slotPatterns,
+        { startDate: '2025-01-15', allowTaskSplitting: true },
+      )
+      expect(defaultSplit.length).toBe(1)
 
-      // With custom (5), the 8-min slot should be used
-      const customSplit = scheduler.splitTaskAcrossDays(largeTask, availableSlots, 5)
-      expect(customSplit.length).toBe(2) // Both slots used
+      // With custom (5), the 8-min slot is used too
+      const customSplit = scheduler.allocateToWorkBlocks(
+        [largeTask],
+        slotPatterns,
+        { startDate: '2025-01-15', allowTaskSplitting: true, minimumSplitMinutes: 5 },
+      )
+      expect(customSplit.length).toBe(2)
     })
   })
 

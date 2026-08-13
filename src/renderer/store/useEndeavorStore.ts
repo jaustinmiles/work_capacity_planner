@@ -6,9 +6,11 @@
  */
 
 import { create } from 'zustand'
+import { subscribeWithSelector } from 'zustand/middleware'
 import { getDatabase } from '../services/database'
 import { logger } from '@/logger'
 import type { Endeavor, EndeavorWithTasks, EndeavorProgress, EndeavorDependencyWithNames, CreateEndeavorDependencyInput } from '@shared/types'
+import type { EndeavorDependencyEdge } from '@shared/scheduler/endeavor-dependencies'
 import { EndeavorStatus, DeadlineType } from '@shared/enums'
 import { calculateEndeavorProgress, sortEndeavorsByPriority } from '@shared/endeavor-utils'
 
@@ -26,6 +28,11 @@ interface EndeavorStore {
   status: EndeavorLoadStatus
   error: string | null
   dependencies: Map<string, EndeavorDependencyWithNames[]> // endeavorId -> dependencies
+  /**
+   * ALL session dependencies in scheduler shape — the input for
+   * ScheduleContext.endeavorDependencies (pushed via storeConnector).
+   */
+  allDependencies: EndeavorDependencyEdge[]
 
   // Computed (derived from endeavors)
   getSelectedEndeavor: () => EndeavorWithTasks | null
@@ -36,6 +43,7 @@ interface EndeavorStore {
   loadEndeavors: (options?: { status?: EndeavorStatus; includeArchived?: boolean }) => Promise<void>
   refreshEndeavors: () => Promise<void>
   loadDependencies: (endeavorId: string) => Promise<EndeavorDependencyWithNames[]>
+  loadAllDependencies: () => Promise<void>
 
   // Selection
   selectEndeavor: (id: string | null) => void
@@ -79,13 +87,14 @@ export interface UpdateEndeavorInput {
   color?: string | null
 }
 
-export const useEndeavorStore = create<EndeavorStore>((set, get) => ({
+export const useEndeavorStore = create<EndeavorStore>()(subscribeWithSelector((set, get) => ({
   // Initial state
   endeavors: [],
   selectedEndeavorId: null,
   status: EndeavorLoadStatus.Idle,
   error: null,
   dependencies: new Map(),
+  allDependencies: [],
 
   // Computed
   getSelectedEndeavor: () => {
@@ -162,6 +171,20 @@ export const useEndeavorStore = create<EndeavorStore>((set, get) => ({
     }
   },
 
+  loadAllDependencies: async () => {
+    try {
+      const db = getDatabase()
+      const allDependencies = await db.getAllEndeavorDependencies()
+      set({ allDependencies })
+      logger.ui.info('All endeavor dependencies loaded', {
+        count: allDependencies.length,
+        hardBlocks: allDependencies.filter((d) => d.isHardBlock).length,
+      }, 'endeavor-deps-load')
+    } catch (error) {
+      logger.ui.error('Failed to load all endeavor dependencies', { error }, 'endeavor-deps-load-error')
+    }
+  },
+
   // Selection
   selectEndeavor: (id) => {
     set({ selectedEndeavorId: id })
@@ -225,6 +248,7 @@ export const useEndeavorStore = create<EndeavorStore>((set, get) => ({
     const db = getDatabase()
     await db.addEndeavorDependency(input)
     await get().loadDependencies(input.endeavorId)
+    await get().loadAllDependencies() // Keep the scheduler input in sync
     logger.ui.info('Dependency added', { endeavorId: input.endeavorId }, 'dependency-add')
   },
 
@@ -232,6 +256,7 @@ export const useEndeavorStore = create<EndeavorStore>((set, get) => ({
     const db = getDatabase()
     await db.removeEndeavorDependency(id)
     await get().loadDependencies(endeavorId)
+    await get().loadAllDependencies() // Keep the scheduler input in sync
     logger.ui.info('Dependency removed', { id, endeavorId }, 'dependency-remove')
   },
 
@@ -239,6 +264,7 @@ export const useEndeavorStore = create<EndeavorStore>((set, get) => ({
     const db = getDatabase()
     await db.updateEndeavorDependency(id, updates)
     await get().loadDependencies(endeavorId)
+    await get().loadAllDependencies() // Keep the scheduler input in sync
     logger.ui.info('Dependency updated', { id, endeavorId }, 'dependency-update')
   },
-}))
+})))

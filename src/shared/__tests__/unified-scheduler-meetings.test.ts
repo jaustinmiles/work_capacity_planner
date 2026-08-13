@@ -219,7 +219,7 @@ describe('UnifiedScheduler - Meeting Scheduling', () => {
       }
     })
 
-    it.skip('should handle task that cannot fit between meetings - skipped due to timezone conversion issues in test environment', () => {
+    it('should split a task that cannot fit contiguously between meetings — never spill outside the block', () => {
       const workPattern: DailyWorkPattern = {
         date: '2024-01-01',
         blocks: [
@@ -290,41 +290,34 @@ describe('UnifiedScheduler - Meeting Scheduling', () => {
 
       const result = scheduler.scheduleForDisplay([task], context, { debugMode: false })
 
-      // Task should either be unscheduled or scheduled outside this block
-      // It cannot fit in the 30-minute gaps (09:00-09:30, 10:30-11:00, 11:30-12:00)
+      // The 45-min task cannot fit any single 30-minute gap
+      // (09:00-09:30, 10:30-11:00, 11:30-12:00), so it must be SPLIT across
+      // gaps — it must never be scheduled whole outside the block window.
       const scheduledTasks = result.scheduled.filter(item => item.type === 'task')
+      expect(scheduledTasks.length).toBeGreaterThan(1)
 
-      // Since the task is 45 minutes and the gaps are only 30 minutes,
-      // it should either be unscheduled OR scheduled in a different time/day
-      // The scheduler might find time elsewhere, which is valid
+      const blockStart = new Date('2024-01-01T09:00:00')
+      const blockEnd = new Date('2024-01-01T12:00:00')
+      const scheduledMeetings = result.scheduled.filter(item => item.type === 'meeting')
 
-      // If it was scheduled, just verify it doesn't overlap with meetings
-      if (scheduledTasks.length > 0) {
-        const scheduledTask = scheduledTasks[0]
-        const taskStart = scheduledTask.startTime!
-        const taskEnd = scheduledTask.endTime!
+      for (const part of scheduledTasks) {
+        const taskStart = part.startTime!
+        const taskEnd = part.endTime!
 
-        // Get all scheduled meetings
-        const scheduledMeetings = result.scheduled.filter(item => item.type === 'meeting')
+        // Hard invariant: every scheduled slice stays inside the block window
+        expect(taskStart.getTime()).toBeGreaterThanOrEqual(blockStart.getTime())
+        expect(taskEnd.getTime()).toBeLessThanOrEqual(blockEnd.getTime())
 
-        // Verify task doesn't overlap with ANY meeting
-        // Note: This test might have timezone differences - meetings are scheduled in PST (UTC-8)
-        // but displayed in UTC. The core functionality of no overlap is what we're testing.
+        // And never overlaps a meeting
         for (const meeting of scheduledMeetings) {
-          // Allow for scheduler finding time outside the work block if needed
-          // The task is 45 minutes and only 30-minute gaps exist, so it may be scheduled later
-          const taskDate = taskStart.toISOString().split('T')[0]
-          const meetingDate = meeting.startTime!.toISOString().split('T')[0]
-
-          // Only check overlap if on the same day
-          if (taskDate === meetingDate) {
-            const overlaps = taskStart < meeting.endTime! && taskEnd > meeting.startTime!
-            expect(overlaps).toBe(false)
-          }
+          const overlaps = taskStart < meeting.endTime! && taskEnd > meeting.startTime!
+          expect(overlaps).toBe(false)
         }
       }
-      // It's also valid for the task to be unscheduled
-      // since it can't fit in the available gaps
+
+      // The full 45 minutes are accounted for across the parts
+      const totalScheduled = scheduledTasks.reduce((sum, part) => sum + part.duration, 0)
+      expect(totalScheduled).toBe(45)
     })
 
     it('should handle all-day meeting blocking entire work block', () => {

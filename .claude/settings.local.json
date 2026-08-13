@@ -29,7 +29,8 @@
       "mcp__git__push_and_create_pr",
       "Bash(xcodebuild build *)",
       "Bash(xcodebuild -project TaskPlannerMobile.xcodeproj -scheme TaskPlannerVision -destination 'generic/platform=visionOS Simulator' -derivedDataPath /tmp/tpv-dd build)",
-      "Bash(swift test *)"
+      "Bash(swift test *)",
+      "Bash(git fetch *)"
     ],
     "deny": [],
     "defaultMode": "acceptEdits",

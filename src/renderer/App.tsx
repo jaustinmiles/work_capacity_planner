@@ -42,6 +42,7 @@ import { TimeSinkManager } from './components/time-sinks/TimeSinkManager'
 import { TimeSinkLogger } from './components/time-sinks/TimeSinkLogger'
 import { useTaskStore } from './store/useTaskStore'
 import { useWorkPatternStore } from './store/useWorkPatternStore'
+import { useEndeavorStore } from './store/useEndeavorStore'
 import { useTimeSinkStore } from './store/useTimeSinkStore'
 import { useScheduleSnapshotStore } from './store/useScheduleSnapshotStore'
 import { useUserTaskTypeStore } from './store/useUserTaskTypeStore'
@@ -85,6 +86,9 @@ function AppContent() {
 
         // Initialize work patterns
         await useWorkPatternStore.getState().loadWorkPatterns()
+
+        // Initialize endeavor dependencies (cross-workflow hard blocks feed the scheduler)
+        await useEndeavorStore.getState().loadAllDependencies()
 
         // Initialize time sinks
         await useTimeSinkStore.getState().loadSinks()
