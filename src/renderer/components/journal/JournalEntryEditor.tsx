@@ -9,10 +9,11 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { Button, Input, Space, Typography, Message, Popconfirm, Tag } from '@arco-design/web-react'
-import { IconDelete, IconMindMapping, IconCheckCircle } from '@arco-design/web-react/icon'
+import { IconDelete, IconMindMapping, IconCheckCircle, IconVoice, IconPause } from '@arco-design/web-react/icon'
 import { JournalViewMode } from '@shared/enums'
 import { useJournalStore, type JournalEntryRow } from '../../store/useJournalStore'
-import { RichTextEditor } from './RichTextEditor'
+import { RichTextEditor, type RichTextEditorHandle } from './RichTextEditor'
+import { useVoiceRecording } from '../../hooks/useVoiceRecording'
 import { logger } from '@/logger'
 
 interface JournalEntryEditorProps {
@@ -34,6 +35,43 @@ export function JournalEntryEditor({ entry }: JournalEntryEditorProps) {
     plainText: entry.plainText,
   })
   const [dirty, setDirty] = useState(false)
+  const editorHandleRef = useRef<RichTextEditorHandle>(null)
+
+  // Voice dictation — reuses the app's ONE recording/transcription pipeline
+  // (useVoiceRecording → speech.transcribeBuffer → Whisper), same as ChatView.
+  const {
+    recordingState,
+    isTranscribing,
+    recordingDuration,
+    startRecording,
+    stopRecording,
+  } = useVoiceRecording({
+    transcriptionPrompt:
+      'Personal journal entry: reflections, feelings, daily events, plans, and ideas.',
+    onTranscriptionComplete: (text) => {
+      const transcript = text.trim()
+      if (transcript.length === 0) {
+        Message.info('No speech detected in the recording.')
+        return
+      }
+      // Insert at the caret; handleBodyChange fires via the editor's onChange
+      // and marks the draft dirty.
+      editorHandleRef.current?.insertText(transcript)
+    },
+    onError: (message) => {
+      logger.ui.error('Journal dictation failed', { error: message, entryId: entry.id }, 'journal-voice-error')
+      Message.error(`Dictation failed: ${message}`)
+    },
+  })
+  const isRecording = recordingState === 'recording'
+
+  const toggleDictation = (): void => {
+    if (isRecording) {
+      stopRecording()
+    } else if (!isTranscribing) {
+      void startRecording()
+    }
+  }
 
   // Reseed when the selected entry changes.
   useEffect(() => {
@@ -124,9 +162,35 @@ export function JournalEntryEditor({ entry }: JournalEntryEditorProps) {
       <div style={{ flex: 1, minHeight: 0 }}>
         <RichTextEditor
           key={entry.id}
+          ref={editorHandleRef}
           defaultValue={entry.content}
           onChange={handleBodyChange}
           placeholder="What's on your mind? Write freely — you can process this into your mind map when you're done."
+          toolbarExtra={
+            <>
+              {isRecording && (
+                <Typography.Text type="error" style={{ fontSize: 12 }}>
+                  Recording: {recordingDuration}s
+                </Typography.Text>
+              )}
+              {isTranscribing && (
+                <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+                  Transcribing…
+                </Typography.Text>
+              )}
+              <Button
+                size="mini"
+                type="text"
+                status={isRecording ? 'danger' : undefined}
+                loading={isTranscribing}
+                icon={isRecording ? <IconPause /> : <IconVoice />}
+                title={isRecording ? 'Stop dictation and transcribe' : 'Dictate into this entry'}
+                // Keep the editor's caret so the transcript lands where the user left it.
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={toggleDictation}
+              />
+            </>
+          }
         />
       </div>
 
