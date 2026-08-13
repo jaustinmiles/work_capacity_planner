@@ -800,7 +800,9 @@ describe('UnifiedTaskEdit', () => {
       fireEvent.click(screen.getByText('Save'))
 
       await waitFor(() => expect(mockUpdateTask).toHaveBeenCalledTimes(1))
-      expect(mockUpdateTask.mock.calls[0][1].deadline).toBeUndefined()
+      // A cleared deadline must be sent as explicit null — undefined is a no-op at
+      // the Prisma boundary and would leave the old deadline in place.
+      expect(mockUpdateTask.mock.calls[0][1].deadline).toBeNull()
       // Back in view mode, the cleared deadline renders the fallback
       expect(await screen.findByText('No deadline')).toBeInTheDocument()
     })
@@ -829,8 +831,9 @@ describe('UnifiedTaskEdit', () => {
       fireEvent.click(screen.getByText('Save'))
 
       await waitFor(() => expect(mockUpdateTask).toHaveBeenCalledTimes(1))
-      // Arco delivers the picked value as a formatted string; it is saved as-is
-      expect(mockUpdateTask.mock.calls[0][1].deadline).toMatch(/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}$/)
+      // The picked value is saved as a real Date — the server's z.date() schema
+      // rejects the raw formatted string the picker hands to onChange.
+      expect(mockUpdateTask.mock.calls[0][1].deadline).toBeInstanceOf(Date)
     })
 
     it('closes the task split modal without splitting', () => {

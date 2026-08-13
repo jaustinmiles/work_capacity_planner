@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import { subscribeWithSelector } from 'zustand/middleware'
-import { Task } from '@shared/types'
+import { Task, TaskStepUpdate, TaskUpdate } from '@shared/types'
+import { applyTaskStepUpdate } from '@shared/deep-work-node-utils'
 import { useSchedulerStore } from './useSchedulerStore'
 import { SequencedTask } from '@shared/sequencing-types'
 import { TaskStatus, StepStatus, NextScheduledItemType } from '@shared/enums'
@@ -57,7 +58,7 @@ interface TaskStore {
   addTask: (__task: Omit<Task, 'id' | 'createdAt' | 'updatedAt'>) => Promise<void>
   addSequencedTask: (task: Omit<SequencedTask, 'id' | 'createdAt' | 'updatedAt'>) => Promise<void>
   addOrUpdateSequencedTask: (task: Omit<SequencedTask, 'id' | 'createdAt' | 'updatedAt'>) => Promise<void>
-  updateTask: (__id: string, updates: Partial<Task>) => Promise<void>
+  updateTask: (__id: string, updates: TaskUpdate) => Promise<void>
   updateSequencedTask: (__id: string, updates: Partial<SequencedTask>) => Promise<void>
   deleteTask: (__id: string) => Promise<void>
   deleteSequencedTask: (id: string) => Promise<void>
@@ -91,7 +92,7 @@ interface TaskStore {
   checkAndCompleteExpiredWaitTimes: () => Promise<void>
   startExpiredWaitTimePolling: () => () => void
   updateStepProgress: (stepId: string, __percentComplete: number) => Promise<void>
-  updateTaskStep: (taskId: string, stepId: string, updates: { importance?: number; urgency?: number }) => Promise<void>
+  updateTaskStep: (taskId: string, stepId: string, updates: TaskStepUpdate) => Promise<void>
   logWorkSession: (stepId: string, __minutes: number, notes?: string) => Promise<void>
   loadWorkSessionHistory: (__stepId: string) => Promise<void>
 
@@ -1522,19 +1523,19 @@ export const useTaskStore = create<TaskStore>()(
     }
   },
 
-  updateTaskStep: async (taskId: string, stepId: string, updates: { importance?: number; urgency?: number }) => {
+  updateTaskStep: async (taskId: string, stepId: string, updates: TaskStepUpdate) => {
     try {
       await getDatabase().updateTaskStep(taskId, stepId, updates)
 
       // Update local state so the scheduler (which reads sequencedTasks[].steps)
-      // reflects the new per-step priority without a reload.
+      // reflects the change without a reload.
       set(state => ({
         sequencedTasks: state.sequencedTasks.map(task =>
           task.id === taskId
             ? {
                 ...task,
                 steps: task.steps.map(step =>
-                  step.id === stepId ? { ...step, ...updates } : step,
+                  step.id === stepId ? applyTaskStepUpdate(step, updates) : step,
                 ),
               }
             : task,

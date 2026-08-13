@@ -26,13 +26,17 @@ struct TaskPlannerVisionApp: App {
         }
         .defaultSize(width: 460, height: 560)
 
-        // Volumetric workspace — the 3D scene, opened from the management window.
+        // Volumetric workspace — the 3D scene, opened from the management window. User-resizable:
+        // `.windowResizability(.contentSize)` surfaces the volume's resize handles, and the scene
+        // reads its actual size (GeometryReader3D → meters) to reflow trays/columns to fill it. The
+        // default is roomy; the user can grow it toward the platform's volume cap and walk closer.
         WindowGroup(id: SpatialWindowID.volume) {
             SpatialWorkspaceView()
                 .environment(root)
         }
         .windowStyle(.volumetric)
-        .defaultSize(width: 1.4, height: 1.0, depth: 1.4, in: .meters)
+        .defaultSize(width: 1.8, height: 1.2, depth: 1.8, in: .meters)
+        .windowResizability(.contentSize)
         .volumeWorldAlignment(.gravityAligned)
 
         // Voice-first AI chat — opened from the workspace toolbar's Assistant button.

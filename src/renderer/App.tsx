@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useCallback } from 'react'
 import { Layout, Typography, ConfigProvider, Button, Space, Badge, Spin, Alert, Popconfirm, Tabs, Modal, Dropdown, Menu } from '@arco-design/web-react'
-import { IconApps, IconCalendar, IconList, IconBranch, IconSchedule, IconDelete, IconUserGroup, IconClockCircle, IconMenuFold, IconMenuUnfold, IconSettings, IconStar, IconMindMapping, IconBulb } from '@arco-design/web-react/icon'
+import { IconApps, IconCalendar, IconList, IconBranch, IconSchedule, IconDelete, IconUserGroup, IconClockCircle, IconMenuFold, IconMenuUnfold, IconSettings, IconStar, IconMindMapping, IconBulb, IconBook } from '@arco-design/web-react/icon'
 import { FloatingChatButton, FloatingSidebarButton } from './components/layout'
 import { MOBILE_LAYOUT } from '@shared/constants'
 import enUS from '@arco-design/web-react/es/locale/en-US'
@@ -31,6 +31,7 @@ import { EndeavorList } from './components/endeavors/EndeavorList'
 import { EndeavorDetail } from './components/endeavors/EndeavorDetail'
 import { EndeavorGraphView } from './components/endeavors/graph/EndeavorGraphView'
 import { DeepWorkBoardView } from './components/deep-work/DeepWorkBoardView'
+import { JournalView } from './components/journal/JournalView'
 import { TimerTab } from './components/timers/TimerTab'
 import { useTimerStore } from './store/useTimerStore'
 import { usePomodoroStore } from './store/usePomodoroStore'
@@ -182,7 +183,7 @@ function AppContent() {
 
   // Graph mode and Deep Work Board need full-height container without padding/maxWidth constraints
   const isGraphMode = activeView === ViewType.Endeavors && endeavorViewMode === 'graph' && !selectedEndeavorId
-  const isFullCanvasMode = isGraphMode || activeView === ViewType.DeepWork || activeView === ViewType.Ranking
+  const isFullCanvasMode = isGraphMode || activeView === ViewType.DeepWork || activeView === ViewType.Ranking || activeView === ViewType.Journal
 
   // Responsive breakpoints
   const [screenWidth, setScreenWidth] = useState(window.innerWidth)
@@ -678,6 +679,15 @@ function AppContent() {
                   }
                 />
                 <Tabs.TabPane
+                  key={ViewType.Journal}
+                  title={
+                    <Space>
+                      <IconBook />
+                      {!isMobile && <span>Journal</span>}
+                    </Space>
+                  }
+                />
+                <Tabs.TabPane
                   key={ViewType.Calendar}
                   title={
                     <Space>
@@ -823,6 +833,12 @@ function AppContent() {
                     {activeView === ViewType.Decision && (
                       <ErrorBoundary>
                         <DecisionView />
+                      </ErrorBoundary>
+                    )}
+
+                    {activeView === ViewType.Journal && (
+                      <ErrorBoundary>
+                        <JournalView />
                       </ErrorBoundary>
                     )}
 

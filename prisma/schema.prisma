@@ -140,6 +140,8 @@ model Session {
   DecisionSession       DecisionSession[]
   TaskComparison        TaskComparison[]
   SpatialScene          SpatialScene[]
+  JournalEntry          JournalEntry[]
+  MindMapScene          MindMapScene?
 }
 
 // Schedule Snapshot - Captures schedule state at a point in time
@@ -812,4 +814,113 @@ model TaskComparison {
   @@index([itemAId])
   @@index([itemBId])
   @@index([winnerId])
+}
+
+// =============================================================================
+// Journal / Mind Map Models
+// =============================================================================
+// A journaling surface (rich-text monologue entries tied to calendar days) feeding
+// an AI-processed, artistic mind map. The mind map is a placement projection like
+// DeepWorkNode/SpatialEntity: layout (position/pin/viewport) is stored separately
+// from the extracted content so re-processing a revisited day re-syncs the map
+// WITHOUT clobbering the user's arrangement. See
+// .claude/decisions/2026-06-28-journal-mindmap-feature.md.
+
+// JournalEntry - one rich-text journal entry. Days can hold multiple entries
+// (entryDate is normalized to the day). content is editor HTML; plainText is the
+// derived text projection consumed by AI processing + search.
+model JournalEntry {
+  id          String        @id
+  sessionId   String
+  entryDate   DateTime      // the calendar day this entry belongs to (start-of-day)
+  title       String        @default("")
+  content     String        @default("") // rich-text HTML (editor-serialized)
+  plainText   String        @default("") // derived plain text for AI processing + search
+  processedAt DateTime?     // last time this entry was processed into the mind map (null = never)
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @default(now())
+  Session     Session       @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  nodes       MindMapNode[]
+  edges       MindMapEdge[]
+
+  @@index([sessionId])
+  @@index([sessionId, entryDate])
+}
+
+// MindMapScene - one persistent mind-map workspace per session. Holds the viewport
+// (zoom/pan, persisted like DeepWorkBoard) and parents all nodes/edges.
+model MindMapScene {
+  id        String        @id
+  sessionId String        @unique
+  zoom      Float         @default(1.0)
+  panX      Float         @default(0.0)
+  panY      Float         @default(0.0)
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @default(now())
+  Session   Session       @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  nodes     MindMapNode[]
+  edges     MindMapEdge[]
+
+  @@index([sessionId])
+}
+
+// MindMapNode - an AI-extracted theme/concept/todo/etc placed on the scene. Pure
+// placement projection: position/size/pin live here, the meaning is the label +
+// kind. normalizedLabel enforces dedupe across re-processing (merge, not duplicate).
+// color is derived from kind; emoji is validated against a curated per-kind set.
+// A todo node may link to a canonical Task via refId; otherwise refId is null.
+model MindMapNode {
+  id              String        @id
+  sceneId         String
+  kind            String        // MindMapNodeKind: theme | concept | todo | question | feeling | person
+  label           String
+  normalizedLabel String        // lowercased/trimmed label for dedupe (unique per scene)
+  summary         String?       // optional longer extracted text
+  emoji           String        // curated symbol (artistic)
+  color           String        // hex color derived from kind (artistic)
+  refId           String?       // kind=todo may link to a canonical Task.id; else null
+  sourceEntryId   String?       // JournalEntry that introduced/last-touched this node
+  positionX       Float
+  positionY       Float
+  width           Float         @default(180)
+  height          Float         @default(80)
+  pinned          Boolean       @default(false) // user manually positioned → never auto-relaid-out
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @default(now())
+  scene           MindMapScene  @relation(fields: [sceneId], references: [id], onDelete: Cascade)
+  JournalEntry    JournalEntry? @relation(fields: [sourceEntryId], references: [id], onDelete: SetNull)
+  edgesFrom       MindMapEdge[] @relation("MindMapEdgeSource")
+  edgesTo         MindMapEdge[] @relation("MindMapEdgeTarget")
+
+  @@unique([sceneId, normalizedLabel])
+  @@index([sceneId])
+  @@index([sceneId, kind])
+  @@index([sourceEntryId])
+}
+
+// MindMapEdge - a STORED, codified relationship between two nodes. Unlike the
+// derived edges of the spatial/deep-work surfaces, mind-map relationships are
+// AI-extracted with no canonical source elsewhere, so they are persisted. The
+// relationshipType is a closed enum validated against a relationship matrix
+// server-side (the AI cannot invent relationship types or illegal connections).
+model MindMapEdge {
+  id               String        @id
+  sceneId          String
+  sourceNodeId     String
+  targetNodeId     String
+  relationshipType String        // MindMapRelationshipType: relates_to | leads_to | part_of | blocks | contradicts | elaborates
+  label            String?       // optional human-readable label
+  sourceEntryId    String?       // JournalEntry that introduced this edge
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @default(now())
+  scene            MindMapScene  @relation(fields: [sceneId], references: [id], onDelete: Cascade)
+  source           MindMapNode   @relation("MindMapEdgeSource", fields: [sourceNodeId], references: [id], onDelete: Cascade)
+  target           MindMapNode   @relation("MindMapEdgeTarget", fields: [targetNodeId], references: [id], onDelete: Cascade)
+  JournalEntry     JournalEntry? @relation(fields: [sourceEntryId], references: [id], onDelete: SetNull)
+
+  @@unique([sceneId, sourceNodeId, targetNodeId, relationshipType])
+  @@index([sceneId])
+  @@index([sourceNodeId])
+  @@index([targetNodeId])
+  @@index([sourceEntryId])
 }

@@ -8,6 +8,7 @@
 import { StepStatus } from './enums'
 import { DeepWorkNodeStatus } from './deep-work-board-types'
 import type { DeepWorkNodeWithData, DeepWorkEdge } from './deep-work-board-types'
+import type { TaskStep, TaskStepUpdate } from './types'
 import type { UnifiedWorkSession } from './unified-work-session-types'
 import { getCurrentTime } from './time-provider'
 
@@ -278,6 +279,65 @@ export function getInitialFields(node: DeepWorkNodeWithData | null): EditableFie
     deadline: null,
     deadlineType: null,
   }
+}
+
+// =============================================================================
+// Step Editing
+// =============================================================================
+
+function toCognitiveComplexity(value: number | null): TaskStep['cognitiveComplexity'] {
+  return value === 1 || value === 2 || value === 3 || value === 4 || value === 5 ? value : undefined
+}
+
+/**
+ * Build the workflow.updateStep payload for a step edited in the detail panel.
+ *
+ * Emits ONLY the fields that differ from their initial values, so editing one
+ * field never writes the others. This matters for importance/urgency: the panel
+ * displays the parent workflow's value as a fallback when a step has no override
+ * (see getInitialFields), and blindly saving it would freeze that fallback into
+ * a per-step override that stops tracking the parent.
+ *
+ * An empty notes field clears the stored notes (null), matching the server's
+ * nullable-column semantics. Deadline fields are ignored — steps have none.
+ */
+export function buildStepUpdatePayload(
+  fields: EditableFields,
+  initial: EditableFields,
+): TaskStepUpdate {
+  const payload: TaskStepUpdate = {}
+  if (fields.name !== initial.name) payload.name = fields.name
+  if (fields.duration !== initial.duration) payload.duration = fields.duration
+  if (fields.type !== initial.type) payload.type = fields.type
+  if (fields.notes !== initial.notes) payload.notes = fields.notes === '' ? null : fields.notes
+  if (fields.cognitiveComplexity !== initial.cognitiveComplexity) {
+    payload.cognitiveComplexity = fields.cognitiveComplexity
+  }
+  if (fields.asyncWaitTime !== initial.asyncWaitTime) payload.asyncWaitTime = fields.asyncWaitTime
+  if (fields.importance !== initial.importance) payload.importance = fields.importance
+  if (fields.urgency !== initial.urgency) payload.urgency = fields.urgency
+  return payload
+}
+
+/**
+ * Apply a TaskStepUpdate to a local TaskStep copy — the client-side mirror of
+ * what workflow.updateStep persists (null clears an optional field). Used to
+ * keep store state in sync without a refetch.
+ */
+export function applyTaskStepUpdate(step: TaskStep, updates: TaskStepUpdate): TaskStep {
+  const next: TaskStep = { ...step }
+  if (updates.name !== undefined) next.name = updates.name
+  if (updates.duration !== undefined) next.duration = updates.duration
+  if (updates.type !== undefined) next.type = updates.type
+  if (updates.notes !== undefined) next.notes = updates.notes ?? undefined
+  if (updates.cognitiveComplexity !== undefined) {
+    next.cognitiveComplexity = toCognitiveComplexity(updates.cognitiveComplexity)
+  }
+  if (updates.asyncWaitTime !== undefined) next.asyncWaitTime = updates.asyncWaitTime
+  if (updates.dependsOn !== undefined) next.dependsOn = updates.dependsOn
+  if (updates.importance !== undefined) next.importance = updates.importance ?? undefined
+  if (updates.urgency !== undefined) next.urgency = updates.urgency ?? undefined
+  return next
 }
 
 // =============================================================================

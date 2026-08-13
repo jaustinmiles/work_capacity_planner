@@ -46,6 +46,7 @@ const updateStepInput = z.object({
   duration: z.number().int().optional(),
   type: z.string().optional(),
   cognitiveComplexity: z.number().int().min(1).max(5).nullable().optional(),
+  asyncWaitTime: z.number().int().min(0).optional(),
   dependsOn: z.array(z.string()).optional(),
   // Per-step priority overrides — the scheduler uses these instead of the parent
   // workflow's importance/urgency when present (null clears the override).

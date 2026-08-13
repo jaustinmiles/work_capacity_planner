@@ -107,8 +107,9 @@ final class ManipulationBridge {
             }
 
             // Parent-relative throughout, so positions match the layout engine's and reconcile's
-            // volume-local frame (VolumeMetrics.clamp is also local).
-            let p = VolumeMetrics.standard.clamp(event.entity.position)
+            // volume-local frame (clamp is also local). Uses the live metrics so a resized volume
+            // clamps to its actual (larger) bounds.
+            let p = viewModel.metrics.clamp(event.entity.position)
             event.entity.position = p
             let moved = start.map { simd_distance($0, p) } ?? .greatestFiniteMagnitude
 

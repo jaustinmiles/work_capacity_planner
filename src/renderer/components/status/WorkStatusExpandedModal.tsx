@@ -12,7 +12,7 @@ import { DatePicker } from '@arco-design/web-react'
 import { IconClose, IconLeft, IconRight } from '@arco-design/web-react/icon'
 import { useResponsive } from '../../providers/ResponsiveProvider'
 import dayjs from 'dayjs'
-import { RadarChart, prepareRadarChartData, RadarChartDataPoint, createRadarDataPointFromSink, calculateRadarAreaPercent } from './RadarChart'
+import { RadarChart, prepareRadarChartData, RadarChartDataPoint, createRadarDataPointFromSink, calculateRadarAreaPercent, resolveRadarNormalizationMax } from './RadarChart'
 import { RadarPlaybackControls } from './RadarPlaybackControls'
 import { useRadarAnimation } from '../../hooks/useRadarAnimation'
 import { AnimationPlayState } from '@shared/enums'
@@ -188,6 +188,10 @@ export function WorkStatusExpandedModal({
 
   // State for which time sinks are shown in the radar chart
   const [enabledSinkIds, setEnabledSinkIds] = useState<Set<string>>(new Set())
+
+  // Whether the radar chart normalizes each frame to its own max (axes always span 0-1)
+  // instead of scaling against the animation's final frame
+  const [normalizeAxes, setNormalizeAxes] = useState(false)
 
   // Animation state - stores preloaded data for each day in the range
   const [animationFrames, setAnimationFrames] = useState<HistoricalWorkData[]>([])
@@ -418,26 +422,28 @@ export function WorkStatusExpandedModal({
     // Combine all data points
     const allData = [...taskTypeData, ...sinkData]
 
-    // For animation: normalize against the FINAL frame's max so scale stays constant
-    // This makes the chart "grow" toward its final shape rather than constantly rescaling
-    let maxValue: number
-    if (isAnimating && finalFrameAggregate) {
-      // Calculate max from final frame's full aggregate
-      const finalTaskValues = userTaskTypes.map(t => finalFrameAggregate.accumulatedByType[t.id] || 0)
-      const finalSinkValues = timeSinks
-        .filter(sink => enabledSinkIds.has(sink.id))
-        .map(sink => finalFrameAggregate.accumulatedBySink[sink.id] || 0)
-      maxValue = Math.max(...finalTaskValues, ...finalSinkValues, 1)
-    } else {
-      // Normal mode: normalize against current data
-      maxValue = Math.max(...allData.map(d => d.rawValue), 1)
-    }
+    // Absolute mode animates against the FINAL frame's max so the chart "grows" toward its
+    // final shape; normalized mode scales every frame to its own max (axes always span 0-1)
+    const finalFrameRawValues = isAnimating && finalFrameAggregate
+      ? [
+          ...userTaskTypes.map(t => finalFrameAggregate.accumulatedByType[t.id] || 0),
+          ...timeSinks
+            .filter(sink => enabledSinkIds.has(sink.id))
+            .map(sink => finalFrameAggregate.accumulatedBySink[sink.id] || 0),
+        ]
+      : null
+
+    const maxValue = resolveRadarNormalizationMax({
+      currentRawValues: allData.map(d => d.rawValue),
+      finalFrameRawValues,
+      normalizeToCurrentMax: normalizeAxes,
+    })
 
     return allData.map(d => ({
       ...d,
       value: d.rawValue / maxValue,
     }))
-  }, [displayData, isAnimating, animationFrames, animation.currentFrame, finalFrameAggregate, userTaskTypes, timeSinks, enabledSinkIds])
+  }, [displayData, isAnimating, animationFrames, animation.currentFrame, finalFrameAggregate, userTaskTypes, timeSinks, enabledSinkIds, normalizeAxes])
 
   // Calculate overall progress
   const overallProgress = useMemo(() => {
@@ -611,6 +617,21 @@ export function WorkStatusExpandedModal({
                     </Checkbox>
                   ))}
                 </div>
+              </div>
+            )}
+
+            {/* Normalized axes toggle - each animation frame scales to its own max (0-1 axes)
+                so the chart shape is comparable across any number of days */}
+            {isRangeMode && animationFrames.length > 1 && (
+              <div style={{ marginTop: 12, width: '100%' }}>
+                <Checkbox
+                  checked={normalizeAxes}
+                  onChange={setNormalizeAxes}
+                >
+                  <Text type="secondary" style={{ fontSize: isMobile ? 12 : 14 }}>
+                    Normalized axes (0–1)
+                  </Text>
+                </Checkbox>
               </div>
             )}
 

@@ -1,0 +1,80 @@
+/* Journal feature styles — scoped to the rich-text editor + scene chrome. */
+
+/* Placeholder for the empty contenteditable editor. */
+.journal-rich-text:empty::before {
+  content: attr(data-placeholder);
+  color: var(--color-text-3);
+  pointer-events: none;
+}
+
+/* Restore visible block formatting inside the editor (Tailwind/Arco reset these). */
+.journal-rich-text h1 {
+  font-size: 1.6em;
+  font-weight: 700;
+  margin: 0.4em 0 0.2em;
+  line-height: 1.3;
+}
+
+.journal-rich-text h2 {
+  font-size: 1.3em;
+  font-weight: 600;
+  margin: 0.4em 0 0.2em;
+  line-height: 1.3;
+}
+
+.journal-rich-text p {
+  margin: 0 0 0.5em;
+}
+
+.journal-rich-text ul,
+.journal-rich-text ol {
+  margin: 0 0 0.5em;
+  padding-left: 1.5em;
+}
+
+.journal-rich-text ul {
+  list-style: disc;
+}
+
+.journal-rich-text ol {
+  list-style: decimal;
+}
+
+/* Read-only rendered entry content (calendar list previews + scene tooltips). */
+.journal-rendered-content h1 {
+  font-size: 1.5em;
+  font-weight: 700;
+  margin: 0.3em 0 0.2em;
+}
+
+.journal-rendered-content h2 {
+  font-size: 1.25em;
+  font-weight: 600;
+  margin: 0.3em 0 0.2em;
+}
+
+.journal-rendered-content ul,
+.journal-rendered-content ol {
+  padding-left: 1.5em;
+}
+
+.journal-rendered-content ul {
+  list-style: disc;
+}
+
+.journal-rendered-content ol {
+  list-style: decimal;
+}
+
+/* Mind-map concept node pulse on (re)creation — calm, ADHD-friendly. */
+@keyframes journal-node-pop {
+  0% {
+    transform: scale(0.92);
+  }
+  60% {
+    transform: scale(1.03);
+  }
+  100% {
+    transform: scale(1);
+  }
+}

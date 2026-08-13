@@ -8,7 +8,7 @@
  */
 
 import { createDynamicClient, type ApiClient } from '@shared/trpc-client'
-import type { Task, Session, AICallOptions, Endeavor, EndeavorWithTasks, EndeavorProgress } from '@shared/types'
+import type { Task, TaskUpdate, Session, AICallOptions, Endeavor, EndeavorWithTasks, EndeavorProgress } from '@shared/types'
 import type {
   DeepWorkBoard,
   DeepWorkNodeWithData,
@@ -154,6 +154,15 @@ export class TrpcDatabaseService {
       TrpcDatabaseService.instance = new TrpcDatabaseService()
     }
     return TrpcDatabaseService.instance
+  }
+
+  /**
+   * Expose the typed tRPC client for routers that don't need bespoke wrapper
+   * methods (e.g. the mind-map/journal router). The client carries the active
+   * session header automatically.
+   */
+  getApiClient(): ApiClient {
+    return this.client
   }
 
   // ============================================================================
@@ -343,7 +352,7 @@ export class TrpcDatabaseService {
     return task as Task
   }
 
-  async updateTask(id: string, updates: Partial<Task>): Promise<Task> {
+  async updateTask(id: string, updates: TaskUpdate): Promise<Task> {
     const task = await this.client.task.update.mutate({ id, ...updates })
     return task as Task
   }
@@ -535,6 +544,7 @@ export class TrpcDatabaseService {
       duration?: number
       type?: string
       cognitiveComplexity?: number | null
+      asyncWaitTime?: number
       dependsOn?: string[]
       importance?: number | null
       urgency?: number | null

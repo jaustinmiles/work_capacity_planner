@@ -4,6 +4,12 @@ import { ChatMessageRole } from '../shared/enums'
 import { TaskStep } from './sequencing-types'
 import { AICallOptions } from './types'
 import { logger } from '../logger'
+import {
+  ALLOWED_MIND_MAP_NODE_KINDS,
+  MIND_MAP_NODE_KIND_CONFIG,
+  MIND_MAP_RELATIONSHIP_CONFIG,
+  type RawMindMapExtraction,
+} from './mindmap-types'
 
 /**
  * A user-defined task type the AI may classify tasks/steps against.
@@ -413,6 +419,116 @@ Focus on understanding the async nature described in natural language. Be realis
         throw error // Re-throw parsing errors with our enhanced message
       }
       throw new Error(`Failed to extract workflows from brainstorm text: ${error instanceof Error ? error.message : String(error)}`)
+    }
+  }
+
+  /**
+   * Extract a mind map (concept nodes + relationships) from a journal entry.
+   *
+   * The model is told the CLOSED set of node kinds and relationship types plus the
+   * relationship matrix, and is given the nodes already on the canvas so it connects
+   * to them instead of duplicating. Its output is RAW and UNTRUSTED — the caller MUST
+   * run it through sanitizeMindMapExtraction (mindmap-extraction.ts) before any write.
+   * That sanitizer, not this prompt, is the guarantee against hallucinated kinds,
+   * relationship types, or illegal connections.
+   *
+   * @param journalText   the plain-text journal entry to process
+   * @param existingNodes labels + kinds of nodes already on the scene (for re-sync)
+   */
+  async extractMindMapFromJournal(
+    journalText: string,
+    existingNodes: Array<{ label: string; kind: string }>,
+  ): Promise<RawMindMapExtraction> {
+    const nodeKindGuide = ALLOWED_MIND_MAP_NODE_KINDS.map((kind) => {
+      const config = MIND_MAP_NODE_KIND_CONFIG[kind]
+      return `   - "${kind}" (${config.label}): choose a symbol from ${config.allowedEmojis.join(' ')}`
+    }).join('\n')
+
+    const relationshipGuide = (
+      Object.entries(MIND_MAP_RELATIONSHIP_CONFIG) as Array<
+        [string, (typeof MIND_MAP_RELATIONSHIP_CONFIG)[keyof typeof MIND_MAP_RELATIONSHIP_CONFIG]]
+      >
+    )
+      .map(([type, config]) => {
+        const src = config.sourceKinds === null ? 'any' : config.sourceKinds.join('/')
+        const tgt = config.targetKinds === null ? 'any' : config.targetKinds.join('/')
+        return `   - "${type}" (${config.label}): ${config.description}. Allowed: ${src} → ${tgt}.`
+      })
+      .join('\n')
+
+    const existingNodesText =
+      existingNodes.length > 0
+        ? existingNodes.map((n) => `   - "${n.label}" (${n.kind})`).join('\n')
+        : '   (none yet — this is the first entry processed)'
+
+    const prompt = `
+You are helping someone reflect by turning a journal entry into an artistic mind map of the ideas inside it. Extract the meaningful CONCEPTS in the entry and the RELATIONSHIPS between them.
+
+Journal entry:
+"""
+${journalText}
+"""
+
+Concepts already on the canvas (REUSE these exact labels when the entry touches them again — do not duplicate them; you may draw new relationships to them):
+${existingNodesText}
+
+Each concept ("node") must be ONE of these kinds (use the kind id EXACTLY — never invent a kind):
+${nodeKindGuide}
+
+Each relationship ("edge") must be ONE of these types, and you MUST respect the allowed source → target kinds (relationships that break these rules will be discarded):
+${relationshipGuide}
+
+Rules:
+- Extract 3-12 nodes — the genuinely important ideas, not every sentence.
+- Give each node a short label (2-6 words) and a one-sentence summary.
+- Connect nodes with relationships only where the entry genuinely implies them. Reference nodes by their exact label (existing or newly-extracted).
+- Prefer connecting new concepts to existing ones where they relate.
+- Do NOT invent node kinds, relationship types, or connections the rules above forbid.
+
+Return ONLY valid JSON in this shape:
+{
+  "summary": "one-sentence summary of the entry",
+  "nodes": [
+    { "label": "Short label", "kind": "theme", "emoji": "🌌", "summary": "what this is" }
+  ],
+  "edges": [
+    { "source": "Short label", "target": "Another label", "relationshipType": "leads_to", "label": "optional note" }
+  ]
+}
+`
+
+    try {
+      const response = await this.anthropic.messages.create({
+        model: 'claude-opus-4-6',
+        max_tokens: 4000,
+        messages: [
+          {
+            role: 'user',
+            content: prompt,
+          },
+        ],
+      })
+
+      let jsonText = this.extractTextFromResponse(response).trim()
+      const jsonStart = jsonText.indexOf('{')
+      const jsonEnd = jsonText.lastIndexOf('}')
+      if (jsonStart !== -1 && jsonEnd !== -1 && jsonEnd > jsonStart) {
+        jsonText = jsonText.substring(jsonStart, jsonEnd + 1)
+      }
+
+      const parsed = JSON.parse(jsonText) as RawMindMapExtraction
+      return {
+        summary: typeof parsed.summary === 'string' ? parsed.summary : '',
+        nodes: Array.isArray(parsed.nodes) ? parsed.nodes : [],
+        edges: Array.isArray(parsed.edges) ? parsed.edges : [],
+      }
+    } catch (error) {
+      logger.system.error('Error extracting mind map from journal', {
+        error: error instanceof Error ? error.message : String(error),
+      }, 'mindmap-extract-error')
+      throw new Error(
+        `Failed to extract mind map from journal entry: ${error instanceof Error ? error.message : String(error)}`,
+      )
     }
   }
 

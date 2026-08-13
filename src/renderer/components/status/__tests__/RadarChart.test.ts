@@ -12,6 +12,7 @@ import {
   formatMinutesDisplay,
   createRadarDataPointFromSink,
   TimeSinkRadarInput,
+  resolveRadarNormalizationMax,
 } from '../RadarChart'
 
 describe('RadarChart', () => {
@@ -373,6 +374,100 @@ describe('RadarChart', () => {
       expect(result[7].value).toBe(1.0)
       // First type has 10 minutes, should be 10/80 = 0.125
       expect(result[0].value).toBe(0.125)
+    })
+  })
+
+  describe('resolveRadarNormalizationMax', () => {
+    it('uses the final frame max in absolute mode during animation', () => {
+      const result = resolveRadarNormalizationMax({
+        currentRawValues: [10, 20, 30],
+        finalFrameRawValues: [100, 200, 50],
+        normalizeToCurrentMax: false,
+      })
+      expect(result).toBe(200)
+    })
+
+    it('uses the current max in normalized mode, ignoring the final frame', () => {
+      const result = resolveRadarNormalizationMax({
+        currentRawValues: [10, 20, 30],
+        finalFrameRawValues: [100, 200, 50],
+        normalizeToCurrentMax: true,
+      })
+      expect(result).toBe(30)
+    })
+
+    it('normalized mode makes the largest current value hit exactly 1', () => {
+      const currentRawValues = [15, 45, 30]
+      const max = resolveRadarNormalizationMax({
+        currentRawValues,
+        finalFrameRawValues: [90, 450, 300],
+        normalizeToCurrentMax: true,
+      })
+      const normalized = currentRawValues.map(v => v / max)
+      expect(Math.max(...normalized)).toBe(1)
+    })
+
+    it('falls back to the current max in absolute mode when not animating', () => {
+      const result = resolveRadarNormalizationMax({
+        currentRawValues: [10, 40, 25],
+        finalFrameRawValues: null,
+        normalizeToCurrentMax: false,
+      })
+      expect(result).toBe(40)
+    })
+
+    it('returns at least 1 when all values are zero (prevents division by zero)', () => {
+      expect(
+        resolveRadarNormalizationMax({
+          currentRawValues: [0, 0, 0],
+          finalFrameRawValues: null,
+          normalizeToCurrentMax: true,
+        }),
+      ).toBe(1)
+      expect(
+        resolveRadarNormalizationMax({
+          currentRawValues: [0, 0],
+          finalFrameRawValues: [0, 0],
+          normalizeToCurrentMax: false,
+        }),
+      ).toBe(1)
+    })
+
+    it('returns at least 1 for empty value arrays', () => {
+      expect(
+        resolveRadarNormalizationMax({
+          currentRawValues: [],
+          finalFrameRawValues: null,
+          normalizeToCurrentMax: true,
+        }),
+      ).toBe(1)
+      expect(
+        resolveRadarNormalizationMax({
+          currentRawValues: [],
+          finalFrameRawValues: [],
+          normalizeToCurrentMax: false,
+        }),
+      ).toBe(1)
+    })
+
+    it('normalized mode yields the same 0-1 domain regardless of range size', () => {
+      // A single day and a 30-day cumulative range both peak at exactly 1
+      const singleDay = [30, 60, 15]
+      const thirtyDays = [900, 1800, 450]
+
+      const singleMax = resolveRadarNormalizationMax({
+        currentRawValues: singleDay,
+        finalFrameRawValues: null,
+        normalizeToCurrentMax: true,
+      })
+      const rangeMax = resolveRadarNormalizationMax({
+        currentRawValues: thirtyDays,
+        finalFrameRawValues: null,
+        normalizeToCurrentMax: true,
+      })
+
+      expect(singleDay.map(v => v / singleMax)).toEqual([0.5, 1, 0.25])
+      expect(thirtyDays.map(v => v / rangeMax)).toEqual([0.5, 1, 0.25])
     })
   })
 

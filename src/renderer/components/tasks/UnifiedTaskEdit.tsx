@@ -118,6 +118,13 @@ export function UnifiedTaskEdit({ task, onClose, startInEditMode = false }: Unif
         stepCount: steps.length,
       }, 'task-save-start')
 
+      // Normalize the deadline once for both branches. A cleared deadline MUST be
+      // sent as explicit null — undefined/omitted is treated as "no change" at the
+      // Prisma boundary, so a null here is what actually clears the column.
+      const deadlineForSave = editedTask.deadline
+        ? (editedTask.deadline instanceof Date ? editedTask.deadline : new Date(editedTask.deadline))
+        : null
+
       if (isWorkflow && sequencedTask) {
         // COPIED working save logic for workflows
         // Recalculate durations based on steps
@@ -146,11 +153,6 @@ export function UnifiedTaskEdit({ task, onClose, startInEditMode = false }: Unif
           urgency: step.urgency,
         }))
 
-        // CRITICAL FIX: Ensure deadline is proper Date object for Prisma
-        const deadlineForSave = editedTask.deadline
-          ? (editedTask.deadline instanceof Date ? editedTask.deadline : new Date(editedTask.deadline))
-          : null
-
         logger.db.debug('Saving workflow with deadline', {
           workflowId: task.id,
           deadlineISO: deadlineForSave ? deadlineForSave.toISOString() : 'null',
@@ -176,8 +178,9 @@ export function UnifiedTaskEdit({ task, onClose, startInEditMode = false }: Unif
           stepCount: cleanedSteps.length,
         }, 'workflow-save-success')
       } else {
-        // Regular task save
-        await updateTask(task.id, editedTask)
+        // Regular task save — send the normalized deadline so clearing it (null)
+        // actually persists instead of being dropped as a no-op.
+        await updateTask(task.id, { ...editedTask, deadline: deadlineForSave })
         // Store is updated reactively by updateTask - no manual refresh needed
         // Schedule will automatically recompute via reactive subscriptions
         logger.db.info('Task saved successfully', {
@@ -509,15 +512,16 @@ export function UnifiedTaskEdit({ task, onClose, startInEditMode = false }: Unif
             {isEditing ? (
               <DatePicker
                 value={editedTask.deadline ? new Date(editedTask.deadline) : undefined}
-                onChange={(value) => {
-                  const dateValue = value
-                    ? (typeof value === 'string' ? value : (value as Date).toISOString())
-                    : null
+                onChange={(_dateString, date) => {
+                  // Arco's onChange is (dateString, dayjsDate). Store a real Date
+                  // (or undefined when cleared) — the earlier code stored the raw
+                  // dateString, which the server's z.date() schema rejected.
+                  const deadline = date ? date.toDate() : undefined
                   logger.ui.debug('Deadline changed', {
                     taskId: task.id,
-                    newDeadline: dateValue,
+                    newDeadline: deadline ? deadline.toISOString() : null,
                   }, 'deadline-change')
-                  setEditedTask({ ...editedTask, deadline: value } as any)
+                  setEditedTask({ ...editedTask, deadline })
                 }}
                 style={{ width: '100%' }}
                 showTime

@@ -17,6 +17,17 @@ nonisolated enum SpatialLayoutEngine {
         let typeId: String
         let panelEntityId: String
         let order: Int
+        /// The panel entity's persisted position when it has been placed (non-origin). The whole
+        /// "tray" — panel header, translucent slab, and task column — anchors here, so a hand-moved
+        /// tray (and its column) survives restart. `nil` (never placed) falls back to the index lane.
+        let storedAnchor: SIMD3<Float>?
+
+        init(typeId: String, panelEntityId: String, order: Int, storedAnchor: SIMD3<Float>? = nil) {
+            self.typeId = typeId
+            self.panelEntityId = panelEntityId
+            self.order = order
+            self.storedAnchor = storedAnchor
+        }
     }
 
     struct TaskInput: Sendable, Equatable {
@@ -53,27 +64,69 @@ nonisolated enum SpatialLayoutEngine {
         let size: SIMD3<Float>
     }
 
+    // Column / tray geometry (meters). No magic numbers scattered in the body.
+    /// Preferred slab width when lanes are spacious; narrowed to the lane step when types are dense.
+    static let preferredTrayWidth: Float = 0.26
+    /// Per-lane depth offset so coplanar translucent slabs can never z-fight (the "flicker" at ≥5
+    /// types, when slabs were all at one depth). Sub-millimeter — invisible, but enough to order them.
+    static let trayDepthStagger: Float = 0.0008
+    /// The task column starts this far below the panel header.
+    static let columnTopGap: Float = 0.16
+    /// The tray slab top sits this far below the panel header (above the first card).
+    static let trayTopGap: Float = 0.10
+    /// Minimum slab height (keeps a tray readable even with an empty column or a low-dragged panel).
+    static let minTrayHeight: Float = 0.10
+    /// Max vertical spacing between stacked column cards (packs tighter for long columns).
+    static let rowStepMax: Float = 0.12
+
+    /// The "tray anchor" for a type: its panel's stored position when placed, else the index lane at
+    /// the top-back of the volume. The panel header, slab, and task column are all positioned relative
+    /// to this single point, so moving the panel moves the whole tray as a unit.
+    static func anchor(_ type: TypeInput, index: Int, count: Int, _ m: VolumeMetrics) -> SIMD3<Float> {
+        type.storedAnchor ?? SIMD3(laneCenterX(index: index, count: count, halfX: m.usableHalf.x), m.headerY, m.backZ)
+    }
+
+    /// Horizontal spacing between adjacent index lanes (drives the non-overlapping tray width).
+    static func laneStep(count: Int, halfX: Float) -> Float {
+        let span = halfX * 1.7
+        return count > 1 ? span / Float(count - 1) : span
+    }
+
+    /// Tray slab width: the preferred width, capped so adjacent default lanes keep a ≥10% gap. Scales
+    /// with the volume (a bigger volume → wider lanes → wider trays), so the overlap that caused the
+    /// flicker at 5 types in a 1.4 m volume cannot recur regardless of type count or volume size.
+    static func trayWidth(count: Int, halfX: Float) -> Float {
+        count > 1 ? min(preferredTrayWidth, laneStep(count: count, halfX: halfX) * 0.9) : preferredTrayWidth
+    }
+
+    /// Vertical spacing between stacked column cards for a column of `count` cards under `columnTop`.
+    static func columnRowStep(count: Int, columnTop: Float, _ m: VolumeMetrics) -> Float {
+        let bottom = -m.usableHalf.y + 0.06
+        let available = max(columnTop - bottom, Float(0.1))
+        return count > 0 ? min(rowStepMax, available / Float(count)) : rowStepMax
+    }
+
     /// One tray backing per type, spanning that type's column region (below its panel) at the column
-    /// depth. Pure (no entities) so the visual bounds match the column layout math exactly.
+    /// depth. Pure (no entities) so the visual bounds match the column layout math exactly. Width comes
+    /// from the lane step and each lane is depth-staggered, so slabs neither overlap nor z-fight.
     static func trayBounds(_ input: Input) -> [TrayBounds] {
         let m = input.metrics
         let sortedTypes = input.types.sorted { $0.order < $1.order }
         let n = sortedTypes.count
-
-        let panelY = m.headerY
-        let panelZ = m.backZ
-        let columnBottom = -m.usableHalf.y + 0.06
-        let top = panelY - 0.10          // just below the panel header
-        let bottom = columnBottom - 0.03 // just below the lowest card slot
-        let centerY = (top + bottom) / 2
-        let height = max(top - bottom, Float(0.1))
+        let width = trayWidth(count: n, halfX: m.usableHalf.x)
+        let bottom = (-m.usableHalf.y + 0.06) - 0.03   // just below the lowest card slot, near the floor
 
         return sortedTypes.enumerated().map { i, type in
-            let x = laneCenterX(index: i, count: n, halfX: m.usableHalf.x)
+            let a = anchor(type, index: i, count: n, m)
+            // Keep the slab at least `minTrayHeight` tall even if the panel is dragged toward the
+            // floor (`top` clamped above `bottom`), so `centerY` always lands between valid bounds.
+            let top = max(a.y - trayTopGap, bottom + minTrayHeight)
+            let centerY = (top + bottom) / 2
+            let height = top - bottom
             return TrayBounds(
                 typeId: type.typeId,
-                center: SIMD3(x, centerY, panelZ + 0.05),   // just behind the column cards (panelZ + 0.06)
-                size: SIMD3(0.26, height, 0.006)
+                center: SIMD3(a.x, centerY, a.z + 0.05 + Float(i) * trayDepthStagger),
+                size: SIMD3(width, height, 0.006)
             )
         }
     }
@@ -84,33 +137,21 @@ nonisolated enum SpatialLayoutEngine {
 
         let sortedTypes = input.types.sorted { $0.order < $1.order }
         let n = sortedTypes.count
-
-        // Panels in a row across the upper-back of the volume.
-        let panelY = m.headerY
-        let panelZ = m.backZ
-        var laneX: [String: Float] = [:]   // typeId → column x
+        let tasksByType = Dictionary(grouping: input.tasks, by: { $0.typeId })
 
         for (i, type) in sortedTypes.enumerated() {
-            let x = laneCenterX(index: i, count: n, halfX: m.usableHalf.x)
-            laneX[type.typeId] = x
-            placements.append(place(type.panelEntityId, [x, panelY, panelZ], input, m))
-        }
+            let a = anchor(type, index: i, count: n, m)
+            // Panel header at the anchor.
+            placements.append(place(type.panelEntityId, a, input, m))
 
-        // Tasks grouped by type, stacked in a column under their panel.
-        let tasksByType = Dictionary(grouping: input.tasks, by: { $0.typeId })
-        let columnTop = panelY - 0.16
-        let columnBottom = -m.usableHalf.y + 0.06
-        let available = max(columnTop - columnBottom, Float(0.1))
-
-        for type in sortedTypes {
+            // Tasks stacked in a column directly under the panel, packed to fit.
             let columnTasks = (tasksByType[type.typeId] ?? []).sorted { $0.order < $1.order }
             guard !columnTasks.isEmpty else { continue }
-            let x = laneX[type.typeId] ?? 0
-            // Dynamic spacing so a long column packs to fit instead of clamping into a pile.
-            let rowStep = min(Float(0.12), available / Float(columnTasks.count))
+            let columnTop = a.y - columnTopGap
+            let rowStep = columnRowStep(count: columnTasks.count, columnTop: columnTop, m)
             for (row, task) in columnTasks.enumerated() {
                 let y = columnTop - Float(row) * rowStep
-                placements.append(place(task.entityId, [x, y, panelZ + 0.06], input, m))
+                placements.append(place(task.entityId, [a.x, y, a.z + 0.06], input, m))
             }
         }
 

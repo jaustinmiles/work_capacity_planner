@@ -30,6 +30,7 @@ import { memoryRouter } from './memory'
 import { decisionRouter } from './decision'
 import { comparisonRouter } from './comparison'
 import { spatialSceneRouter } from './spatialScene'
+import { mindmapRouter } from './mindmap'
 
 /**
  * Main application router
@@ -53,6 +54,7 @@ import { spatialSceneRouter } from './spatialScene'
  * - deepWorkBoard: Freeform whiteboard canvas for task creation and execution
  * - feedback: Development feedback (Feedback table — shared with the MCP tools)
  * - agent: AI agent tool approval/rejection (chat endpoint is SSE, see agent-chat-handler)
+ * - mindmap: Journal entries + AI-processed mind map scene (codified, validated extraction)
  */
 export const appRouter = router({
   session: sessionRouter,
@@ -79,6 +81,7 @@ export const appRouter = router({
   decision: decisionRouter,
   comparison: comparisonRouter,
   spatialScene: spatialSceneRouter,
+  mindmap: mindmapRouter,
 })
 
 /**

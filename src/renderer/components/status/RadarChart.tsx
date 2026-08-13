@@ -501,6 +501,39 @@ export function prepareRadarChartData(input: PrepareRadarDataInput): RadarChartD
 }
 
 /**
+ * Input for resolving the divisor used to normalize radar chart values
+ */
+export interface RadarNormalizationInput {
+  /** Raw values (minutes) of the data points currently displayed */
+  currentRawValues: number[]
+  /** Raw values (minutes) of the animation's final cumulative frame, or null when not animating */
+  finalFrameRawValues: number[] | null
+  /** When true, always normalize against the current values' own max (axes span the full 0-1 domain) */
+  normalizeToCurrentMax: boolean
+}
+
+/**
+ * Resolves the max value used as the normalization divisor for radar chart data.
+ *
+ * Two modes:
+ * - Normalized (normalizeToCurrentMax=true): divide by the current view's own max, so the
+ *   largest axis is always exactly 1. The chart occupies the same 0-1 domain for any time
+ *   frame (a single day or a 30-day range), making distribution shapes directly comparable.
+ * - Absolute (default): during animation, divide by the FINAL frame's max so the chart
+ *   grows toward its final shape instead of rescaling every frame; otherwise fall back to
+ *   the current max.
+ *
+ * Always returns at least 1 to prevent division by zero.
+ */
+export function resolveRadarNormalizationMax(input: RadarNormalizationInput): number {
+  const { currentRawValues, finalFrameRawValues, normalizeToCurrentMax } = input
+  if (!normalizeToCurrentMax && finalFrameRawValues !== null) {
+    return Math.max(...finalFrameRawValues, 1)
+  }
+  return Math.max(...currentRawValues, 1)
+}
+
+/**
  * Time sink input type for creating radar data points
  */
 export interface TimeSinkRadarInput {

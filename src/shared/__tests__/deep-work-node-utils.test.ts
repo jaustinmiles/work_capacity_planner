@@ -8,10 +8,13 @@ import {
   deriveDeepWorkDisplayStatus,
   findBoardSessions,
   getInitialFields,
+  buildStepUpdatePayload,
+  applyTaskStepUpdate,
   calculateGridPosition,
   pickRandomActionableNode,
   findFirstUnblockedBlocker,
 } from '../deep-work-node-utils'
+import type { TaskStep } from '../types'
 import type { DeepWorkNodeWithData, DeepWorkEdge } from '../deep-work-board-types'
 import { DeepWorkNodeStatus, DeepWorkEdgeType } from '../deep-work-board-types'
 import { StepStatus } from '../enums'
@@ -615,5 +618,129 @@ describe('pickRandomActionableNode', () => {
 
     const result = pickRandomActionableNode(nodes, actionable, new Set())
     expect(result).toBe(nodeA)
+  })
+})
+
+// =============================================================================
+// buildStepUpdatePayload — regression for "deep work board steps uneditable":
+// the panel used to send step edits through task.update, whose Zod schema has
+// no `steps` field, so every step edit was silently stripped server-side.
+// The fix routes edits through workflow.updateStep via this diff payload.
+// =============================================================================
+
+describe('buildStepUpdatePayload', () => {
+  function stepFields() {
+    return getInitialFields(makeStepNode('B', 'step-1', 'wf-1'))
+  }
+
+  it('returns an empty payload when nothing changed', () => {
+    const initial = stepFields()
+    expect(buildStepUpdatePayload(stepFields(), initial)).toEqual({})
+  })
+
+  it('emits only the changed field', () => {
+    const initial = stepFields()
+    const edited = { ...initial, type: 'admin' }
+    expect(buildStepUpdatePayload(edited, initial)).toEqual({ type: 'admin' })
+  })
+
+  it('does not freeze the parent-priority fallback into a step override', () => {
+    // getInitialFields shows the parent workflow's importance (7) / urgency (8)
+    // when the step has no override — editing an unrelated field must not
+    // persist those fallback values as per-step overrides.
+    const initial = stepFields()
+    const edited = { ...initial, name: 'Renamed step' }
+    const payload = buildStepUpdatePayload(edited, initial)
+    expect(payload).toEqual({ name: 'Renamed step' })
+    expect(payload.importance).toBeUndefined()
+    expect(payload.urgency).toBeUndefined()
+  })
+
+  it('persists a deliberate priority override', () => {
+    const initial = stepFields()
+    const edited = { ...initial, importance: 9 }
+    expect(buildStepUpdatePayload(edited, initial)).toEqual({ importance: 9 })
+  })
+
+  it('clears notes with null when the field is emptied', () => {
+    const initial = { ...stepFields(), notes: 'old note' }
+    const edited = { ...initial, notes: '' }
+    expect(buildStepUpdatePayload(edited, initial)).toEqual({ notes: null })
+  })
+
+  it('sends new notes text as-is', () => {
+    const initial = stepFields()
+    const edited = { ...initial, notes: 'remember the edge case' }
+    expect(buildStepUpdatePayload(edited, initial)).toEqual({ notes: 'remember the edge case' })
+  })
+
+  it('emits every changed field of a multi-field edit', () => {
+    const initial = stepFields()
+    const edited = {
+      ...initial,
+      duration: 45,
+      cognitiveComplexity: 4,
+      asyncWaitTime: 120,
+    }
+    expect(buildStepUpdatePayload(edited, initial)).toEqual({
+      duration: 45,
+      cognitiveComplexity: 4,
+      asyncWaitTime: 120,
+    })
+  })
+})
+
+describe('applyTaskStepUpdate', () => {
+  function makeStep(): TaskStep {
+    return {
+      id: 'step-1',
+      name: 'Original',
+      duration: 15,
+      type: 'focused',
+      taskId: 'wf-1',
+      dependsOn: [],
+      asyncWaitTime: 0,
+      status: StepStatus.Pending,
+      stepIndex: 0,
+      percentComplete: 0,
+      notes: 'keep me',
+      cognitiveComplexity: 2,
+      importance: 6,
+    }
+  }
+
+  it('applies updated fields and leaves the rest untouched', () => {
+    const step = makeStep()
+    const next = applyTaskStepUpdate(step, { type: 'admin', duration: 45 })
+    expect(next.type).toBe('admin')
+    expect(next.duration).toBe(45)
+    expect(next.name).toBe('Original')
+    expect(next.notes).toBe('keep me')
+    expect(next.importance).toBe(6)
+  })
+
+  it('does not mutate the original step', () => {
+    const step = makeStep()
+    applyTaskStepUpdate(step, { type: 'admin' })
+    expect(step.type).toBe('focused')
+  })
+
+  it('clears optional fields when null is sent', () => {
+    const step = makeStep()
+    const next = applyTaskStepUpdate(step, {
+      notes: null,
+      cognitiveComplexity: null,
+      importance: null,
+    })
+    expect(next.notes).toBeUndefined()
+    expect(next.cognitiveComplexity).toBeUndefined()
+    expect(next.importance).toBeUndefined()
+  })
+
+  it('narrows cognitiveComplexity to the 1-5 union', () => {
+    const step = makeStep()
+    expect(applyTaskStepUpdate(step, { cognitiveComplexity: 5 }).cognitiveComplexity).toBe(5)
+    // Out-of-range values (server would reject them anyway) fall back to undefined
+    expect(applyTaskStepUpdate(step, { cognitiveComplexity: 7 }).cognitiveComplexity).toBeUndefined()
   })
 })

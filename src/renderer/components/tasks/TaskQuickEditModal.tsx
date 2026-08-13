@@ -727,7 +727,7 @@ export function TaskQuickEditModal({
               ))}
               <DatePicker
                 value={(editedData as Task)?.deadline ? dayjs((editedData as Task).deadline) : undefined}
-                onChange={(_dateString, date) => updateField('deadline', date?.toDate())}
+                onChange={(_dateString, date) => updateField('deadline', date ? date.toDate() : null)}
                 shortcuts={[
                   {
                     text: 'Today',
