@@ -46,6 +46,8 @@ module.exports = [
         HTMLInputElement: 'readonly',
         HTMLTextAreaElement: 'readonly',
         Node: 'readonly',
+        Range: 'readonly',
+        Text: 'readonly',
         MouseEvent: 'readonly',
         DragEvent: 'readonly',
         WheelEvent: 'readonly',

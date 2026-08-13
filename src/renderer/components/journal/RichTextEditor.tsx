@@ -9,7 +9,7 @@
  * fights a controlled value (no cursor jumps). See decision doc D6.
  */
 
-import { Fragment, useEffect, useRef, type ReactNode } from 'react'
+import { Fragment, forwardRef, useEffect, useImperativeHandle, useRef, type ReactNode } from 'react'
 import { Space, Button, Divider } from '@arco-design/web-react'
 
 interface RichTextEditorProps {
@@ -19,6 +19,17 @@ interface RichTextEditorProps {
   onChange: (html: string, plainText: string) => void
   /** Placeholder shown when empty. */
   placeholder?: string
+  /** Extra controls rendered at the right end of the toolbar (e.g. dictation). */
+  toolbarExtra?: ReactNode
+}
+
+export interface RichTextEditorHandle {
+  /**
+   * Insert plain text at the caret (or at the end of the document when the
+   * selection is outside the editor), separating it from adjacent text with a
+   * space when needed. Emits onChange.
+   */
+  insertText: (text: string) => void
 }
 
 interface ToolbarAction {
@@ -27,7 +38,8 @@ interface ToolbarAction {
   run: () => void
 }
 
-export function RichTextEditor({ defaultValue, onChange, placeholder }: RichTextEditorProps) {
+export const RichTextEditor = forwardRef<RichTextEditorHandle, RichTextEditorProps>(
+  function RichTextEditor({ defaultValue, onChange, placeholder, toolbarExtra }, ref) {
   const editorRef = useRef<HTMLDivElement>(null)
 
   // Initialize content once on mount (component is remounted per entry via `key`).
@@ -43,6 +55,59 @@ export function RichTextEditor({ defaultValue, onChange, placeholder }: RichText
     if (!el) return
     onChange(el.innerHTML, el.innerText)
   }
+
+  // Range-API insertion (not execCommand): deterministic, works in jsdom, and
+  // lets us restore the caret after the inserted text.
+  useImperativeHandle(ref, () => ({
+    insertText: (text: string): void => {
+      const el = editorRef.current
+      if (!el || text.length === 0) return
+
+      // Capture the caret BEFORE focusing — focus() resets the selection to
+      // the start of the editor when it was previously elsewhere.
+      const selection = window.getSelection()
+      let range: Range | null = null
+      if (selection && selection.rangeCount > 0) {
+        const candidate = selection.getRangeAt(0)
+        if (el.contains(candidate.commonAncestorContainer)) {
+          range = candidate
+        }
+      }
+      el.focus()
+      if (!range) {
+        // Selection lives outside the editor (e.g. after clicking a button
+        // elsewhere) — append at the end of the document.
+        range = document.createRange()
+        range.selectNodeContents(el)
+        range.collapse(false)
+      }
+      range.deleteContents()
+
+      // Separate dictated text from an adjacent word with a space. The caret
+      // container is a text node when placed mid-text, or an element (with the
+      // offset counting child nodes) when collapsed to the end of the document.
+      const { startContainer, startOffset } = range
+      let prevChar = ''
+      if (startContainer.nodeType === Node.TEXT_NODE) {
+        if (startOffset > 0) {
+          prevChar = (startContainer.textContent ?? '').charAt(startOffset - 1)
+        }
+      } else if (startOffset > 0) {
+        const childBefore = startContainer.childNodes[startOffset - 1]
+        prevChar = (childBefore?.textContent ?? '').slice(-1)
+      }
+      const needsSpace = prevChar !== '' && !/\s/.test(prevChar)
+
+      const node = document.createTextNode(needsSpace ? ` ${text}` : text)
+      range.insertNode(node)
+      range.setStartAfter(node)
+      range.collapse(true)
+      selection?.removeAllRanges()
+      selection?.addRange(range)
+
+      emitChange()
+    },
+  }))
 
   // execCommand is deprecated but fully functional in Electron/Chromium and is the
   // pragmatic zero-dependency path (decision doc D6). Toolbar buttons preventDefault
@@ -82,6 +147,10 @@ export function RichTextEditor({ defaultValue, onChange, placeholder }: RichText
           borderBottom: '1px solid var(--color-border-2)',
           background: 'var(--color-fill-1)',
           flexShrink: 0,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: 8,
         }}
       >
         <Space size={2} wrap>
@@ -102,6 +171,7 @@ export function RichTextEditor({ defaultValue, onChange, placeholder }: RichText
             </Fragment>
           ))}
         </Space>
+        {toolbarExtra && <Space size={4}>{toolbarExtra}</Space>}
       </div>
       <div
         ref={editorRef}
@@ -122,4 +192,4 @@ export function RichTextEditor({ defaultValue, onChange, placeholder }: RichText
       />
     </div>
   )
-}
+})
